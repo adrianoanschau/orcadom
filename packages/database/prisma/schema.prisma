@@ -1,0 +1,108 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum AccountType {
+  WALLET
+  CHECKING
+  CREDIT_CARD
+}
+
+enum CategoryType {
+  INCOME
+  EXPENSE
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+  TRANSFER
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  accounts     Account[]
+  categories   Category[]
+  transactions Transaction[]
+
+  @@map("users")
+}
+
+model Account {
+  id        String      @id @default(uuid())
+  name      String
+  type      AccountType
+  balance   Decimal     @default(0) @db.Decimal(12, 2)
+  color     String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  transactions  Transaction[] @relation("AccountTransactions")
+  transfersFrom Transaction[] @relation("TransferFromAccount")
+  transfersTo   Transaction[] @relation("TransferToAccount")
+
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Category {
+  id    String       @id @default(uuid())
+  name  String
+  type  CategoryType
+  icon  String?
+  color String?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  transactions Transaction[]
+
+  @@unique([userId, name, type])
+  @@index([userId])
+  @@map("categories")
+}
+
+model Transaction {
+  id          String          @id @default(uuid())
+  description String
+  amount      Decimal         @db.Decimal(12, 2)
+  type        TransactionType
+  date        DateTime
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Usado quando type = INCOME ou EXPENSE
+  accountId String?
+  account   Account? @relation("AccountTransactions", fields: [accountId], references: [id])
+
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id])
+
+  // Usado apenas quando type = TRANSFER
+  fromAccountId String?
+  fromAccount   Account? @relation("TransferFromAccount", fields: [fromAccountId], references: [id])
+
+  toAccountId String?
+  toAccount   Account? @relation("TransferToAccount", fields: [toAccountId], references: [id])
+
+  @@index([userId, date])
+  @@index([accountId])
+  @@map("transactions")
+}

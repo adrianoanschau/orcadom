@@ -15,6 +15,7 @@ export function createEslintConfig(tsconfigRootDir) {
         '**/.turbo/**',
         '**/node_modules/**',
         '**/coverage/**',
+        '**/src/generated/**',
         'pnpm-lock.yaml',
       ],
     },
