@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Orcadom — Design System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --canvas: #EFF2EF;
+    --surface: #FFFFFF;
+    --surface-sunken: #E4E9E4;
+    --ink: #1C2420;
+    --ink-soft: #5C645F;
+    --ink-faint: #93998F;
+    --hairline: #D7DED6;
+    --brand: #0D6E63;
+    --brand-hover: #0A574F;
+    --brand-tint: #DCEBE7;
+    --income: #2F7D5A;
+    --expense: #C4462F;
+    --transfer: #3B6E91;
+    --pending: #B8873A;
+    --r-sm: 8px; --r-md: 14px; --r-lg: 22px; --r-pill: 999px;
+    --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px; --sp-7: 48px; --sp-8: 64px;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  *, *::before, *::after { box-sizing: inherit; }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  body {
+    margin: 0;
+    background: var(--canvas);
+    color: var(--ink);
+    font-family: 'Manrope', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; padding: var(--sp-8) var(--sp-5) var(--sp-8); }
+  section { margin-bottom: var(--sp-8); }
+  h1, h2, h3 { font-family: 'Fraunces', serif; font-weight: 600; margin: 0 0 var(--sp-2); line-height: 1.15; }
+  h2 { font-size: 26px; margin-bottom: var(--sp-1); }
+  .section-note { color: var(--ink-soft); font-size: 15px; max-width: 60ch; margin: 0 0 var(--sp-5); line-height: 1.55; }
+  p { line-height: 1.6; }
+
+  /* Hero */
+  .hero { padding-top: var(--sp-3); }
+  .hero h1 { font-size: clamp(34px, 6vw, 48px); max-width: 14ch; }
+  .hero p.lede { font-size: 18px; color: var(--ink-soft); max-width: 52ch; margin: var(--sp-3) 0 var(--sp-6); }
+  .ledger-amount {
+    font-family: 'Manrope', sans-serif;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    font-size: clamp(36px, 5vw, 52px);
+    color: var(--brand);
+    display: inline-block;
+    padding-bottom: var(--sp-2);
+    border-bottom: 2px dashed var(--hairline);
+  }
+  .hero-caption { color: var(--ink-faint); font-size: 13px; margin-top: var(--sp-2); }
+
+  /* Swatches */
+  .swatch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--sp-4); }
+  .swatch { border-radius: var(--r-md); overflow: hidden; border: 1px solid var(--hairline); background: var(--surface); }
+  .swatch-color { height: 64px; }
+  .swatch-label { padding: var(--sp-2) var(--sp-3) var(--sp-3); }
+  .swatch-name { font-weight: 600; font-size: 14px; display: block; }
+  .swatch-hex { color: var(--ink-soft); font-size: 13px; font-variant-numeric: tabular-nums; }
+
+  /* Type scale */
+  .type-row { display: flex; align-items: baseline; gap: var(--sp-5); padding: var(--sp-4) 0; border-bottom: 1px solid var(--hairline); }
+  .type-row:last-child { border-bottom: none; }
+  .type-meta { flex: 0 0 130px; color: var(--ink-faint); font-size: 13px; font-variant-numeric: tabular-nums; }
+  .t-display { font-family: 'Fraunces', serif; font-weight: 600; font-size: 40px; }
+  .t-h1 { font-family: 'Fraunces', serif; font-weight: 600; font-size: 28px; }
+  .t-h2 { font-family: 'Fraunces', serif; font-weight: 500; font-size: 21px; }
+  .t-body { font-size: 16px; }
+  .t-small { font-size: 14px; color: var(--ink-soft); }
+  .t-amount { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 20px; }
+
+  /* Tokens: spacing / radius */
+  .token-cols { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-6); }
+  .token-row { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-2) 0; }
+  .token-key { flex: 0 0 70px; font-size: 13px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+  .bar { height: 10px; background: var(--brand); border-radius: 4px; }
+  .radius-demo { width: 40px; height: 40px; background: var(--brand-tint); border: 1px solid var(--brand); flex: 0 0 40px; }
+
+  /* Components */
+  .comp-block { margin-bottom: var(--sp-6); }
+  .comp-label { font-size: 13px; color: var(--ink-faint); margin-bottom: var(--sp-3); }
+  .row-flex { display: flex; flex-wrap: wrap; gap: var(--sp-3); align-items: center; }
+
+  .btn { font-family: 'Manrope', sans-serif; font-weight: 600; font-size: 15px; padding: 12px 22px; border-radius: var(--r-pill); border: none; cursor: pointer; }
+  .btn-primary { background: var(--brand); color: #fff; }
+  .btn-secondary { background: transparent; color: var(--brand); border: 1.5px solid var(--brand); }
+  .btn-ghost { background: transparent; color: var(--ink-soft); }
+
+  .field { display: flex; flex-direction: column; gap: var(--sp-1); max-width: 280px; }
+  .field label { font-size: 13px; font-weight: 600; color: var(--ink-soft); }
+  .field input { font-family: 'Manrope', sans-serif; font-size: 15px; padding: 11px 14px; border-radius: var(--r-sm); border: 1px solid var(--hairline); background: var(--surface-sunken); color: var(--ink); }
+
+  .chip { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; padding: 6px 12px; border-radius: var(--r-pill); background: var(--surface); border: 1px solid var(--hairline); }
+  .chip-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  .card { background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-lg); padding: var(--sp-5); }
+
+  .account-card { max-width: 300px; }
+  .account-type { font-size: 12px; color: var(--ink-faint); margin-bottom: var(--sp-1); }
+  .account-name { font-weight: 700; margin-bottom: var(--sp-3); }
+  .account-balance { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 28px; padding-bottom: var(--sp-2); border-bottom: 2px dashed var(--hairline); display: inline-block; }
+
+  .tx-list { border: 1px solid var(--hairline); border-radius: var(--r-lg); overflow: hidden; background: var(--surface); }
+  .tx-row { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--hairline); }
+  .tx-row:last-child { border-bottom: none; }
+  .tx-icon { width: 36px; height: 36px; border-radius: 50%; flex: 0 0 36px; }
+  .tx-info { flex: 1; min-width: 0; }
+  .tx-desc { font-weight: 600; font-size: 14px; }
+  .tx-cat { font-size: 13px; color: var(--ink-faint); }
+  .tx-amount { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 15px; white-space: nowrap; }
+
+  .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-4); }
+  .stat-card { background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-md); padding: var(--sp-4); }
+  .stat-label { font-size: 13px; color: var(--ink-soft); margin-bottom: var(--sp-1); }
+  .stat-value { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 22px; }
+
+  code { background: var(--surface-sunken); padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+
+  @media (max-width: 640px) {
+    .token-cols { grid-template-columns: 1fr; }
+    .stat-grid { grid-template-columns: 1fr; }
+    .type-row { flex-direction: column; gap: var(--sp-1); }
+    .type-meta { flex: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <section class="hero">
+    <h1>Orcadom Design System</h1>
+    <p class="lede">Um canvas claro e calmo, com a linguagem de um caderno de contas — tipografia com personalidade em vez do dashboard fintech escuro que virou padrão do setor.</p>
+    <span class="ledger-amount">R$ 4.280,50</span>
+    <div class="hero-caption">amount / display — a linha tracejada é a assinatura visual do sistema, referência ao registro de um talão</div>
+  </section>
+
+  <section>
+    <h2>Paleta</h2>
+    <p class="section-note">Um único acento de marca (verde-petróleo) para ações e navegação. As cores semânticas de receita, despesa, transferência e pendência são fixas — nunca reaproveitadas para outro fim, para que o usuário aprenda a associá-las com confiança.</p>
+    <div class="swatch-grid">
+      <div class="swatch"><div class="swatch-color" style="background:#EFF2EF"></div><div class="swatch-label"><span class="swatch-name">canvas</span><span class="swatch-hex">#EFF2EF</span></div></div>
+      <div class="swatch"><div class="swatch-color" style="background:#FFFFFF;border-bottom:1px solid #eee"></div><div class="swatch-label"><span class="swatch-name">surface</span><span class="swatch-hex">#FFFFFF</span></div></div>
+      <div class="swatch"><div class="swatch-color" style="background:#1C2420"></div><div class="swatch-label"><span class="swatch-name">ink</span><span class="swatch-hex">#1C2420</span></div></div>
+      <div class="swatch"><div class="swatch-color" style="background:#0D6E63"></div><div class="swatch-label"><span class="swatch-name">brand</span><span class="swatch-hex">#0D6E63</span></div></div>
+      <div class="swatch"><div class="swatch-color" style="background:#2F7D5A"></div><div class="swatch-label"><span class="swatch-name">income</span><span class="swatch-hex">#2F7D5A</span></div></div>
+      <div class="swatch"><div class="swatch-color" style="background:#C4462F"></div><div class="swatch-label"><span class="swatch-name">expense</span><span class="swatch-hex">#C4462F</span></div></div>
+      <div class="swatch"><div class="swatch-color" style="background:#3B6E91"></div><div class="swatch-label"><span class="swatch-name">transfer</span><span class="swatch-hex">#3B6E91</span></div></div>
+      <div class="swatch"><div class="swatch-color" style="background:#B8873A"></div><div class="swatch-label"><span class="swatch-name">pending</span><span class="swatch-hex">#B8873A</span></div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Tipografia</h2>
+    <p class="section-note"><strong>Fraunces</strong> para títulos e nomes de marca — traz o peso editorial de um livro-caixa. <strong>Manrope</strong> para toda a interface e para valores monetários, sempre com algarismos tabulares para que os números fiquem alinhados em listas e extratos.</p>
+    <div class="type-row"><div class="type-meta">display / 40px</div><div class="t-display">Seu mês em números</div></div>
+    <div class="type-row"><div class="type-meta">h1 / 28px</div><div class="t-h1">Contas e cartões</div></div>
+    <div class="type-row"><div class="type-meta">h2 / 21px</div><div class="t-h2">Transações de setembro</div></div>
+    <div class="type-row"><div class="type-meta">body / 16px</div><div class="t-body">Texto padrão de interface, usado em descrições e formulários.</div></div>
+    <div class="type-row"><div class="type-meta">small / 14px</div><div class="t-small">Legendas, datas e textos auxiliares.</div></div>
+    <div class="type-row"><div class="type-meta">amount / 20px</div><div class="t-amount">R$ 1.245,90</div></div>
+  </section>
+
+  <section>
+    <h2>Espaçamento &amp; forma</h2>
+    <p class="section-note">Escala de 4px para espaçamento; raios crescentes conforme o elemento ganha destaque — botões e chips em pílula, cartões com raio maior, campos de formulário mais discretos.</p>
+    <div class="token-cols">
+      <div>
+        <div class="token-row"><span class="token-key">4px</span><div class="bar" style="width:4px"></div></div>
+        <div class="token-row"><span class="token-key">8px</span><div class="bar" style="width:8px"></div></div>
+        <div class="token-row"><span class="token-key">16px</span><div class="bar" style="width:16px"></div></div>
+        <div class="token-row"><span class="token-key">24px</span><div class="bar" style="width:24px"></div></div>
+        <div class="token-row"><span class="token-key">32px</span><div class="bar" style="width:32px"></div></div>
+        <div class="token-row"><span class="token-key">48px</span><div class="bar" style="width:48px"></div></div>
+      </div>
+      <div>
+        <div class="token-row"><span class="token-key">sm 8px</span><div class="radius-demo" style="border-radius:8px"></div></div>
+        <div class="token-row"><span class="token-key">md 14px</span><div class="radius-demo" style="border-radius:14px"></div></div>
+        <div class="token-row"><span class="token-key">lg 22px</span><div class="radius-demo" style="border-radius:22px"></div></div>
+        <div class="token-row"><span class="token-key">pill</span><div class="radius-demo" style="border-radius:999px"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Componentes</h2>
+
+    <div class="comp-block">
+      <div class="comp-label">Botões</div>
+      <div class="row-flex">
+        <button class="btn btn-primary">Salvar transação</button>
+        <button class="btn btn-secondary">Cancelar</button>
+        <button class="btn btn-ghost">Ver detalhes</button>
+      </div>
+    </div>
+
+    <div class="comp-block">
+      <div class="comp-label">Campo de formulário</div>
+      <div class="field">
+        <label for="desc">Descrição</label>
+        <input id="desc" type="text" placeholder="Supermercado do mês">
+      </div>
+    </div>
+
+    <div class="comp-block">
+      <div class="comp-label">Categorias (chip)</div>
+      <div class="row-flex">
+        <span class="chip"><span class="chip-dot" style="background:#2F7D5A"></span>Salário</span>
+        <span class="chip"><span class="chip-dot" style="background:#C4462F"></span>Mercado</span>
+        <span class="chip"><span class="chip-dot" style="background:#C4462F"></span>Transporte</span>
+        <span class="chip"><span class="chip-dot" style="background:#3B6E91"></span>Transferência</span>
+      </div>
+    </div>
+
+    <div class="comp-block">
+      <div class="comp-label">Cartão de conta</div>
+      <div class="card account-card">
+        <div class="account-type">Conta corrente</div>
+        <div class="account-name">Banco do Brasil</div>
+        <span class="account-balance">R$ 3.150,00</span>
+      </div>
+    </div>
+
+    <div class="comp-block">
+      <div class="comp-label">Lista de transações</div>
+      <div class="tx-list">
+        <div class="tx-row">
+          <div class="tx-icon" style="background:#DCEBE7"></div>
+          <div class="tx-info"><div class="tx-desc">Salário</div><div class="tx-cat">Receita fixa</div></div>
+          <div class="tx-amount" style="color:var(--income)">+ R$ 4.200,00</div>
+        </div>
+        <div class="tx-row">
+          <div class="tx-icon" style="background:#F3DFD9"></div>
+          <div class="tx-info"><div class="tx-desc">Supermercado</div><div class="tx-cat">Mercado</div></div>
+          <div class="tx-amount" style="color:var(--expense)">− R$ 385,40</div>
+        </div>
+        <div class="tx-row">
+          <div class="tx-icon" style="background:#DCE6EC"></div>
+          <div class="tx-info"><div class="tx-desc">Carteira → Poupança</div><div class="tx-cat">Transferência</div></div>
+          <div class="tx-amount" style="color:var(--transfer)">R$ 500,00</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="comp-block">
+      <div class="comp-label">Cartões de resumo (dashboard)</div>
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-label">Receitas</div><div class="stat-value" style="color:var(--income)">R$ 4.200,00</div></div>
+        <div class="stat-card"><div class="stat-label">Despesas</div><div class="stat-value" style="color:var(--expense)">R$ 1.860,30</div></div>
+        <div class="stat-card"><div class="stat-label">Saldo</div><div class="stat-value">R$ 2.339,70</div></div>
+      </div>
+    </div>
+
+  </section>
+
+  <section style="margin-bottom:0">
+    <h2>Uso no código</h2>
+    <p class="section-note">Estes tokens viram variáveis CSS (<code>:root</code>) para uso direto em HTML/CSS, e um objeto de tema equivalente para o Tailwind config do <code>apps/web</code> — cor de marca como <code>brand</code>, semânticas como <code>income</code>/<code>expense</code>/<code>transfer</code>/<code>pending</code>, e a escala de espaçamento e raio já documentada acima.</p>
+  </section>
+
+</div>
+</body>
+</html>
