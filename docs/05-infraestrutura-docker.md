@@ -5,7 +5,6 @@
 | Serviço    | Imagem               | Porta padrão | Função                                            |
 | ---------- | -------------------- | ------------ | ------------------------------------------------- |
 | `postgres` | `postgres:16-alpine` | 5432         | Banco de dados principal                          |
-| `adminer`  | `adminer:latest`     | 8080         | Interface web para inspecionar o banco (opcional) |
 
 Nenhum outro serviço é necessário para o MVP. Redis, filas ou serviços de
 cache não têm uso justificado no escopo atual — serão avaliados apenas se
@@ -34,16 +33,6 @@ services:
       timeout: 5s
       retries: 10
 
-  adminer:
-    image: adminer:latest
-    container_name: orcadom_adminer
-    restart: unless-stopped
-    ports:
-      - '${ADMINER_PORT:-8080}:8080'
-    depends_on:
-      postgres:
-        condition: service_healthy
-
 volumes:
   orcadom_pgdata:
     name: orcadom_pgdata
@@ -57,7 +46,6 @@ POSTGRES_USER=orcadom
 POSTGRES_PASSWORD=orcadom_dev_password
 POSTGRES_DB=orcadom_db
 POSTGRES_PORT=5432
-ADMINER_PORT=8080
 
 # Usada pelo Prisma e pela API
 DATABASE_URL="postgresql://orcadom:orcadom_dev_password@localhost:5432/orcadom_db?schema=public"
@@ -76,20 +64,20 @@ NEXT_PUBLIC_API_URL=http://localhost:3001
 
 | Comando                           | Efeito                                                   |
 | --------------------------------- | -------------------------------------------------------- |
-| `docker compose up -d`            | Sobe Postgres + Adminer em background                    |
+| `docker compose up -d`            | Sobe o Postgres em background                            |
 | `docker compose up -d postgres`   | Sobe só o Postgres                                       |
 | `docker compose down`             | Para e remove os containers (mantém o volume)            |
 | `docker compose down -v`          | Para os containers **e apaga o volume** (perde os dados) |
 | `docker compose logs -f postgres` | Acompanha os logs do banco                               |
 
-## Acessando o Adminer
+## Acessando pelo DBeaver
 
-Com os containers no ar, acesse `http://localhost:8080` e preencha:
+Com o container no ar, crie uma conexão PostgreSQL:
 
-- **Sistema:** PostgreSQL
-- **Servidor:** `postgres` (nome do serviço no compose, não `localhost`)
+- **Host:** `localhost`
+- **Porta:** valor de `POSTGRES_PORT` (5432)
+- **Database:** valor de `POSTGRES_DB`
 - **Usuário/Senha:** os mesmos definidos no `.env`
-- **Base de dados:** valor de `POSTGRES_DB`
 
 ## Nota sobre produção
 

@@ -10,8 +10,8 @@ para evitar avançar com uma base instável.
 **Objetivo:** monorepo funcional com banco de dados acessível.
 
 1. `pnpm init` na raiz + configurar `pnpm-workspace.yaml` e `turbo.json`.
-2. Criar `docker-compose.yml` com o serviço `postgres` (e opcionalmente
-   `adminer` para inspeção visual do banco).
+2. Criar `docker-compose.yml` com o serviço `postgres`. A inspeção do banco
+   é feita pelo DBeaver, em `localhost` na porta publicada.
 3. Criar `packages/database`: instalar Prisma, definir o `schema.prisma`,
    rodar `npx prisma migrate dev --name init`.
 4. Criar `packages/types` com o primeiro schema Zod (`Transaction`), para

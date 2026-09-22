@@ -31,14 +31,14 @@ localmente, antes de escrever qualquer linha de lógica de negócio.
 - [ ] `pnpm init` na raiz.
 - [ ] Criar `pnpm-workspace.yaml` apontando para `apps/*` e `packages/*`.
 - [ ] Criar `turbo.json` com pipelines básicos (`build`, `dev`, `lint`, `test`).
-- [ ] Criar `docker-compose.yml` com serviço `postgres` (e `adminer`, opcional).
+- [ ] Criar `docker-compose.yml` com o serviço `postgres`.
 - [ ] Criar `.env` a partir de um `.env.example` versionado.
 - [ ] Rodar `docker compose up -d` e confirmar que o Postgres aceita conexões.
 - [ ] Criar `packages/config` com `tsconfig.base.json` e config de ESLint
       compartilhada.
 
 **Critério de fase pronta:** `docker compose up -d` sobe o banco sem erro,
-e é possível conectar nele via Adminer ou `psql`.
+e é possível conectar nele via DBeaver ou `psql`.
 
 ---
 

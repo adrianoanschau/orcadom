@@ -13,6 +13,7 @@ dist/
 .env.*.local
 
 # prisma
+packages/database/src/generated
 !packages/database/prisma/migrations
 
 # logs

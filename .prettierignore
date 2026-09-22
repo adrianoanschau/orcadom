@@ -4,5 +4,6 @@ dist
 .turbo
 coverage
 pnpm-lock.yaml
+packages/database/src/generated
 .editorconfig
 .prettierignore

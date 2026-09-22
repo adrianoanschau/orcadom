@@ -17,18 +17,6 @@ services:
       timeout: 5s
       retries: 10
 
-  # Interface web para inspecionar o banco (opcional, mas útil no dia a dia).
-  # Acesse em http://localhost:8080 usando as mesmas credenciais do serviço postgres.
-  adminer:
-    image: adminer:latest
-    container_name: orcadom_adminer
-    restart: unless-stopped
-    ports:
-      - '${ADMINER_PORT:-8080}:8080'
-    depends_on:
-      postgres:
-        condition: service_healthy
-
 volumes:
   orcadom_pgdata:
     name: orcadom_pgdata
