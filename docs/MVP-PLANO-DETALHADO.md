@@ -12,13 +12,13 @@ satisfeito antes de avançar para a fase seguinte.
 
 ## Visão Geral das Fases
 
-| Fase | Nome | Entrega |
-|------|------|---------|
-| 0 | Setup do Monorepo | Estrutura de pastas, Docker, banco acessível |
-| 1 | Modelagem e Persistência | Schema Prisma migrado e validado |
-| 2 | Backend — Auth e Domínio | API completa, testável via Swagger |
-| 3 | Frontend — Fluxo Base | Interface consumindo a API, CRUD completo |
-| 4 | Integração e Polimento | Sistema pronto para uso real |
+| Fase | Nome                     | Entrega                                      |
+| ---- | ------------------------ | -------------------------------------------- |
+| 0    | Setup do Monorepo        | Estrutura de pastas, Docker, banco acessível |
+| 1    | Modelagem e Persistência | Schema Prisma migrado e validado             |
+| 2    | Backend — Auth e Domínio | API completa, testável via Swagger           |
+| 3    | Frontend — Fluxo Base    | Interface consumindo a API, CRUD completo    |
+| 4    | Integração e Polimento   | Sistema pronto para uso real                 |
 
 ---
 

@@ -70,10 +70,12 @@ orcadom/
 ## Por que cada pacote existe
 
 ### `apps/api` e `apps/web`
+
 Aplicações finais, deployáveis de forma independente. Não compartilham
 código diretamente entre si — tudo que é comum passa pelos `packages/`.
 
 ### `packages/database`
+
 O Prisma fica em um pacote próprio, e não dentro de `apps/api`, por dois
 motivos:
 
@@ -85,6 +87,7 @@ motivos:
    separada de "API HTTP".
 
 ### `packages/types`
+
 Contém os schemas **Zod** (e os tipos TS inferidos a partir deles) que
 descrevem os DTOs de entrada/saída da API. Tanto o NestJS quanto o Next.js
 importam desse pacote — é o que garante que front e back nunca divirjam
@@ -92,12 +95,14 @@ sobre o formato de um payload. Detalhes de uso em
 [`03-decisoes-arquiteturais.md`](./03-decisoes-arquiteturais.md).
 
 ### `packages/ui`
+
 Não é necessário no MVP (o Next.js tem uma única aplicação consumindo os
 componentes). Fica reservado para quando/se surgir uma segunda superfície
 (ex: app mobile ou landing page separada) que precise reaproveitar
 componentes visuais.
 
 ### `packages/config`
+
 Configurações compartilhadas de `eslint`, `tsconfig` e `prettier`, para que
 `apps/api` e `apps/web` estendam a mesma base em vez de duplicar regras.
 

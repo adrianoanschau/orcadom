@@ -182,13 +182,13 @@ model Transaction {
 
 ## Índices e por quê
 
-| Índice | Motivo |
-|--------|--------|
-| `Account.userId` | Toda listagem de contas filtra por usuário |
-| `Category.userId` | Idem, para categorias |
-| `Transaction.[userId, date]` | Consulta mais comum do sistema: transações de um usuário em um intervalo de datas (dashboard mensal) |
-| `Transaction.accountId` | Extrato por conta |
-| `Category.[userId, name, type]` (unique) | Evita categorias duplicadas com o mesmo nome e tipo para o mesmo usuário |
+| Índice                                   | Motivo                                                                                               |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `Account.userId`                         | Toda listagem de contas filtra por usuário                                                           |
+| `Category.userId`                        | Idem, para categorias                                                                                |
+| `Transaction.[userId, date]`             | Consulta mais comum do sistema: transações de um usuário em um intervalo de datas (dashboard mensal) |
+| `Transaction.accountId`                  | Extrato por conta                                                                                    |
+| `Category.[userId, name, type]` (unique) | Evita categorias duplicadas com o mesmo nome e tipo para o mesmo usuário                             |
 
 ## Evoluções previstas pós-MVP (não implementar agora)
 

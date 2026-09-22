@@ -20,13 +20,13 @@ múltiplos usuários por família, etc.). O critério de sucesso do MVP é:
 
 ## Escopo do MVP
 
-| # | Módulo | Descrição |
-|---|--------|-----------|
-| 1 | Autenticação | Cadastro e login de usuário (JWT) |
-| 2 | Contas | CRUD de contas: Carteira, Conta Corrente, Cartão de Crédito |
-| 3 | Categorias | CRUD de categorias de receita e despesa |
-| 4 | Transações | Lançamento de receitas, despesas e transferências entre contas |
-| 5 | Dashboard | Consolidação mensal: total de receitas, despesas, saldo e breakdown por categoria |
+| #   | Módulo       | Descrição                                                                         |
+| --- | ------------ | --------------------------------------------------------------------------------- |
+| 1   | Autenticação | Cadastro e login de usuário (JWT)                                                 |
+| 2   | Contas       | CRUD de contas: Carteira, Conta Corrente, Cartão de Crédito                       |
+| 3   | Categorias   | CRUD de categorias de receita e despesa                                           |
+| 4   | Transações   | Lançamento de receitas, despesas e transferências entre contas                    |
+| 5   | Dashboard    | Consolidação mensal: total de receitas, despesas, saldo e breakdown por categoria |
 
 ## Fora do escopo do MVP (backlog futuro)
 
@@ -43,14 +43,14 @@ da primeira entrega:
 
 ## Stack Tecnológica
 
-| Camada | Tecnologia | Motivo |
-|--------|-----------|--------|
-| Monorepo | pnpm workspaces + Turborepo | Compartilhar tipos entre front e back, cache de build |
-| Backend | NestJS | Arquitetura modular, DI nativa, escala bem para regras de negócio financeiras |
-| Banco de Dados | PostgreSQL | Transações ACID, essencial para consistência de saldo |
-| ORM | Prisma | Tipagem gerada automaticamente, migrations versionadas |
-| Frontend | Next.js (App Router) + Tailwind CSS | Server Components reduzem waterfall de dados no dashboard |
-| Infra local | Docker Compose | Ambiente de banco reproduzível para qualquer dev |
+| Camada         | Tecnologia                          | Motivo                                                                        |
+| -------------- | ----------------------------------- | ----------------------------------------------------------------------------- |
+| Monorepo       | pnpm workspaces + Turborepo         | Compartilhar tipos entre front e back, cache de build                         |
+| Backend        | NestJS                              | Arquitetura modular, DI nativa, escala bem para regras de negócio financeiras |
+| Banco de Dados | PostgreSQL                          | Transações ACID, essencial para consistência de saldo                         |
+| ORM            | Prisma                              | Tipagem gerada automaticamente, migrations versionadas                        |
+| Frontend       | Next.js (App Router) + Tailwind CSS | Server Components reduzem waterfall de dados no dashboard                     |
+| Infra local    | Docker Compose                      | Ambiente de banco reproduzível para qualquer dev                              |
 
 ## Documentos relacionados
 

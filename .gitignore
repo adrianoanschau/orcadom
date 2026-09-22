@@ -26,3 +26,4 @@ pnpm-debug.log*
 # ide
 .vscode/*
 !.vscode/extensions.json
+!.vscode/settings.json
