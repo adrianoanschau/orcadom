@@ -1,5 +1,11 @@
 import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient } from './generated/prisma/client.js';
+import {
+  AccountType,
+  CategoryType,
+  Prisma,
+  PrismaClient,
+  TransactionType,
+} from './generated/prisma/client.js';
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
@@ -19,4 +25,4 @@ if (process.env.NODE_ENV !== 'production') {
   globalForPrisma.prisma = prisma;
 }
 
-export { PrismaClient };
+export { AccountType, CategoryType, Prisma, PrismaClient, TransactionType };

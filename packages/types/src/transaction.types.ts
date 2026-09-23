@@ -5,7 +5,7 @@ export const createTransactionSchema = z
     description: z.string().min(1).max(120),
     amount: z.number().positive(),
     type: z.enum(['INCOME', 'EXPENSE', 'TRANSFER']),
-    date: z.coerce.date(),
+    date: z.iso.datetime(),
     accountId: z.uuid().optional(),
     categoryId: z.uuid().optional(),
     fromAccountId: z.uuid().optional(),
@@ -42,6 +42,13 @@ export const createTransactionSchema = z
         code: 'custom',
         path: ['accountId'],
         message: 'Conta é obrigatória.',
+      });
+    }
+    if (!value.categoryId) {
+      context.addIssue({
+        code: 'custom',
+        path: ['categoryId'],
+        message: 'Categoria é obrigatória.',
       });
     }
   });
