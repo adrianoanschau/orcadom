@@ -2,6 +2,8 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createTransactionSchema } from '@orcadom/types';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { ApiError, api } from '@/lib/api';
@@ -38,6 +40,10 @@ interface TransactionForm {
 }
 
 const emptyFilters: Filters = { accountId: '', categoryId: '', from: '', to: '', page: 1 };
+
+function filtersFromAccount(accountId: string): Filters {
+  return { ...emptyFilters, accountId };
+}
 const emptyForm: TransactionForm = {
   description: '',
   amount: '',
@@ -51,8 +57,10 @@ const emptyForm: TransactionForm = {
 
 export default function TransactionsPage() {
   const queryClient = useQueryClient();
-  const [filters, setFilters] = useState<Filters>(emptyFilters);
-  const [draft, setDraft] = useState<Filters>(emptyFilters);
+  const searchParams = useSearchParams();
+  const accountFromUrl = searchParams.get('accountId') ?? '';
+  const [filters, setFilters] = useState<Filters>(() => filtersFromAccount(accountFromUrl));
+  const [draft, setDraft] = useState<Filters>(() => filtersFromAccount(accountFromUrl));
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [open, setOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<Transaction | null>(null);
@@ -139,18 +147,26 @@ export default function TransactionsPage() {
 
   return (
     <section>
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="font-display text-[28px] font-semibold">Lançamentos</h1>
-        <Button
-          onClick={() => {
-            setEditing(null);
-            form.reset({ ...emptyForm, date: todayInput() });
-            setError(null);
-            setOpen(true);
-          }}
-        >
-          Novo lançamento
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/imports"
+            className="inline-flex items-center justify-center rounded-pill border border-hairline bg-surface px-4 py-2 text-sm font-medium text-ink hover:bg-surface-sunken"
+          >
+            Importar extrato
+          </Link>
+          <Button
+            onClick={() => {
+              setEditing(null);
+              form.reset({ ...emptyForm, date: todayInput() });
+              setError(null);
+              setOpen(true);
+            }}
+          >
+            Novo lançamento
+          </Button>
+        </div>
       </div>
 
       <form

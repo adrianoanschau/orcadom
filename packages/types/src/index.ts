@@ -14,6 +14,14 @@ export {
   type UpdateCategoryDto,
 } from './category.types.js';
 export {
+  confirmImportSchema,
+  createImportSchema,
+  importBatchParamSchema,
+  type ConfirmImportDto,
+  type CreateImportDto,
+  type ImportBatchParam,
+} from './import.types.js';
+export {
   dashboardQuerySchema,
   idParamSchema,
   listTransactionsQuerySchema,

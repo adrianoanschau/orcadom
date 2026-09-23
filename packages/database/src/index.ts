@@ -2,8 +2,11 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import {
   AccountType,
   CategoryType,
+  ImportFormat,
+  ImportStatus,
   Prisma,
   PrismaClient,
+  TransactionSource,
   TransactionType,
 } from './generated/prisma/client.js';
 
@@ -25,4 +28,13 @@ if (process.env.NODE_ENV !== 'production') {
   globalForPrisma.prisma = prisma;
 }
 
-export { AccountType, CategoryType, Prisma, PrismaClient, TransactionType };
+export {
+  AccountType,
+  CategoryType,
+  ImportFormat,
+  ImportStatus,
+  Prisma,
+  PrismaClient,
+  TransactionSource,
+  TransactionType,
+};

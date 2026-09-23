@@ -7,7 +7,8 @@
     "build": "nest build",
     "dev": "nest start --watch",
     "start": "node dist/main.js",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test": "vitest run"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.6",
@@ -21,7 +22,9 @@
     "@orcadom/types": "workspace:*",
     "bcryptjs": "^3.0.2",
     "cookie-parser": "^1.4.7",
+    "csv-parse": "^6.1.0",
     "dotenv": "^17.2.1",
+    "multer": "^2.0.2",
     "nestjs-zod": "^5.5.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
@@ -34,7 +37,9 @@
     "@orcadom/config": "workspace:*",
     "@types/cookie-parser": "^1.4.9",
     "@types/express": "^5.0.3",
+    "@types/multer": "^2.0.0",
     "@types/passport-jwt": "^4.0.1",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "vitest": "^3.2.4"
   }
 }

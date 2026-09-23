@@ -22,7 +22,9 @@ function readMessage(payload: unknown): string {
 
 export async function api<T>(path: string, init: RequestInit = {}, retry = true): Promise<T> {
   const headers = new Headers(init.headers);
-  if (init.body && !headers.has('content-type')) headers.set('content-type', 'application/json');
+  if (init.body && !(init.body instanceof FormData) && !headers.has('content-type')) {
+    headers.set('content-type', 'application/json');
+  }
 
   const response = await fetch(`${baseUrl}${path}`, {
     ...init,

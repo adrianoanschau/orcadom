@@ -9,6 +9,7 @@ import { AccountsModule } from './modules/accounts/accounts.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { CategoriesModule } from './modules/categories/categories.module.js';
 import { DashboardModule } from './modules/dashboard/dashboard.module.js';
+import { ImportsModule } from './modules/imports/imports.module.js';
 import { TransactionsModule } from './modules/transactions/transactions.module.js';
 
 @Module({
@@ -20,6 +21,7 @@ import { TransactionsModule } from './modules/transactions/transactions.module.j
     CategoriesModule,
     TransactionsModule,
     DashboardModule,
+    ImportsModule,
   ],
   controllers: [AppController],
   providers: [

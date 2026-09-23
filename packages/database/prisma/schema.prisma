@@ -24,6 +24,22 @@ enum TransactionType {
   TRANSFER
 }
 
+enum TransactionSource {
+  MANUAL
+  IMPORTED
+}
+
+enum ImportFormat {
+  OFX
+  CSV
+}
+
+enum ImportStatus {
+  PENDING
+  CONFIRMED
+  DISCARDED
+}
+
 model User {
   id           String   @id @default(uuid())
   name         String
@@ -32,9 +48,11 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  accounts     Account[]
-  categories   Category[]
-  transactions Transaction[]
+  accounts         Account[]
+  categories       Category[]
+  transactions     Transaction[]
+  importBatches    ImportBatch[]
+  categoryMemories CategoryMemory[]
 
   @@map("users")
 }
@@ -54,6 +72,7 @@ model Account {
   transactions  Transaction[] @relation("AccountTransactions")
   transfersFrom Transaction[] @relation("TransferFromAccount")
   transfersTo   Transaction[] @relation("TransferToAccount")
+  importBatches ImportBatch[]
 
   @@index([userId])
   @@map("accounts")
@@ -69,7 +88,8 @@ model Category {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  transactions Transaction[]
+  transactions     Transaction[]
+  categoryMemories CategoryMemory[]
 
   @@unique([userId, name, type])
   @@index([userId])
@@ -102,7 +122,53 @@ model Transaction {
   toAccountId String?
   toAccount   Account? @relation("TransferToAccount", fields: [toAccountId], references: [id])
 
+  source        TransactionSource @default(MANUAL)
+  externalId    String?
+  importBatchId String?
+  importBatch   ImportBatch?      @relation(fields: [importBatchId], references: [id])
+
+  @@unique([accountId, externalId])
   @@index([userId, date])
   @@index([accountId])
   @@map("transactions")
+}
+
+model ImportBatch {
+  id            String       @id @default(uuid())
+  fileName      String
+  format        ImportFormat
+  status        ImportStatus @default(PENDING)
+  totalRows     Int
+  importedRows  Int          @default(0)
+  duplicateRows Int          @default(0)
+  createdAt     DateTime     @default(now())
+  confirmedAt   DateTime?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  transactions Transaction[]
+
+  @@index([userId])
+  @@map("import_batches")
+}
+
+model CategoryMemory {
+  id          String   @id @default(uuid())
+  pattern     String
+  occurrences Int      @default(1)
+  lastUsedAt  DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, pattern, categoryId])
+  @@index([userId, pattern])
+  @@map("category_memory")
 }

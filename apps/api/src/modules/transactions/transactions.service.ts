@@ -1,35 +1,26 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, TransactionType } from '@orcadom/database';
+import { TransactionType } from '@orcadom/database';
 import type { CreateTransactionDto, ListTransactionsQuery } from '@orcadom/types';
+import { applyBalance } from '../../common/balance.js';
+import { CategoryMemoryService } from '../../common/category-memory.service.js';
 import { moneyString, toDecimal } from '../../common/money.js';
 import { PrismaService } from '../../common/prisma.service.js';
 
-interface BalanceEntry {
-  type: string;
-  amount: Prisma.Decimal | number | string;
-  accountId: string | null;
-  fromAccountId: string | null;
-  toAccountId: string | null;
-}
-
-interface BalanceWriter {
-  account: {
-    update(args: {
-      where: { id: string };
-      data: { balance: { increment: Prisma.Decimal } };
-    }): Promise<unknown>;
-  };
-}
-
 @Injectable()
 export class TransactionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly categoryMemory: CategoryMemoryService,
+  ) {}
 
   async create(userId: string, dto: CreateTransactionDto) {
     await this.assertReferences(userId, dto);
     const created = await this.prisma.client.$transaction(async (tx) => {
       const transaction = await tx.transaction.create({ data: this.toData(userId, dto) });
-      await this.applyBalance(tx, transaction, 1);
+      await applyBalance(tx, transaction, 1);
+      if (transaction.categoryId && transaction.type !== TransactionType.TRANSFER) {
+        await this.categoryMemory.upsert(userId, transaction.description, transaction.categoryId, tx);
+      }
       return transaction;
     });
     return this.toResponse(created);
@@ -78,12 +69,15 @@ export class TransactionsService {
     const current = await this.findOwned(userId, id);
     await this.assertReferences(userId, dto);
     const updated = await this.prisma.client.$transaction(async (tx) => {
-      await this.applyBalance(tx, current, -1);
+      await applyBalance(tx, current, -1);
       const transaction = await tx.transaction.update({
         where: { id },
         data: this.toData(userId, dto),
       });
-      await this.applyBalance(tx, transaction, 1);
+      await applyBalance(tx, transaction, 1);
+      if (transaction.categoryId && transaction.type !== TransactionType.TRANSFER) {
+        await this.categoryMemory.upsert(userId, transaction.description, transaction.categoryId, tx);
+      }
       return transaction;
     });
     return this.toResponse(updated);
@@ -92,7 +86,7 @@ export class TransactionsService {
   async remove(userId: string, id: string): Promise<void> {
     const current = await this.findOwned(userId, id);
     await this.prisma.client.$transaction(async (tx) => {
-      await this.applyBalance(tx, current, -1);
+      await applyBalance(tx, current, -1);
       await tx.transaction.delete({ where: { id } });
     });
   }
@@ -140,38 +134,6 @@ export class TransactionsService {
     };
   }
 
-  private async applyBalance(
-    tx: BalanceWriter,
-    entry: BalanceEntry,
-    direction: 1 | -1,
-  ): Promise<void> {
-    const amount = toDecimal(entry.amount).mul(direction);
-    if (entry.type === TransactionType.INCOME && entry.accountId) {
-      await tx.account.update({
-        where: { id: entry.accountId },
-        data: { balance: { increment: amount } },
-      });
-      return;
-    }
-    if (entry.type === TransactionType.EXPENSE && entry.accountId) {
-      await tx.account.update({
-        where: { id: entry.accountId },
-        data: { balance: { increment: amount.neg() } },
-      });
-      return;
-    }
-    if (entry.type === TransactionType.TRANSFER && entry.fromAccountId && entry.toAccountId) {
-      await tx.account.update({
-        where: { id: entry.fromAccountId },
-        data: { balance: { increment: amount.neg() } },
-      });
-      await tx.account.update({
-        where: { id: entry.toAccountId },
-        data: { balance: { increment: amount } },
-      });
-    }
-  }
-
   private async findOwned(userId: string, id: string) {
     const transaction = await this.prisma.client.transaction.findFirst({ where: { id, userId } });
     if (!transaction) {
@@ -190,6 +152,8 @@ export class TransactionsService {
     categoryId: string | null;
     fromAccountId: string | null;
     toAccountId: string | null;
+    source?: string;
+    externalId?: string | null;
     createdAt: Date;
     updatedAt: Date;
   }) {
@@ -203,6 +167,8 @@ export class TransactionsService {
       categoryId: transaction.categoryId,
       fromAccountId: transaction.fromAccountId,
       toAccountId: transaction.toAccountId,
+      source: transaction.source ?? 'MANUAL',
+      externalId: transaction.externalId ?? null,
       createdAt: transaction.createdAt.toISOString(),
       updatedAt: transaction.updatedAt.toISOString(),
     };

@@ -12,6 +12,7 @@ const links = [
   { href: '/accounts', label: 'Contas' },
   { href: '/categories', label: 'Categorias' },
   { href: '/transactions', label: 'Lançamentos' },
+  { href: '/imports', label: 'Importar' },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {

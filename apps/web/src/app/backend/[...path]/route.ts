@@ -17,7 +17,7 @@ async function forward(request: NextRequest, context: { params: Promise<{ path: 
   const upstream = await fetch(target, {
     method: request.method,
     headers,
-    body: hasBody ? await request.text() : undefined,
+    body: hasBody ? await request.arrayBuffer() : undefined,
   });
 
   const emptyStatus = upstream.status === 204 || upstream.status === 205 || upstream.status === 304;
