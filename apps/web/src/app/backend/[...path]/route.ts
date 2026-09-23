@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
-const apiUrl = process.env.API_URL ?? 'http://127.0.0.1:3001';
+const apiUrl = process.env.API_URL ?? 'http://127.0.0.1:8080';
 
 async function forward(request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
   const { path } = await context.params;
