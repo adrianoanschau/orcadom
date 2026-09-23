@@ -1,11 +1,12 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { ApiError, api } from '@/lib/api';
 import { formatDate, formatMoney } from '@/lib/format';
-import type { Account, Category, ImportConfirmResult, ImportPreview } from '@/lib/models';
+import type { Account, Category, ImportBatchSummary, ImportConfirmResult, ImportPreview } from '@/lib/models';
 import { Button, Field, Notice, Select, controlClass } from '@/components/ui';
 
 interface DraftRow {
@@ -15,7 +16,16 @@ interface DraftRow {
 }
 
 export default function ImportsPage() {
+  return (
+    <Suspense fallback={<p className="text-ink-soft">Carregando importação…</p>}>
+      <ImportsPageInner />
+    </Suspense>
+  );
+}
+
+function ImportsPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const [accountId, setAccountId] = useState('');
   const [file, setFile] = useState<File | null>(null);
@@ -28,6 +38,10 @@ export default function ImportsPage() {
     queryKey: ['categories'],
     queryFn: () => api<Category[]>('/categories'),
   });
+  const openBatches = useQuery({
+    queryKey: ['imports', 'open'],
+    queryFn: () => api<ImportBatchSummary[]>('/imports'),
+  });
 
   const categoryById = useMemo(
     () => new Map((categories.data ?? []).map((category) => [category.id, category])),
@@ -36,6 +50,30 @@ export default function ImportsPage() {
 
   const selected = drafts.filter((draft) => draft.include);
   const missingCategory = selected.some((draft) => !draft.categoryId);
+  const needsAccount = Boolean(preview && !preview.accountId && !accountId);
+
+  function applyPreview(data: ImportPreview) {
+    setPreview(data);
+    setAccountId(data.accountId ?? '');
+    setDrafts(
+      data.rows.map((row) => ({
+        lineId: row.lineId,
+        categoryId: row.confidence === 'high' ? (row.suggestedCategoryId ?? '') : '',
+        include: !row.isDuplicate,
+      })),
+    );
+    setError(null);
+  }
+
+  useEffect(() => {
+    const batchId = searchParams.get('batchId');
+    if (!batchId || preview?.id === batchId) return;
+    void api<ImportPreview>(`/imports/${batchId}`)
+      .then(applyPreview)
+      .catch((caught: unknown) => {
+        setError(caught instanceof ApiError ? caught.message : 'Não foi possível abrir a prévia.');
+      });
+  }, [preview?.id, searchParams]);
 
   const upload = useMutation({
     mutationFn: async () => {
@@ -46,17 +84,7 @@ export default function ImportsPage() {
       body.append('file', file);
       return api<ImportPreview>('/imports', { method: 'POST', body });
     },
-    onSuccess: (data) => {
-      setPreview(data);
-      setDrafts(
-        data.rows.map((row) => ({
-          lineId: row.lineId,
-          categoryId: row.confidence === 'high' ? (row.suggestedCategoryId ?? '') : '',
-          include: !row.isDuplicate,
-        })),
-      );
-      setError(null);
-    },
+    onSuccess: applyPreview,
     onError: (caught: unknown) => {
       setError(caught instanceof ApiError ? caught.message : 'Não foi possível ler o arquivo.');
     },
@@ -67,9 +95,11 @@ export default function ImportsPage() {
       if (!preview) throw new ApiError('Envie um arquivo para confirmar.', 400);
       if (selected.length === 0) throw new ApiError('Selecione ao menos um lançamento.', 400);
       if (missingCategory) throw new ApiError('Informe a categoria de cada lançamento incluído.', 400);
+      if (!preview.accountId && !accountId) throw new ApiError('Selecione a conta deste extrato.', 400);
       return api<ImportConfirmResult>(`/imports/${preview.id}/confirm`, {
         method: 'POST',
         body: JSON.stringify({
+          accountId: preview.accountId ?? accountId,
           rows: selected.map((draft) => ({ lineId: draft.lineId, categoryId: draft.categoryId })),
         }),
       });
@@ -78,6 +108,8 @@ export default function ImportsPage() {
       await queryClient.invalidateQueries({ queryKey: ['transactions'] });
       await queryClient.invalidateQueries({ queryKey: ['accounts'] });
       await queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      await queryClient.invalidateQueries({ queryKey: ['imports'] });
+      await queryClient.invalidateQueries({ queryKey: ['notifications'] });
       router.push(`/transactions?accountId=${result.accountId}`);
     },
     onError: (caught: unknown) => {
@@ -90,11 +122,13 @@ export default function ImportsPage() {
       if (!preview) return;
       await api(`/imports/${preview.id}`, { method: 'DELETE' });
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       setPreview(null);
       setDrafts([]);
       setFile(null);
       setError(null);
+      await queryClient.invalidateQueries({ queryKey: ['imports'] });
+      await queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
     onError: (caught: unknown) => {
       setError(caught instanceof ApiError ? caught.message : 'Não foi possível descartar a prévia.');
@@ -116,11 +150,48 @@ export default function ImportsPage() {
             Envie um OFX ou CSV, revise as categorias e confirme o que entra na conta.
           </p>
         </div>
+        <Link href="/settings/import-alias" className="text-sm text-brand">
+          Importar por email
+        </Link>
       </div>
 
       {error ? (
         <div className="mt-4">
           <Notice>{error}</Notice>
+        </div>
+      ) : null}
+
+      {!preview && (openBatches.data ?? []).length > 0 ? (
+        <div className="mt-6 rounded-lg bg-surface p-6">
+          <h2 className="font-display text-[21px] font-medium">Aguardando revisão</h2>
+          <ul className="mt-3 divide-y divide-hairline">
+            {openBatches.data?.map((batch) => (
+              <li key={batch.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                <div>
+                  <p className="text-ink">{batch.fileName}</p>
+                  <p className="text-sm text-ink-soft">
+                    {batch.source === 'EMAIL' ? 'Email' : 'Upload'} · {batch.totalRows} linhas
+                    {batch.status === 'UNMAPPED_ACCOUNT' ? ' · conta ainda não mapeada' : ''}
+                    {batch.bankId ? ` · ${batch.bankId}/${batch.acctId ?? '—'}` : ''}
+                  </p>
+                </div>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    void api<ImportPreview>(`/imports/${batch.id}`)
+                      .then(applyPreview)
+                      .catch((caught: unknown) => {
+                        setError(
+                          caught instanceof ApiError ? caught.message : 'Não foi possível abrir a prévia.',
+                        );
+                      });
+                  }}
+                >
+                  Revisar
+                </Button>
+              </li>
+            ))}
+          </ul>
         </div>
       ) : null}
 
@@ -171,6 +242,7 @@ export default function ImportsPage() {
               <p className="text-sm text-ink-soft">
                 {preview.format} · {preview.totalRows} linhas · {preview.duplicateRows} possíveis
                 duplicatas
+                {preview.bankId ? ` · ${preview.bankId}/${preview.acctId ?? '—'}` : ''}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -187,7 +259,7 @@ export default function ImportsPage() {
                 onClick={() => {
                   confirm.mutate();
                 }}
-                disabled={confirm.isPending || selected.length === 0 || missingCategory}
+                disabled={confirm.isPending || selected.length === 0 || missingCategory || needsAccount}
               >
                 {confirm.isPending
                   ? 'Confirmando…'
@@ -195,6 +267,30 @@ export default function ImportsPage() {
               </Button>
             </div>
           </div>
+
+          {!preview.accountId ? (
+            <div className="rounded-lg bg-surface p-4">
+              <Field label="Conta deste extrato">
+                <Select
+                  value={accountId}
+                  onChange={(event) => {
+                    setAccountId(event.target.value);
+                  }}
+                >
+                  <option value="">Selecione para mapear este banco</option>
+                  {accounts.data?.map((account) => (
+                    <option key={account.id} value={account.id}>
+                      {account.name}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <p className="mt-2 text-sm text-pending">
+                Este OFX ainda não tem conta mapeada. Ao confirmar, o Orcadom lembra o BANKID/ACCTID
+                para as próximas importações.
+              </p>
+            </div>
+          ) : null}
 
           <div className="overflow-x-auto rounded-lg bg-surface">
             <table className="min-w-full text-left text-sm">

@@ -36,8 +36,22 @@ enum ImportFormat {
 
 enum ImportStatus {
   PENDING
+  UNMAPPED_ACCOUNT
   CONFIRMED
   DISCARDED
+}
+
+enum ImportSource {
+  MANUAL
+  EMAIL
+}
+
+enum EmailImportStatus {
+  PROCESSED
+  SKIPPED_DUPLICATE
+  UNRECOGNIZED_TOKEN
+  UNMAPPED_ACCOUNT
+  ERROR
 }
 
 model User {
@@ -48,11 +62,15 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  accounts         Account[]
-  categories       Category[]
-  transactions     Transaction[]
-  importBatches    ImportBatch[]
-  categoryMemories CategoryMemory[]
+  accounts            Account[]
+  categories          Category[]
+  transactions        Transaction[]
+  importBatches       ImportBatch[]
+  categoryMemories    CategoryMemory[]
+  importAlias         UserImportAlias?
+  bankAccountMappings BankAccountMapping[]
+  emailImportLogs     EmailImportLog[]
+  notifications       Notification[]
 
   @@map("users")
 }
@@ -69,10 +87,11 @@ model Account {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  transactions  Transaction[] @relation("AccountTransactions")
-  transfersFrom Transaction[] @relation("TransferFromAccount")
-  transfersTo   Transaction[] @relation("TransferToAccount")
-  importBatches ImportBatch[]
+  transactions        Transaction[] @relation("AccountTransactions")
+  transfersFrom       Transaction[] @relation("TransferFromAccount")
+  transfersTo         Transaction[] @relation("TransferToAccount")
+  importBatches       ImportBatch[]
+  bankAccountMappings BankAccountMapping[]
 
   @@index([userId])
   @@map("accounts")
@@ -137,12 +156,47 @@ model ImportBatch {
   id            String       @id @default(uuid())
   fileName      String
   format        ImportFormat
+  source        ImportSource @default(MANUAL)
   status        ImportStatus @default(PENDING)
   totalRows     Int
   importedRows  Int          @default(0)
   duplicateRows Int          @default(0)
+  bankId        String?
+  acctId        String?
+  preview       Json?
   createdAt     DateTime     @default(now())
   confirmedAt   DateTime?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  accountId String?
+  account   Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+
+  transactions    Transaction[]
+  emailImportLogs EmailImportLog[]
+  notifications   Notification[]
+
+  @@index([userId])
+  @@index([userId, status])
+  @@map("import_batches")
+}
+
+model UserImportAlias {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  createdAt DateTime @default(now())
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_import_aliases")
+}
+
+model BankAccountMapping {
+  id     String @id @default(uuid())
+  bankId String
+  acctId String
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -150,10 +204,47 @@ model ImportBatch {
   accountId String
   account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
-  transactions Transaction[]
-
+  @@unique([userId, bankId, acctId])
   @@index([userId])
-  @@map("import_batches")
+  @@map("bank_account_mappings")
+}
+
+model EmailImportLog {
+  id               String            @id @default(uuid())
+  messageId        String
+  attachmentHash   String
+  recipientAddress String
+  status           EmailImportStatus
+  errorMessage     String?
+  createdAt        DateTime          @default(now())
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  importBatchId String?
+  importBatch   ImportBatch? @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+
+  @@unique([messageId, attachmentHash])
+  @@index([status, createdAt])
+  @@map("email_import_logs")
+}
+
+model Notification {
+  id        String    @id @default(uuid())
+  type      String
+  title     String
+  body      String
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  importBatchId String?
+  importBatch   ImportBatch? @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+
+  @@index([userId, readAt, createdAt])
+  @@map("notifications")
 }
 
 model CategoryMemory {

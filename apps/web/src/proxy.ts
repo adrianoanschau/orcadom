@@ -1,6 +1,13 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
-const protectedPrefixes = ['/dashboard', '/accounts', '/categories', '/transactions', '/imports'];
+const protectedPrefixes = [
+  '/dashboard',
+  '/accounts',
+  '/categories',
+  '/transactions',
+  '/imports',
+  '/settings',
+];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;

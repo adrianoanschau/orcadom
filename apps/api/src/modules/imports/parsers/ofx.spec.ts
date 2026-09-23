@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { parseOfx } from './ofx.js';
+import { extractOfxAccount, parseOfx } from './ofx.js';
 
 function fixture(name: string): string {
   return readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf8');
@@ -23,6 +23,13 @@ describe('parseOfx', () => {
       amount: 3500,
       type: 'INCOME',
       externalId: 'ITAU20260905035000',
+    });
+  });
+
+  it('extrai BANKID e ACCTID do OFX 1.x do Itaú', () => {
+    expect(extractOfxAccount(fixture('itau.ofx'))).toEqual({
+      bankId: '0341',
+      acctId: '12345-6',
     });
   });
 

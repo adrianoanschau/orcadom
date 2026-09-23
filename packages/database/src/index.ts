@@ -2,7 +2,9 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import {
   AccountType,
   CategoryType,
+  EmailImportStatus,
   ImportFormat,
+  ImportSource,
   ImportStatus,
   Prisma,
   PrismaClient,
@@ -31,7 +33,9 @@ if (process.env.NODE_ENV !== 'production') {
 export {
   AccountType,
   CategoryType,
+  EmailImportStatus,
   ImportFormat,
+  ImportSource,
   ImportStatus,
   Prisma,
   PrismaClient,

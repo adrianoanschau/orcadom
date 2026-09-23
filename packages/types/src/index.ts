@@ -22,6 +22,16 @@ export {
   type ImportBatchParam,
 } from './import.types.js';
 export {
+  createBankAccountMappingSchema,
+  emailImportLogsQuerySchema,
+  emailImportSchema,
+  updateBankAccountMappingSchema,
+  type CreateBankAccountMappingDto,
+  type EmailImportDto,
+  type EmailImportLogsQuery,
+  type UpdateBankAccountMappingDto,
+} from './email-import.types.js';
+export {
   dashboardQuerySchema,
   idParamSchema,
   listTransactionsQuerySchema,

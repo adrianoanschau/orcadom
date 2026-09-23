@@ -9,7 +9,11 @@ import { AccountsModule } from './modules/accounts/accounts.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { CategoriesModule } from './modules/categories/categories.module.js';
 import { DashboardModule } from './modules/dashboard/dashboard.module.js';
+import { AutomationModule } from './modules/automation/automation.module.js';
+import { BankAccountMappingsModule } from './modules/bank-account-mappings/bank-account-mappings.module.js';
 import { ImportsModule } from './modules/imports/imports.module.js';
+import { NotificationsModule } from './modules/notifications/notifications.module.js';
+import { SettingsModule } from './modules/settings/settings.module.js';
 import { TransactionsModule } from './modules/transactions/transactions.module.js';
 
 @Module({
@@ -22,6 +26,10 @@ import { TransactionsModule } from './modules/transactions/transactions.module.j
     TransactionsModule,
     DashboardModule,
     ImportsModule,
+    AutomationModule,
+    SettingsModule,
+    BankAccountMappingsModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [

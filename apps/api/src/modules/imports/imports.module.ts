@@ -6,5 +6,6 @@ import { ImportsService } from './imports.service.js';
 @Module({
   controllers: [ImportsController],
   providers: [ImportsService, ImportPreviewStore],
+  exports: [ImportsService],
 })
 export class ImportsModule {}

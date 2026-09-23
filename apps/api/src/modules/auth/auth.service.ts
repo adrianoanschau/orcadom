@@ -37,6 +37,7 @@ export class AuthService {
         name: dto.name,
         email: dto.email,
         passwordHash: await bcrypt.hash(dto.password, 10),
+        importAlias: { create: { token: createAliasToken() } },
       },
     });
     await this.setSession(response, user.id);
@@ -128,6 +129,13 @@ export class AuthService {
   private toPublicUser(user: { id: string; name: string; email: string }) {
     return { id: user.id, name: user.name, email: user.email };
   }
+}
+
+function createAliasToken(): string {
+  const alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  const bytes = new Uint8Array(8);
+  crypto.getRandomValues(bytes);
+  return [...bytes].map((byte) => alphabet[byte % alphabet.length]).join('');
 }
 
 function durationMs(value: string): number {

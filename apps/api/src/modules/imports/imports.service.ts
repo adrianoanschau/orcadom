@@ -4,14 +4,21 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { ImportStatus, TransactionSource } from '@orcadom/database';
+import { ImportSource, ImportStatus, Prisma, TransactionSource } from '@orcadom/database';
 import type { ConfirmImportDto } from '@orcadom/types';
 import { randomUUID } from 'node:crypto';
 import { applyBalance } from '../../common/balance.js';
 import { CategoryMemoryService } from '../../common/category-memory.service.js';
 import { moneyString, toDecimal } from '../../common/money.js';
 import { PrismaService } from '../../common/prisma.service.js';
-import { ImportPreviewStore, type StoredImportRow } from './import-preview.store.js';
+import {
+  hydratePreviewRows,
+  ImportPreviewStore,
+  serializePreviewRows,
+  type SerializedImportRow,
+  type StoredImportPreview,
+  type StoredImportRow,
+} from './import-preview.store.js';
 import { parseCsv } from './parsers/csv.js';
 import { parseOfx } from './parsers/ofx.js';
 import { decodeStatementText, detectFormat, type ParsedStatementRow } from './parsers/shared.js';
@@ -19,6 +26,18 @@ import { decodeStatementText, detectFormat, type ParsedStatementRow } from './pa
 interface UploadedFile {
   originalname: string;
   buffer: Buffer;
+}
+
+export interface CreatePendingBatchInput {
+  userId: string;
+  accountId: string | null;
+  fileName: string;
+  format: 'OFX' | 'CSV';
+  source: ImportSource;
+  status: ImportStatus;
+  bankId?: string | null;
+  acctId?: string | null;
+  rows: ParsedStatementRow[];
 }
 
 @Injectable()
@@ -53,56 +72,124 @@ export class ImportsService {
       throw new BadRequestException('Nenhum lançamento encontrado no arquivo.');
     }
 
-    const rows: StoredImportRow[] = parsed.map((row) => ({
+    return this.createPendingBatch({
+      userId,
+      accountId,
+      fileName: file.originalname || `extrato.${format.toLowerCase()}`,
+      format,
+      source: ImportSource.MANUAL,
+      status: ImportStatus.PENDING,
+      rows: parsed,
+    });
+  }
+
+  async createPendingBatch(input: CreatePendingBatchInput) {
+    const rows: StoredImportRow[] = input.rows.map((row) => ({
       ...row,
       lineId: randomUUID(),
       isDuplicate: false,
     }));
+    const duplicateRows = input.accountId
+      ? (await this.markDuplicates(input.userId, input.accountId, rows)).length
+      : 0;
+
     const batch = await this.prisma.client.importBatch.create({
       data: {
-        userId,
-        accountId,
-        fileName: file.originalname || `extrato.${format.toLowerCase()}`,
-        format,
+        userId: input.userId,
+        accountId: input.accountId,
+        fileName: input.fileName,
+        format: input.format,
+        source: input.source,
+        status: input.status,
+        bankId: input.bankId ?? null,
+        acctId: input.acctId ?? null,
         totalRows: rows.length,
-        duplicateRows: (await this.markDuplicates(userId, accountId, rows)).length,
+        duplicateRows,
+        preview: serializePreviewRows(rows) as unknown as Prisma.InputJsonValue,
       },
     });
 
-    this.store.set(batch.id, {
-      userId,
-      accountId,
+    this.cachePreview(batch.id, {
+      userId: input.userId,
+      accountId: input.accountId,
       fileName: batch.fileName,
-      format,
+      format: input.format,
+      bankId: input.bankId ?? null,
+      acctId: input.acctId ?? null,
       rows,
     });
 
-    return this.toPreview(batch, rows, userId);
+    return this.toPreview(batch, rows, input.userId);
+  }
+
+  async listOpen(userId: string) {
+    const batches = await this.prisma.client.importBatch.findMany({
+      where: {
+        userId,
+        status: { in: [ImportStatus.PENDING, ImportStatus.UNMAPPED_ACCOUNT] },
+      },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        fileName: true,
+        format: true,
+        source: true,
+        status: true,
+        accountId: true,
+        bankId: true,
+        acctId: true,
+        totalRows: true,
+        duplicateRows: true,
+        createdAt: true,
+      },
+    });
+
+    return batches.map((batch) => ({
+      ...batch,
+      createdAt: batch.createdAt.toISOString(),
+    }));
   }
 
   async preview(userId: string, batchId: string) {
     const batch = await this.findOwnedBatch(userId, batchId);
-    if (batch.status !== ImportStatus.PENDING) {
+    if (batch.status !== ImportStatus.PENDING && batch.status !== ImportStatus.UNMAPPED_ACCOUNT) {
       throw new BadRequestException('Este lote já foi encerrado.');
     }
-    const stored = this.store.get(batchId);
+    const stored = this.loadPreview(batch);
     if (stored?.userId !== userId) {
       throw new GoneException('A prévia expirou. Envie o arquivo novamente.');
     }
-    await this.markDuplicates(userId, stored.accountId, stored.rows);
+    if (stored.accountId) {
+      await this.markDuplicates(userId, stored.accountId, stored.rows);
+    }
     return this.toPreview(batch, stored.rows, userId);
   }
 
   async confirm(userId: string, batchId: string, dto: ConfirmImportDto) {
     const batch = await this.findOwnedBatch(userId, batchId);
-    if (batch.status !== ImportStatus.PENDING) {
+    if (batch.status !== ImportStatus.PENDING && batch.status !== ImportStatus.UNMAPPED_ACCOUNT) {
       throw new BadRequestException('Este lote já foi encerrado.');
     }
-    const stored = this.store.get(batchId);
+    const stored = this.loadPreview(batch);
     if (stored?.userId !== userId) {
       throw new GoneException('A prévia expirou. Envie o arquivo novamente.');
     }
-    await this.assertAccount(userId, stored.accountId);
+
+    const accountId = dto.accountId ?? stored.accountId ?? batch.accountId;
+    if (!accountId) {
+      throw new BadRequestException('Selecione a conta deste extrato antes de confirmar.');
+    }
+    await this.assertAccount(userId, accountId);
+
+    if (batch.bankId && batch.acctId) {
+      await this.prisma.client.bankAccountMapping.upsert({
+        where: {
+          userId_bankId_acctId: { userId, bankId: batch.bankId, acctId: batch.acctId },
+        },
+        update: { accountId },
+        create: { userId, bankId: batch.bankId, acctId: batch.acctId, accountId },
+      });
+    }
 
     const byLineId = new Map(stored.rows.map((row) => [row.lineId, row]));
     const selected = dto.rows.map((row) => {
@@ -121,11 +208,11 @@ export class ImportsService {
     const imported = await this.prisma.client.$transaction(async (tx) => {
       let count = 0;
       for (const row of selected) {
-        const externalId = await this.uniqueExternalId(tx, stored.accountId, row.externalId);
+        const externalId = await this.uniqueExternalId(tx, accountId, row.externalId);
         const transaction = await tx.transaction.create({
           data: {
             userId,
-            accountId: stored.accountId,
+            accountId,
             importBatchId: batch.id,
             source: TransactionSource.IMPORTED,
             externalId,
@@ -144,9 +231,11 @@ export class ImportsService {
       await tx.importBatch.update({
         where: { id: batch.id },
         data: {
+          accountId,
           status: ImportStatus.CONFIRMED,
           importedRows: count,
           confirmedAt: new Date(),
+          preview: Prisma.DbNull,
         },
       });
       return count;
@@ -155,7 +244,7 @@ export class ImportsService {
     this.store.delete(batchId);
     return {
       id: batch.id,
-      accountId: stored.accountId,
+      accountId,
       importedRows: imported,
       skippedRows: stored.rows.length - imported,
     };
@@ -163,14 +252,46 @@ export class ImportsService {
 
   async discard(userId: string, batchId: string): Promise<void> {
     const batch = await this.findOwnedBatch(userId, batchId);
-    if (batch.status !== ImportStatus.PENDING) {
+    if (batch.status !== ImportStatus.PENDING && batch.status !== ImportStatus.UNMAPPED_ACCOUNT) {
       throw new BadRequestException('Este lote já foi encerrado.');
     }
     await this.prisma.client.importBatch.update({
       where: { id: batch.id },
-      data: { status: ImportStatus.DISCARDED },
+      data: { status: ImportStatus.DISCARDED, preview: Prisma.DbNull },
     });
     this.store.delete(batchId);
+  }
+
+  private cachePreview(batchId: string, payload: StoredImportPreview): void {
+    this.store.set(batchId, payload);
+  }
+
+  private loadPreview(batch: {
+    id: string;
+    userId: string;
+    accountId: string | null;
+    fileName: string;
+    format: 'OFX' | 'CSV';
+    bankId: string | null;
+    acctId: string | null;
+    preview: unknown;
+  }): StoredImportPreview | null {
+    const cached = this.store.get(batch.id);
+    if (cached?.userId === batch.userId) return cached;
+    if (!Array.isArray(batch.preview)) return null;
+
+    const rows = hydratePreviewRows(batch.preview as SerializedImportRow[]);
+    const payload: StoredImportPreview = {
+      userId: batch.userId,
+      accountId: batch.accountId,
+      fileName: batch.fileName,
+      format: batch.format,
+      bankId: batch.bankId,
+      acctId: batch.acctId,
+      rows,
+    };
+    this.cachePreview(batch.id, payload);
+    return payload;
   }
 
   private async markDuplicates(
@@ -251,8 +372,11 @@ export class ImportsService {
       id: string;
       fileName: string;
       format: string;
+      source?: string;
       status: string;
-      accountId: string;
+      accountId: string | null;
+      bankId?: string | null;
+      acctId?: string | null;
       totalRows: number;
       importedRows: number;
       duplicateRows: number;
@@ -285,8 +409,11 @@ export class ImportsService {
       id: batch.id,
       fileName: batch.fileName,
       format: batch.format,
+      source: batch.source ?? ImportSource.MANUAL,
       status: batch.status,
       accountId: batch.accountId,
+      bankId: batch.bankId ?? null,
+      acctId: batch.acctId ?? null,
       totalRows: batch.totalRows,
       importedRows: batch.importedRows,
       duplicateRows: previewRows.filter((row) => row.isDuplicate).length,

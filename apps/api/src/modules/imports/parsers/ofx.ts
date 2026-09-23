@@ -7,6 +7,23 @@ import {
   type ParsedStatementRow,
 } from './shared.js';
 
+export interface OfxAccountIdentity {
+  bankId: string | null;
+  acctId: string | null;
+}
+
+export function extractOfxAccount(content: string): OfxAccountIdentity {
+  const block =
+    extractTaggedBlock(content, 'BANKACCTFROM') ??
+    extractTaggedBlock(content, 'CCACCTFROM') ??
+    content;
+
+  return {
+    bankId: readOfxField(block, 'BANKID') ?? null,
+    acctId: readOfxField(block, 'ACCTID') ?? null,
+  };
+}
+
 export function parseOfx(content: string): ParsedStatementRow[] {
   const blocks = extractTransactionBlocks(content);
   const rows: ParsedStatementRow[] = [];
@@ -31,6 +48,17 @@ export function parseOfx(content: string): ParsedStatementRow[] {
   }
 
   return rows;
+}
+
+function extractTaggedBlock(content: string, tag: string): string | undefined {
+  const xml = new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`, 'i').exec(content);
+  if (xml?.[1]) return xml[1];
+
+  const open = new RegExp(`<${tag}>`, 'i').exec(content);
+  if (!open) return undefined;
+  const start = open.index + open[0].length;
+  const next = content.slice(start).search(/<\/[A-Z]+>|<BANKTRANLIST>|<STMTTRN>/i);
+  return next === -1 ? content.slice(start) : content.slice(start, start + next);
 }
 
 function extractTransactionBlocks(content: string): string[] {

@@ -1,0 +1,163 @@
+{
+  "id": "orcadom-email-import",
+  "name": "Orcadom — importação de extrato por email",
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Ativar com Gmail OAuth2\n1. Clique em **Gmail Trigger** → Credential → **Create new** → **Gmail OAuth2 API**.\n2. No Google Cloud: ative a Gmail API, crie um client OAuth (tipo Web) com redirect `http://localhost:5678/rest/oauth2-credential/callback` e cole Client ID/Secret.\n3. Use a **mesma credencial** no node **Marcar como lido**.\n4. Publique o workflow.\n\nEncaminhe o OFX para `seuemail+<token>@gmail.com`.",
+        "height": 460,
+        "width": 340
+      },
+      "id": "sticky-help",
+      "name": "Como ativar",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-100, 120]
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "authentication": "oAuth2",
+        "simple": false,
+        "filters": {
+          "q": "has:attachment filename:ofx",
+          "readStatus": "unread"
+        },
+        "options": {
+          "downloadAttachments": true,
+          "dataPropertyAttachmentsPrefixName": "attachment_"
+        }
+      },
+      "id": "gmail-trigger",
+      "name": "Gmail Trigger",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.2,
+      "position": [320, 300],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Ej7xp3mHZyoon2KQ",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "function textOf(value) {\n  if (value == null) return '';\n  if (typeof value === 'string') return value;\n  if (Array.isArray(value)) return value.map(textOf).join(', ');\n  if (typeof value === 'object') {\n    if (typeof value.text === 'string') return value.text;\n    if (typeof value.address === 'string') return value.address;\n    if (Array.isArray(value.value)) return value.value.map(textOf).join(', ');\n  }\n  return String(value);\n}\n\nfunction header(json, name) {\n  const headers = json.headers ?? json.header ?? {};\n  const key = Object.keys(headers).find((item) => item.toLowerCase() === name.toLowerCase());\n  return key ? textOf(headers[key]) : '';\n}\n\nconst items = [];\nfor (const item of $input.all()) {\n  const json = item.json ?? {};\n  const recipient = [\n    textOf(json.to),\n    textOf(json.deliveredTo),\n    header(json, 'to'),\n    header(json, 'delivered-to'),\n    header(json, 'x-original-to'),\n    header(json, 'envelope-to'),\n  ].find((value) => value.includes('+') && value.includes('@')) ?? textOf(json.to) ?? header(json, 'to');\n\n  const plus = /\\+([a-z0-9]{8})@/i.exec(recipient);\n  const token = plus ? plus[1].toLowerCase() : 'missing';\n  const messageId = textOf(json.messageId) || header(json, 'message-id') || `generated-${Date.now()}`;\n  const gmailMessageId = textOf(json.id);\n  const binaries = item.binary ?? {};\n\n  for (const [key, file] of Object.entries(binaries)) {\n    const fileName = String(file.fileName ?? key);\n    const mime = String(file.mimeType ?? '');\n    if (!/\\.ofx$/i.test(fileName) && !/ofx/i.test(mime)) continue;\n    items.push({\n      json: {\n        token,\n        recipientAddress: recipient || 'unknown',\n        messageId: `${messageId}:${fileName}`.slice(0, 300),\n        fileName,\n        attachment: file.data,\n        gmailMessageId,\n      },\n    });\n  }\n}\nreturn items;"
+      },
+      "id": "extract-ofx",
+      "name": "Filtrar anexos OFX",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [580, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:8080/automation/email-imports",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ token: $json.token, recipientAddress: $json.recipientAddress, messageId: $json.messageId, fileName: $json.fileName, attachment: $json.attachment }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "http-orcadom",
+      "name": "POST /automation/email-imports",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [840, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "OwpAE0jyMrO5PatE",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "message",
+        "operation": "markAsRead",
+        "messageId": "={{ $('Filtrar anexos OFX').item.json.gmailMessageId }}"
+      },
+      "id": "gmail-mark-read",
+      "name": "Marcar como lido",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [1100, 300],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Ej7xp3mHZyoon2KQ",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Filtrar anexos OFX",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar anexos OFX": {
+      "main": [
+        [
+          {
+            "node": "POST /automation/email-imports",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "POST /automation/email-imports": {
+      "main": [
+        [
+          {
+            "node": "Marcar como lido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "pinData": {},
+  "versionId": "3c4d5e6f-7081-92a3-b4c5-d6e7f8091011",
+  "tags": []
+}

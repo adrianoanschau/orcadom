@@ -23,6 +23,11 @@ import { ImportsService } from './imports.service.js';
 export class ImportsController {
   constructor(private readonly imports: ImportsService) {}
 
+  @Get()
+  list(@CurrentUser() userId: string) {
+    return this.imports.listOpen(userId);
+  }
+
   @Post()
   @UseInterceptors(
     FileInterceptor('file', {

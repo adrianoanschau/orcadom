@@ -62,13 +62,65 @@ export interface ImportPreview {
   id: string;
   fileName: string;
   format: 'OFX' | 'CSV';
-  status: 'PENDING' | 'CONFIRMED' | 'DISCARDED';
-  accountId: string;
+  source?: 'MANUAL' | 'EMAIL';
+  status: 'PENDING' | 'UNMAPPED_ACCOUNT' | 'CONFIRMED' | 'DISCARDED';
+  accountId: string | null;
+  bankId?: string | null;
+  acctId?: string | null;
   totalRows: number;
   importedRows: number;
   duplicateRows: number;
   createdAt: string;
   rows: ImportPreviewRow[];
+}
+
+export interface ImportBatchSummary {
+  id: string;
+  fileName: string;
+  format: 'OFX' | 'CSV';
+  source: 'MANUAL' | 'EMAIL';
+  status: 'PENDING' | 'UNMAPPED_ACCOUNT' | 'CONFIRMED' | 'DISCARDED';
+  accountId: string | null;
+  bankId: string | null;
+  acctId: string | null;
+  totalRows: number;
+  duplicateRows: number;
+  createdAt: string;
+}
+
+export interface ImportAlias {
+  token: string;
+  address: string;
+  mailbox: string;
+  createdAt: string;
+}
+
+export interface BankAccountMapping {
+  id: string;
+  bankId: string;
+  acctId: string;
+  accountId: string;
+  accountName: string;
+}
+
+export interface EmailImportLog {
+  id: string;
+  messageId: string;
+  recipientAddress: string;
+  status: 'PROCESSED' | 'SKIPPED_DUPLICATE' | 'UNRECOGNIZED_TOKEN' | 'UNMAPPED_ACCOUNT' | 'ERROR';
+  errorMessage: string | null;
+  importBatchId: string | null;
+  createdAt: string;
+}
+
+export interface AppNotification {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  readAt: string | null;
+  createdAt: string;
+  importBatchId: string | null;
 }
 
 export interface ImportConfirmResult {

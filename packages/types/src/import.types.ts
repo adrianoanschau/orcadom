@@ -9,6 +9,7 @@ export const importBatchParamSchema = z.object({
 });
 
 export const confirmImportSchema = z.object({
+  accountId: z.uuid().optional(),
   rows: z
     .array(
       z.object({
