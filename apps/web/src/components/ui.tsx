@@ -97,7 +97,7 @@ export function Modal({
     <dialog
       ref={ref}
       aria-labelledby={titleId}
-      className="w-[min(100%,32rem)] rounded-lg bg-surface p-6 text-ink backdrop:bg-ink/40"
+      className="fixed top-1/2 left-1/2 m-0 max-h-[calc(100dvh-2rem)] w-[min(32rem,calc(100%-2rem))] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-lg border-0 bg-surface p-6 text-ink backdrop:bg-ink/40"
       onClose={() => {
         if (open) onClose();
       }}
