@@ -1,0 +1,210 @@
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma, TransactionType } from '@orcadom/database';
+import type { CreateTransactionDto, ListTransactionsQuery } from '@orcadom/types';
+import { moneyString, toDecimal } from '../../common/money.js';
+import { PrismaService } from '../../common/prisma.service.js';
+
+interface BalanceEntry {
+  type: string;
+  amount: Prisma.Decimal | number | string;
+  accountId: string | null;
+  fromAccountId: string | null;
+  toAccountId: string | null;
+}
+
+interface BalanceWriter {
+  account: {
+    update(args: {
+      where: { id: string };
+      data: { balance: { increment: Prisma.Decimal } };
+    }): Promise<unknown>;
+  };
+}
+
+@Injectable()
+export class TransactionsService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async create(userId: string, dto: CreateTransactionDto) {
+    await this.assertReferences(userId, dto);
+    const created = await this.prisma.client.$transaction(async (tx) => {
+      const transaction = await tx.transaction.create({ data: this.toData(userId, dto) });
+      await this.applyBalance(tx, transaction, 1);
+      return transaction;
+    });
+    return this.toResponse(created);
+  }
+
+  async list(userId: string, query: ListTransactionsQuery) {
+    const where = {
+      userId,
+      ...(query.categoryId ? { categoryId: query.categoryId } : {}),
+      ...(query.from || query.to
+        ? {
+            date: {
+              ...(query.from ? { gte: new Date(query.from) } : {}),
+              ...(query.to ? { lte: new Date(query.to) } : {}),
+            },
+          }
+        : {}),
+      ...(query.accountId
+        ? {
+            OR: [
+              { accountId: query.accountId },
+              { fromAccountId: query.accountId },
+              { toAccountId: query.accountId },
+            ],
+          }
+        : {}),
+    };
+    const [total, rows] = await this.prisma.client.$transaction([
+      this.prisma.client.transaction.count({ where }),
+      this.prisma.client.transaction.findMany({
+        where,
+        orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
+        skip: (query.page - 1) * query.limit,
+        take: query.limit,
+      }),
+    ]);
+    return {
+      data: rows.map((row) => this.toResponse(row)),
+      page: query.page,
+      limit: query.limit,
+      total,
+    };
+  }
+
+  async update(userId: string, id: string, dto: CreateTransactionDto) {
+    const current = await this.findOwned(userId, id);
+    await this.assertReferences(userId, dto);
+    const updated = await this.prisma.client.$transaction(async (tx) => {
+      await this.applyBalance(tx, current, -1);
+      const transaction = await tx.transaction.update({
+        where: { id },
+        data: this.toData(userId, dto),
+      });
+      await this.applyBalance(tx, transaction, 1);
+      return transaction;
+    });
+    return this.toResponse(updated);
+  }
+
+  async remove(userId: string, id: string): Promise<void> {
+    const current = await this.findOwned(userId, id);
+    await this.prisma.client.$transaction(async (tx) => {
+      await this.applyBalance(tx, current, -1);
+      await tx.transaction.delete({ where: { id } });
+    });
+  }
+
+  private async assertReferences(userId: string, dto: CreateTransactionDto): Promise<void> {
+    if (dto.type === 'TRANSFER') {
+      await this.assertAccounts(userId, [dto.fromAccountId, dto.toAccountId]);
+      return;
+    }
+    await this.assertAccounts(userId, [dto.accountId]);
+    const category = await this.prisma.client.category.findFirst({
+      where: { id: dto.categoryId, userId },
+    });
+    if (!category) {
+      throw new NotFoundException('Categoria não encontrada.');
+    }
+    if (category.type !== dto.type) {
+      throw new BadRequestException('A categoria não corresponde ao tipo do lançamento.');
+    }
+  }
+
+  private async assertAccounts(userId: string, ids: (string | undefined)[]): Promise<void> {
+    const unique = [...new Set(ids.filter((id): id is string => Boolean(id)))];
+    const found = await this.prisma.client.account.findMany({
+      where: { userId, id: { in: unique } },
+      select: { id: true },
+    });
+    if (found.length !== unique.length) {
+      throw new NotFoundException('Conta não encontrada.');
+    }
+  }
+
+  private toData(userId: string, dto: CreateTransactionDto) {
+    const transfer = dto.type === TransactionType.TRANSFER;
+    return {
+      userId,
+      description: dto.description,
+      amount: toDecimal(dto.amount),
+      type: dto.type,
+      date: new Date(dto.date),
+      accountId: transfer ? null : (dto.accountId ?? null),
+      categoryId: transfer ? null : (dto.categoryId ?? null),
+      fromAccountId: transfer ? (dto.fromAccountId ?? null) : null,
+      toAccountId: transfer ? (dto.toAccountId ?? null) : null,
+    };
+  }
+
+  private async applyBalance(
+    tx: BalanceWriter,
+    entry: BalanceEntry,
+    direction: 1 | -1,
+  ): Promise<void> {
+    const amount = toDecimal(entry.amount).mul(direction);
+    if (entry.type === TransactionType.INCOME && entry.accountId) {
+      await tx.account.update({
+        where: { id: entry.accountId },
+        data: { balance: { increment: amount } },
+      });
+      return;
+    }
+    if (entry.type === TransactionType.EXPENSE && entry.accountId) {
+      await tx.account.update({
+        where: { id: entry.accountId },
+        data: { balance: { increment: amount.neg() } },
+      });
+      return;
+    }
+    if (entry.type === TransactionType.TRANSFER && entry.fromAccountId && entry.toAccountId) {
+      await tx.account.update({
+        where: { id: entry.fromAccountId },
+        data: { balance: { increment: amount.neg() } },
+      });
+      await tx.account.update({
+        where: { id: entry.toAccountId },
+        data: { balance: { increment: amount } },
+      });
+    }
+  }
+
+  private async findOwned(userId: string, id: string) {
+    const transaction = await this.prisma.client.transaction.findFirst({ where: { id, userId } });
+    if (!transaction) {
+      throw new NotFoundException('Lançamento não encontrado.');
+    }
+    return transaction;
+  }
+
+  private toResponse(transaction: {
+    id: string;
+    description: string;
+    amount: { toFixed(digits: number): string };
+    type: string;
+    date: Date;
+    accountId: string | null;
+    categoryId: string | null;
+    fromAccountId: string | null;
+    toAccountId: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  }) {
+    return {
+      id: transaction.id,
+      description: transaction.description,
+      amount: moneyString(transaction.amount),
+      type: transaction.type,
+      date: transaction.date.toISOString(),
+      accountId: transaction.accountId,
+      categoryId: transaction.categoryId,
+      fromAccountId: transaction.fromAccountId,
+      toAccountId: transaction.toAccountId,
+      createdAt: transaction.createdAt.toISOString(),
+      updatedAt: transaction.updatedAt.toISOString(),
+    };
+  }
+}
