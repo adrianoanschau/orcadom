@@ -36,7 +36,9 @@ export async function api<T>(path: string, init: RequestInit = {}, retry = true)
       credentials: 'include',
     });
     if (refresh.ok) return api<T>(path, init, false);
+    await fetch(`${baseUrl}/auth/logout`, { method: 'POST', credentials: 'include' });
     window.location.assign('/login');
+    return new Promise<T>(() => undefined);
   }
 
   if (response.status === 204) return undefined as T;

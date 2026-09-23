@@ -53,10 +53,10 @@ export class AuthService {
   }
 
   async refresh(refreshToken: string | undefined, response: CookieResponse) {
-    if (!refreshToken) {
-      throw new UnauthorizedException();
-    }
     try {
+      if (!refreshToken) {
+        throw new UnauthorizedException();
+      }
       const payload = await this.jwt.verifyAsync<{ sub?: string; type?: string }>(refreshToken, {
         secret: this.refreshSecret,
       });
@@ -74,6 +74,7 @@ export class AuthService {
       );
       return { ok: true };
     } catch (error) {
+      this.logout(response);
       if (error instanceof UnauthorizedException) {
         throw error;
       }
