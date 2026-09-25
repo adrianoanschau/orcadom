@@ -64,10 +64,12 @@ export {
 export {
   dashboardQuerySchema,
   idParamSchema,
+  listAuditLogsQuerySchema,
   listNotificationsQuerySchema,
   listTransactionsQuerySchema,
   type DashboardQuery,
   type IdParam,
+  type ListAuditLogsQuery,
   type ListNotificationsQuery,
   type ListTransactionsQuery,
 } from './query.types.js';

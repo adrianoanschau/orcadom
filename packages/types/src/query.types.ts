@@ -17,6 +17,14 @@ export const dashboardQuerySchema = z.object({
   month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
 });
 
+export const listAuditLogsQuerySchema = z.object({
+  entityType: z.string().trim().min(1).max(64).optional(),
+  entityId: z.uuid().optional(),
+  from: z.iso.datetime().optional(),
+  to: z.iso.datetime().optional(),
+  limit: z.coerce.number().int().positive().max(100).default(50),
+});
+
 export const listNotificationsQuerySchema = z.object({
   unread: z
     .union([z.boolean(), z.literal('true'), z.literal('false')])
@@ -29,3 +37,4 @@ export type IdParam = z.infer<typeof idParamSchema>;
 export type ListTransactionsQuery = z.infer<typeof listTransactionsQuerySchema>;
 export type DashboardQuery = z.infer<typeof dashboardQuerySchema>;
 export type ListNotificationsQuery = z.infer<typeof listNotificationsQuerySchema>;
+export type ListAuditLogsQuery = z.infer<typeof listAuditLogsQuerySchema>;

@@ -1,0 +1,38 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Cria/atualiza Release PR ou publica release
+        uses: changesets/action@v1
+        with:
+          title: 'chore: release'
+          commit: 'chore: release'
+          version: pnpm run changeset:version
+          # Sem "publish" apontando para npm — este monorepo não publica
+          # pacotes públicos. O passo de tag é feito pelo workflow tag-release.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
