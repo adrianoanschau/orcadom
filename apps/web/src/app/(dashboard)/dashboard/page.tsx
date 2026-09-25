@@ -6,14 +6,18 @@ import { useState } from 'react';
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { api } from '@/lib/api';
 import { currentMonth, formatMoney } from '@/lib/format';
-import type { DashboardSummary } from '@/lib/models';
-import { StatCard, controlClass } from '@/components/ui';
+import type { BudgetList, DashboardSummary } from '@/lib/models';
+import { BudgetProgressBar, StatCard, controlClass } from '@/components/ui';
 
 export default function DashboardPage() {
   const [month, setMonth] = useState(currentMonth);
   const summary = useQuery({
     queryKey: ['dashboard', month],
     queryFn: () => api<DashboardSummary>(`/dashboard/summary?month=${month}`),
+  });
+  const budgets = useQuery({
+    queryKey: ['budgets', month],
+    queryFn: () => api<BudgetList>(`/budgets?month=${month}`),
   });
   const data = summary.data;
   const empty = data ? Number(data.income) === 0 && Number(data.expense) === 0 : false;
@@ -73,6 +77,36 @@ export default function DashboardPage() {
               </p>
             </div>
           ) : null}
+          <section className="mt-6 rounded-lg bg-surface p-6">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="font-display text-[21px] font-medium">Orçamentos do mês</h2>
+              <Link href="/budgets" className="text-sm text-brand">
+                Gerenciar
+              </Link>
+            </div>
+            {budgets.data?.budgets.length ? (
+              <ul className="mt-4 space-y-4">
+                {budgets.data.budgets.map((budget) => (
+                  <li key={budget.id}>
+                    <p className="mb-2 text-sm font-medium text-ink">{budget.categoryName}</p>
+                    <BudgetProgressBar
+                      spent={budget.spent}
+                      limit={budget.limit}
+                      ratio={budget.ratio}
+                      status={budget.status}
+                    />
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-4 text-sm text-ink-soft">
+                Nenhum limite definido para este mês.{' '}
+                <Link href="/budgets" className="text-brand">
+                  Definir orçamentos
+                </Link>
+              </p>
+            )}
+          </section>
           <section className="mt-6 rounded-lg bg-surface p-6">
             <h2 className="font-display text-[21px] font-medium">Despesas por categoria</h2>
             {chart.length === 0 ? (

@@ -129,3 +129,23 @@ export interface ImportConfirmResult {
   importedRows: number;
   skippedRows: number;
 }
+
+export type BudgetStatus = 'on_track' | 'warning' | 'exceeded';
+
+export interface BudgetProgress {
+  id: string;
+  categoryId: string;
+  categoryName: string;
+  categoryColor: string | null;
+  limit: string;
+  spent: string;
+  ratio: number;
+  status: BudgetStatus;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+}
+
+export interface BudgetList {
+  month: string;
+  budgets: BudgetProgress[];
+}

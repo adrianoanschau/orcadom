@@ -13,6 +13,7 @@ const links = [
   { href: '/accounts', label: 'Contas' },
   { href: '/categories', label: 'Categorias' },
   { href: '/transactions', label: 'Lançamentos' },
+  { href: '/budgets', label: 'Orçamentos' },
   { href: '/imports', label: 'Importar' },
   { href: '/settings/import-alias', label: 'Email' },
 ];

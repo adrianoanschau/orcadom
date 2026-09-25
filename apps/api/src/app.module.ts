@@ -1,12 +1,14 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD, APP_PIPE } from '@nestjs/core';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ZodValidationPipe } from 'nestjs-zod';
 import { AppController } from './app.controller.js';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
 import { PrismaModule } from './common/prisma.module.js';
 import { AccountsModule } from './modules/accounts/accounts.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
+import { BudgetsModule } from './modules/budgets/budgets.module.js';
 import { CategoriesModule } from './modules/categories/categories.module.js';
 import { DashboardModule } from './modules/dashboard/dashboard.module.js';
 import { AutomationModule } from './modules/automation/automation.module.js';
@@ -19,7 +21,9 @@ import { TransactionsModule } from './modules/transactions/transactions.module.j
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    EventEmitterModule.forRoot(),
     PrismaModule,
+    BudgetsModule,
     AuthModule,
     AccountsModule,
     CategoriesModule,

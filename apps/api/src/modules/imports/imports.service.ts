@@ -11,6 +11,8 @@ import { applyBalance } from '../../common/balance.js';
 import { CategoryMemoryService } from '../../common/category-memory.service.js';
 import { moneyString, toDecimal } from '../../common/money.js';
 import { PrismaService } from '../../common/prisma.service.js';
+import { BudgetEventsService } from '../budgets/budget-events.service.js';
+import { monthFromDate, type BudgetStatus } from '../budgets/budget-progress.js';
 import {
   hydratePreviewRows,
   ImportPreviewStore,
@@ -46,6 +48,7 @@ export class ImportsService {
     private readonly prisma: PrismaService,
     private readonly store: ImportPreviewStore,
     private readonly categoryMemory: CategoryMemoryService,
+    private readonly budgetEvents: BudgetEventsService,
   ) {}
 
   async upload(userId: string, accountId: string, file: UploadedFile | undefined) {
@@ -205,6 +208,19 @@ export class ImportsService {
       selected.map((row) => ({ categoryId: row.categoryId, type: row.type })),
     );
 
+    const previousByKey = new Map<string, { categoryId: string; date: Date; status: BudgetStatus | null }>();
+    for (const row of selected) {
+      if (row.type !== 'EXPENSE') continue;
+      const key = `${row.categoryId}:${monthFromDate(row.date)}`;
+      if (previousByKey.has(key)) continue;
+      const snapshot = await this.budgetEvents.snapshot(userId, row.categoryId, row.date);
+      previousByKey.set(key, {
+        categoryId: row.categoryId,
+        date: row.date,
+        status: snapshot?.status ?? null,
+      });
+    }
+
     const imported = await this.prisma.client.$transaction(async (tx) => {
       let count = 0;
       for (const row of selected) {
@@ -242,6 +258,9 @@ export class ImportsService {
     });
 
     this.store.delete(batchId);
+    for (const item of previousByKey.values()) {
+      await this.budgetEvents.emitIfCrossed(userId, item.categoryId, item.date, item.status);
+    }
     return {
       id: batch.id,
       accountId,

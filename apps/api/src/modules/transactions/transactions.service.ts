@@ -5,16 +5,24 @@ import { applyBalance } from '../../common/balance.js';
 import { CategoryMemoryService } from '../../common/category-memory.service.js';
 import { moneyString, toDecimal } from '../../common/money.js';
 import { PrismaService } from '../../common/prisma.service.js';
+import { BudgetEventsService } from '../budgets/budget-events.service.js';
+import { monthFromDate, type BudgetStatus } from '../budgets/budget-progress.js';
 
 @Injectable()
 export class TransactionsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly categoryMemory: CategoryMemoryService,
+    private readonly budgetEvents: BudgetEventsService,
   ) {}
 
   async create(userId: string, dto: CreateTransactionDto) {
     await this.assertReferences(userId, dto);
+    const date = new Date(dto.date);
+    const previous =
+      dto.type === TransactionType.EXPENSE
+        ? await this.budgetEvents.snapshot(userId, dto.categoryId, date)
+        : null;
     const created = await this.prisma.client.$transaction(async (tx) => {
       const transaction = await tx.transaction.create({ data: this.toData(userId, dto) });
       await applyBalance(tx, transaction, 1);
@@ -23,6 +31,9 @@ export class TransactionsService {
       }
       return transaction;
     });
+    if (dto.type === TransactionType.EXPENSE) {
+      await this.budgetEvents.emitIfCrossed(userId, dto.categoryId, date, previous?.status);
+    }
     return this.toResponse(created);
   }
 
@@ -68,6 +79,15 @@ export class TransactionsService {
   async update(userId: string, id: string, dto: CreateTransactionDto) {
     const current = await this.findOwned(userId, id);
     await this.assertReferences(userId, dto);
+    const nextDate = new Date(dto.date);
+    const previousByKey = await this.snapshotExpenseKeys(userId, [
+      current.type === TransactionType.EXPENSE && current.categoryId
+        ? { categoryId: current.categoryId, date: current.date }
+        : null,
+      dto.type === TransactionType.EXPENSE && dto.categoryId
+        ? { categoryId: dto.categoryId, date: nextDate }
+        : null,
+    ]);
     const updated = await this.prisma.client.$transaction(async (tx) => {
       await applyBalance(tx, current, -1);
       const transaction = await tx.transaction.update({
@@ -80,6 +100,7 @@ export class TransactionsService {
       }
       return transaction;
     });
+    await this.emitExpenseKeys(userId, previousByKey);
     return this.toResponse(updated);
   }
 
@@ -89,6 +110,34 @@ export class TransactionsService {
       await applyBalance(tx, current, -1);
       await tx.transaction.delete({ where: { id } });
     });
+  }
+
+  private async snapshotExpenseKeys(
+    userId: string,
+    candidates: ({ categoryId: string; date: Date } | null)[],
+  ) {
+    const previousByKey = new Map<string, { categoryId: string; date: Date; status: BudgetStatus | null }>();
+    for (const candidate of candidates) {
+      if (!candidate) continue;
+      const key = `${candidate.categoryId}:${monthFromDate(candidate.date)}`;
+      if (previousByKey.has(key)) continue;
+      const snapshot = await this.budgetEvents.snapshot(userId, candidate.categoryId, candidate.date);
+      previousByKey.set(key, {
+        categoryId: candidate.categoryId,
+        date: candidate.date,
+        status: snapshot?.status ?? null,
+      });
+    }
+    return previousByKey;
+  }
+
+  private async emitExpenseKeys(
+    userId: string,
+    previousByKey: Map<string, { categoryId: string; date: Date; status: BudgetStatus | null }>,
+  ): Promise<void> {
+    for (const item of previousByKey.values()) {
+      await this.budgetEvents.emitIfCrossed(userId, item.categoryId, item.date, item.status);
+    }
   }
 
   private async assertReferences(userId: string, dto: CreateTransactionDto): Promise<void> {

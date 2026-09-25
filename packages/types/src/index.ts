@@ -6,6 +6,14 @@ export {
 } from './account.types.js';
 export { loginSchema, registerSchema, type LoginDto, type RegisterDto } from './auth.types.js';
 export {
+  createBudgetSchema,
+  listBudgetsQuerySchema,
+  updateBudgetSchema,
+  type CreateBudgetDto,
+  type ListBudgetsQuery,
+  type UpdateBudgetDto,
+} from './budget.types.js';
+export {
   createCategorySchema,
   listCategoriesQuerySchema,
   updateCategorySchema,
