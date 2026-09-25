@@ -1,14 +1,16 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { APP_GUARD, APP_PIPE } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ZodValidationPipe } from 'nestjs-zod';
 import { AppController } from './app.controller.js';
 import { HouseholdGuard } from './common/guards/household.guard.js';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
+import { ActorContextInterceptor } from './common/interceptors/actor-context.interceptor.js';
 import { PrismaModule } from './common/prisma.module.js';
 import { AccountsModule } from './modules/accounts/accounts.module.js';
+import { AuditLogsModule } from './modules/audit-logs/audit-logs.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { BudgetsModule } from './modules/budgets/budgets.module.js';
 import { CategoriesModule } from './modules/categories/categories.module.js';
@@ -32,6 +34,7 @@ import { TransactionsModule } from './modules/transactions/transactions.module.j
     BudgetsModule,
     AuthModule,
     HouseholdsModule,
+    AuditLogsModule,
     AccountsModule,
     CategoriesModule,
     TransactionsModule,
@@ -49,6 +52,7 @@ import { TransactionsModule } from './modules/transactions/transactions.module.j
     { provide: APP_PIPE, useClass: ZodValidationPipe },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: HouseholdGuard },
+    { provide: APP_INTERCEPTOR, useClass: ActorContextInterceptor },
   ],
 })
 export class AppModule {}

@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { HouseholdRole, PostingStatus, TransactionType } from '@orcadom/database';
+import { HouseholdRole, PostingStatus, TransactionType, runWithActor } from '@orcadom/database';
 import type {
   CreateRecurringTransactionDto,
   UpdateRecurringTransactionDto,
@@ -117,19 +117,21 @@ export class RecurringTransactionsService {
 
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT, { timeZone: 'America/Sao_Paulo' })
   async generateDueRecurringOccurrences(): Promise<number> {
-    const horizon = recurrenceHorizon();
-    const active = await this.prisma.client.recurringTransaction.findMany({
-      where: {
-        active: true,
-        startDate: { lte: horizon },
-        OR: [{ endDate: null }, { endDate: { gte: startOfToday() } }],
-      },
+    return runWithActor({ userId: null, householdId: null, source: 'CRON_RECURRING' }, async () => {
+      const horizon = recurrenceHorizon();
+      const active = await this.prisma.client.recurringTransaction.findMany({
+        where: {
+          active: true,
+          startDate: { lte: horizon },
+          OR: [{ endDate: null }, { endDate: { gte: startOfToday() } }],
+        },
+      });
+      let created = 0;
+      for (const row of active) {
+        created += await this.generateFor(row.id);
+      }
+      return created;
     });
-    let created = 0;
-    for (const row of active) {
-      created += await this.generateFor(row.id);
-    }
-    return created;
   }
 
   private async generateFor(id: string): Promise<number> {
