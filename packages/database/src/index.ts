@@ -11,6 +11,7 @@ import {
   PostingStatus,
   Prisma,
   PrismaClient,
+  RecurrenceFrequency,
   TransactionSource,
   TransactionType,
 } from './generated/prisma/client.js';
@@ -45,6 +46,7 @@ export {
   PostingStatus,
   Prisma,
   PrismaClient,
+  RecurrenceFrequency,
   TransactionSource,
   TransactionType,
 };

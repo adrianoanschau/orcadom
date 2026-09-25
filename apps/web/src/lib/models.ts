@@ -31,6 +31,7 @@ export interface Transaction {
   postingStatus?: 'SCHEDULED' | 'POSTED';
   installmentPlanId?: string | null;
   installmentNumber?: number | null;
+  recurringTransactionId?: string | null;
 }
 
 export interface TransactionPage {
@@ -73,6 +74,25 @@ export interface InstallmentPlanDetail extends InstallmentPlanSummary {
     postingStatus: 'SCHEDULED' | 'POSTED';
     installmentNumber: number | null;
   }[];
+}
+
+export type RecurrenceFrequency = 'WEEKLY' | 'MONTHLY' | 'YEARLY';
+
+export interface RecurringTransaction {
+  id: string;
+  description: string;
+  amount: string;
+  type: 'INCOME' | 'EXPENSE';
+  frequency: RecurrenceFrequency;
+  dayOfMonth: number | null;
+  startDate: string;
+  endDate: string | null;
+  active: boolean;
+  accountId: string;
+  accountName: string;
+  categoryId: string | null;
+  categoryName: string | null;
+  nextOccurrence: string | null;
 }
 
 export interface ImportPreviewRow {

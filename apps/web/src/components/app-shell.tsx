@@ -15,6 +15,7 @@ const links = [
   { href: '/transactions', label: 'Lançamentos' },
   { href: '/budgets', label: 'Orçamentos' },
   { href: '/installments', label: 'Parcelas' },
+  { href: '/recurring', label: 'Recorrentes' },
   { href: '/imports', label: 'Importar' },
   { href: '/settings/import-alias', label: 'Email' },
 ];

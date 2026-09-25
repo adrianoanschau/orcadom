@@ -209,27 +209,27 @@ origem.
 
 ### Fase 1 — Modelagem
 
-- [ ] Migration com `RecurringTransaction`, `RecurrenceFrequency` e o novo
+- [x] Migration com `RecurringTransaction`, `RecurrenceFrequency` e o novo
       campo `recurringTransactionId` em `Transaction`, incluindo o índice
       único `[recurringTransactionId, date]`.
-- [ ] Função `calculateNextOccurrenceDate()` com testes cobrindo os três
+- [x] Função `calculateNextOccurrenceDate()` com testes cobrindo os três
       tipos de frequência e o caso de ajuste de fim de mês.
 
 ### Fase 2 — API
 
-- [ ] `POST /recurring-transactions`, com geração imediata da primeira
+- [x] `POST /recurring-transactions`, com geração imediata da primeira
       ocorrência quando aplicável.
-- [ ] `GET`, `PATCH`, `pause`/`resume`, `DELETE`.
-- [ ] Job `generateDueRecurringOccurrences()`, com tratamento de conflito
+- [x] `GET`, `PATCH`, `pause`/`resume`, `DELETE`.
+- [x] Job `generateDueRecurringOccurrences()`, com tratamento de conflito
       de unicidade como caso esperado, não erro.
-- [ ] Renomear (ou generalizar) o job de postagem existente para
+- [x] Renomear (ou generalizar) o job de postagem existente para
       `postDueScheduledTransactions()`, confirmando que ele já cobre
       ocorrências de recorrência sem nenhuma alteração de lógica.
 
 ### Fase 3 — Frontend
 
-- [ ] Tela `/recurring` com listagem e formulário.
-- [ ] Confirmar que o card "Compromissos futuros" do dashboard já reflete
+- [x] Tela `/recurring` com listagem e formulário.
+- [x] Confirmar que o card "Compromissos futuros" do dashboard já reflete
       ocorrências recorrentes sem alteração adicional.
 
 ## 10. Riscos e pontos de atenção

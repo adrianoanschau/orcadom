@@ -212,6 +212,7 @@ export class TransactionsService {
     postingStatus?: string;
     installmentPlanId?: string | null;
     installmentNumber?: number | null;
+    recurringTransactionId?: string | null;
     createdAt: Date;
     updatedAt: Date;
   }) {
@@ -230,6 +231,7 @@ export class TransactionsService {
       postingStatus: transaction.postingStatus ?? 'POSTED',
       installmentPlanId: transaction.installmentPlanId ?? null,
       installmentNumber: transaction.installmentNumber ?? null,
+      recurringTransactionId: transaction.recurringTransactionId ?? null,
       createdAt: transaction.createdAt.toISOString(),
       updatedAt: transaction.updatedAt.toISOString(),
     };

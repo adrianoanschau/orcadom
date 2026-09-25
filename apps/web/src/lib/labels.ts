@@ -10,5 +10,12 @@ export const transactionTypeLabels = {
   TRANSFER: 'Transferência',
 } as const;
 
+export const recurrenceFrequencyLabels = {
+  WEEKLY: 'Semanal',
+  MONTHLY: 'Mensal',
+  YEARLY: 'Anual',
+} as const;
+
 export type AccountType = keyof typeof accountTypeLabels;
 export type TransactionType = keyof typeof transactionTypeLabels;
+export type RecurrenceFrequency = keyof typeof recurrenceFrequencyLabels;

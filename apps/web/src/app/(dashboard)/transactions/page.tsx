@@ -517,6 +517,7 @@ function metaFor(
   const category = categories.get(transaction.categoryId ?? '') ?? 'categoria';
   const installment =
     transaction.installmentNumber != null ? ` · parcela ${String(transaction.installmentNumber)}` : '';
+  const recurring = transaction.recurringTransactionId ? ' · recorrente' : '';
   const scheduled = transaction.postingStatus === 'SCHEDULED' ? ' · agendada' : '';
-  return `${date} · ${account} · ${category}${installment}${scheduled}`;
+  return `${date} · ${account} · ${category}${installment}${recurring}${scheduled}`;
 }

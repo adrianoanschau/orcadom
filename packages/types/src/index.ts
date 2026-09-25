@@ -44,6 +44,12 @@ export {
   type CreateInstallmentPlanDto,
 } from './installment.types.js';
 export {
+  createRecurringTransactionSchema,
+  updateRecurringTransactionSchema,
+  type CreateRecurringTransactionDto,
+  type UpdateRecurringTransactionDto,
+} from './recurring.types.js';
+export {
   dashboardQuerySchema,
   idParamSchema,
   listNotificationsQuerySchema,

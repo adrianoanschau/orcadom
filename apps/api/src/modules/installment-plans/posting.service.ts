@@ -16,7 +16,7 @@ export class PostingService {
   ) {}
 
   @Cron(CronExpression.EVERY_DAY_AT_1AM, { timeZone: 'America/Sao_Paulo' })
-  async postDueInstallments(): Promise<number> {
+  async postDueScheduledTransactions(): Promise<number> {
     const due = await this.prisma.client.transaction.findMany({
       where: { postingStatus: PostingStatus.SCHEDULED, date: { lt: startOfNextUtcDay(new Date()) } },
     });

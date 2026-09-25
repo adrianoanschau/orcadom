@@ -59,6 +59,12 @@ enum PostingStatus {
   POSTED
 }
 
+enum RecurrenceFrequency {
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
 enum NotificationType {
   BUDGET_WARNING
   BUDGET_EXCEEDED
@@ -89,7 +95,8 @@ model User {
   emailImportLogs     EmailImportLog[]
   notifications       Notification[]
   budgets             Budget[]
-  installmentPlans    InstallmentPlan[]
+  installmentPlans       InstallmentPlan[]
+  recurringTransactions  RecurringTransaction[]
 
   @@map("users")
 }
@@ -111,7 +118,8 @@ model Account {
   transfersTo         Transaction[] @relation("TransferToAccount")
   importBatches       ImportBatch[]
   bankAccountMappings BankAccountMapping[]
-  installmentPlans    InstallmentPlan[]
+  installmentPlans       InstallmentPlan[]
+  recurringTransactions  RecurringTransaction[]
 
   @@index([userId])
   @@map("accounts")
@@ -130,7 +138,8 @@ model Category {
   transactions     Transaction[]
   categoryMemories CategoryMemory[]
   budgets          Budget[]
-  installmentPlans InstallmentPlan[]
+  installmentPlans      InstallmentPlan[]
+  recurringTransactions RecurringTransaction[]
 
   @@unique([userId, name, type])
   @@index([userId])
@@ -173,7 +182,11 @@ model Transaction {
   installmentPlanId  String?
   installmentPlan    InstallmentPlan? @relation(fields: [installmentPlanId], references: [id], onDelete: SetNull)
 
+  recurringTransactionId String?
+  recurringTransaction   RecurringTransaction? @relation(fields: [recurringTransactionId], references: [id], onDelete: SetNull)
+
   @@unique([accountId, externalId])
+  @@unique([recurringTransactionId, date])
   @@index([userId, date])
   @@index([accountId])
   @@index([postingStatus, date])
@@ -201,6 +214,33 @@ model InstallmentPlan {
 
   @@index([userId])
   @@map("installment_plans")
+}
+
+model RecurringTransaction {
+  id          String              @id @default(uuid())
+  description String
+  amount      Decimal             @db.Decimal(12, 2)
+  type        TransactionType
+  frequency   RecurrenceFrequency
+  dayOfMonth  Int?
+  startDate   DateTime
+  endDate     DateTime?
+  active      Boolean             @default(true)
+  createdAt   DateTime            @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id])
+
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id])
+
+  occurrences Transaction[]
+
+  @@index([userId, active])
+  @@map("recurring_transactions")
 }
 
 model ImportBatch {
