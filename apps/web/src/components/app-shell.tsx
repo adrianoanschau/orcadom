@@ -1,11 +1,11 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { api } from '@/lib/api';
-import type { AppNotification } from '@/lib/models';
+import { NotificationBell } from './notification-bell';
 import { Button } from './ui';
 
 const links = [
@@ -21,17 +21,6 @@ const links = [
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const queryClient = useQueryClient();
-  const notifications = useQuery({
-    queryKey: ['notifications'],
-    queryFn: () => api<AppNotification[]>('/notifications'),
-    refetchInterval: 30_000,
-  });
-  const markRead = useMutation({
-    mutationFn: (id: string) => api(`/notifications/${id}/read`, { method: 'PATCH' }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['notifications'] });
-    },
-  });
 
   return (
     <div className="min-h-screen">
@@ -55,6 +44,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               );
             })}
           </nav>
+          <NotificationBell />
           <Button
             variant="ghost"
             onClick={() => {
@@ -68,39 +58,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Button>
         </div>
       </header>
-      <main className="mx-auto max-w-5xl px-4 py-8">
-        {(notifications.data ?? []).length > 0 ? (
-          <div className="mb-6 space-y-2">
-            {notifications.data?.map((item) => (
-              <div
-                key={item.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-brand-tint px-4 py-3"
-              >
-                <div>
-                  <p className="font-medium text-ink">{item.title}</p>
-                  <p className="text-sm text-ink-soft">{item.body}</p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {item.importBatchId ? (
-                    <Link href={`/imports?batchId=${item.importBatchId}`} className="text-sm text-brand">
-                      Revisar
-                    </Link>
-                  ) : null}
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      markRead.mutate(item.id);
-                    }}
-                  >
-                    Ok
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : null}
-        {children}
-      </main>
+      <main className="mx-auto max-w-5xl px-4 py-8">{children}</main>
     </div>
   );
 }

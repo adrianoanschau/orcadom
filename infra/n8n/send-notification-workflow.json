@@ -1,0 +1,100 @@
+{
+  "id": "orcadom-send-notification",
+  "name": "Orcadom — envio de notificação por email",
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Ativar o envio de avisos\n1. No **Webhook**, crie uma credencial Header Auth: nome `x-notification-secret`, valor igual a `NOTIFICATIONS_WEBHOOK_SECRET` do `.env`.\n2. No **Enviar email**, use a mesma credencial Gmail OAuth2 da importação (ou SMTP).\n3. Publique o workflow. A URL de produção fica `/webhook/send-notification`.\n4. A API chama esse webhook só para `BUDGET_EXCEEDED` e `EMAIL_IMPORT_UNMAPPED_ACCOUNT`.",
+        "height": 360,
+        "width": 360
+      },
+      "id": "sticky-help",
+      "name": "Como ativar",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-80, 140]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "send-notification",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-in",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [360, 280],
+      "webhookId": "orcadom-send-notification"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{ $json.body.to || $json.to }}",
+        "subject": "={{ $json.body.subject || $json.subject }}",
+        "emailType": "text",
+        "message": "={{ $json.body.body || $json.body }}"
+      },
+      "id": "gmail-send",
+      "name": "Enviar email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [620, 280]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true }) }}",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Responder",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [880, 280]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Enviar email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar email": {
+      "main": [
+        [
+          {
+            "node": "Responder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "pinData": {},
+  "versionId": "4d5e6f70-8192-a3b4-c5d6-e7f809101213",
+  "tags": []
+}

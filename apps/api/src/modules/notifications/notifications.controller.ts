@@ -1,11 +1,8 @@
-import { Controller, Get, HttpCode, HttpStatus, Param, Patch } from '@nestjs/common';
+import { Controller, Get, HttpCode, HttpStatus, Param, Patch, Query } from '@nestjs/common';
 import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
-import { idParamSchema } from '@orcadom/types';
-import { createZodDto } from 'nestjs-zod';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
+import { ListNotificationsQueryDto, NotificationParams } from './notifications.dto.js';
 import { NotificationsService } from './notifications.service.js';
-
-class NotificationParams extends createZodDto(idParamSchema) {}
 
 @ApiTags('notifications')
 @ApiCookieAuth('accessToken')
@@ -14,8 +11,14 @@ export class NotificationsController {
   constructor(private readonly notifications: NotificationsService) {}
 
   @Get()
-  list(@CurrentUser() userId: string) {
-    return this.notifications.listUnread(userId);
+  list(@CurrentUser() userId: string, @Query() query: ListNotificationsQueryDto) {
+    return this.notifications.list(userId, query);
+  }
+
+  @Patch('read-all')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  markAllRead(@CurrentUser() userId: string): Promise<void> {
+    return this.notifications.markAllRead(userId);
   }
 
   @Patch(':id/read')

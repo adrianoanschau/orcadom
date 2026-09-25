@@ -42,9 +42,11 @@ export {
 export {
   dashboardQuerySchema,
   idParamSchema,
+  listNotificationsQuerySchema,
   listTransactionsQuerySchema,
   type DashboardQuery,
   type IdParam,
+  type ListNotificationsQuery,
   type ListTransactionsQuery,
 } from './query.types.js';
 export { createTransactionSchema, type CreateTransactionDto } from './transaction.types.js';

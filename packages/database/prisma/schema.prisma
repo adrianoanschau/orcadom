@@ -54,6 +54,18 @@ enum EmailImportStatus {
   ERROR
 }
 
+enum NotificationType {
+  BUDGET_WARNING
+  BUDGET_EXCEEDED
+  EMAIL_IMPORT_READY
+  EMAIL_IMPORT_UNMAPPED_ACCOUNT
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+}
+
 model User {
   id           String   @id @default(uuid())
   name         String
@@ -177,7 +189,6 @@ model ImportBatch {
 
   transactions    Transaction[]
   emailImportLogs EmailImportLog[]
-  notifications   Notification[]
 
   @@index([userId])
   @@index([userId, status])
@@ -232,20 +243,19 @@ model EmailImportLog {
 }
 
 model Notification {
-  id        String    @id @default(uuid())
-  type      String
+  id        String                @id @default(uuid())
+  type      NotificationType
   title     String
-  body      String
+  message   String
+  metadata  Json?
+  channels  NotificationChannel[]
   readAt    DateTime?
-  createdAt DateTime  @default(now())
+  createdAt DateTime              @default(now())
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  importBatchId String?
-  importBatch   ImportBatch? @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
-
-  @@index([userId, readAt, createdAt])
+  @@index([userId, readAt])
   @@map("notifications")
 }
 

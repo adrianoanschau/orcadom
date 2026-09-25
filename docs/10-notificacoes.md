@@ -174,35 +174,35 @@ provisionado na feature de integração de email hospeda os dois workflows.
 
 ### Fase 1 — Modelagem e emissão de eventos
 
-- [ ] Migration com o model `Notification`.
-- [ ] Complementar `POST /automation/email-imports` (feature de email) com
+- [x] Migration com o model `Notification`.
+- [x] Complementar `POST /automation/email-imports` (feature de email) com
       a emissão de `email-import.ready` e `email-import.unmapped-account`.
-- [ ] Confirmar que `budget.threshold_crossed` (já existente) carrega os
+- [x] Confirmar que `budget.threshold_crossed` (já existente) carrega os
       dados necessários para montar título/mensagem/metadata da
       notificação.
 
 ### Fase 2 — Serviço de notificações e canal in-app
 
-- [ ] `NotificationsModule` com listeners para os três eventos.
-- [ ] Lógica de política de canal por tipo (tabela da seção 4), como
+- [x] `NotificationsModule` com listeners para os três eventos.
+- [x] Lógica de política de canal por tipo (tabela da seção 4), como
       constante de código.
-- [ ] `GET /notifications`, `PATCH /notifications/:id/read`,
+- [x] `GET /notifications`, `PATCH /notifications/:id/read`,
       `PATCH /notifications/read-all`.
 
 ### Fase 3 — Canal de email via n8n
 
-- [ ] Criar o segundo workflow no n8n (Webhook Trigger → Send Email →
+- [x] Criar o segundo workflow no n8n (Webhook Trigger → Send Email →
       Respond to Webhook).
-- [ ] Configurar `NOTIFICATIONS_WEBHOOK_URL` e
+- [x] Configurar `NOTIFICATIONS_WEBHOOK_URL` e
       `NOTIFICATIONS_WEBHOOK_SECRET` no `.env`.
-- [ ] Chamada HTTP do `NotificationsService` ao webhook, com tratamento
+- [x] Chamada HTTP do `NotificationsService` ao webhook, com tratamento
       best-effort (falha não propaga para o fluxo de origem).
 
 ### Fase 4 — Frontend
 
-- [ ] Ícone de sino com contador, no layout do dashboard.
-- [ ] Lista suspensa com marcação de lida e navegação para o destino.
-- [ ] Ação "marcar todas como lidas".
+- [x] Ícone de sino com contador, no layout do dashboard.
+- [x] Lista suspensa com marcação de lida e navegação para o destino.
+- [x] Ação "marcar todas como lidas".
 
 ## 11. Riscos e pontos de atenção
 

@@ -10,6 +10,20 @@ export function formatDate(iso: string) {
   );
 }
 
+export function formatRelativeTime(iso: string) {
+  const deltaSeconds = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
+  const formatter = new Intl.RelativeTimeFormat('pt-BR', { numeric: 'auto' });
+  const abs = Math.abs(deltaSeconds);
+  if (abs < 60) return formatter.format(-deltaSeconds, 'second');
+  const minutes = Math.round(deltaSeconds / 60);
+  if (Math.abs(minutes) < 60) return formatter.format(-minutes, 'minute');
+  const hours = Math.round(deltaSeconds / 3600);
+  if (Math.abs(hours) < 24) return formatter.format(-hours, 'hour');
+  const days = Math.round(deltaSeconds / 86400);
+  if (Math.abs(days) < 30) return formatter.format(-days, 'day');
+  return formatDate(iso);
+}
+
 export function todayInput() {
   const now = new Date();
   const month = String(now.getMonth() + 1).padStart(2, '0');

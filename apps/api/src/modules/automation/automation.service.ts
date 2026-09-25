@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { EmailImportStatus, ImportSource, ImportStatus } from '@orcadom/database';
 import type { EmailImportDto, EmailImportLogsQuery } from '@orcadom/types';
 import { createHash } from 'node:crypto';
@@ -7,7 +8,10 @@ import { extractImportToken } from '../imports/email-import.util.js';
 import { ImportsService } from '../imports/imports.service.js';
 import { decodeStatementText } from '../imports/parsers/shared.js';
 import { extractOfxAccount, parseOfx } from '../imports/parsers/ofx.js';
-import { NotificationsService } from '../notifications/notifications.service.js';
+import {
+  EMAIL_IMPORT_READY,
+  EMAIL_IMPORT_UNMAPPED_ACCOUNT,
+} from '../notifications/notification-policy.js';
 
 const MAX_ATTACHMENT_BYTES = 2 * 1024 * 1024;
 
@@ -16,7 +20,7 @@ export class AutomationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly imports: ImportsService,
-    private readonly notifications: NotificationsService,
+    private readonly events: EventEmitter2,
   ) {}
 
   async ingestEmail(dto: EmailImportDto) {
@@ -117,11 +121,10 @@ export class AutomationService {
       },
     });
 
-    await this.notifications.notifyEmailImport({
+    this.events.emit(unmapped ? EMAIL_IMPORT_UNMAPPED_ACCOUNT : EMAIL_IMPORT_READY, {
       userId: alias.userId,
       importBatchId: preview.id,
       fileName: preview.fileName,
-      unmapped,
     });
 
     return this.toResponse(log.status, preview.id);

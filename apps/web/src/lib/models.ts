@@ -113,14 +113,21 @@ export interface EmailImportLog {
   createdAt: string;
 }
 
+export type NotificationType =
+  | 'BUDGET_WARNING'
+  | 'BUDGET_EXCEEDED'
+  | 'EMAIL_IMPORT_READY'
+  | 'EMAIL_IMPORT_UNMAPPED_ACCOUNT';
+
 export interface AppNotification {
   id: string;
-  type: string;
+  type: NotificationType;
   title: string;
-  body: string;
+  message: string;
+  metadata: { importBatchId?: string; categoryId?: string; month?: string } | null;
+  channels: ('IN_APP' | 'EMAIL')[];
   readAt: string | null;
   createdAt: string;
-  importBatchId: string | null;
 }
 
 export interface ImportConfirmResult {
