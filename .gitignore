@@ -12,6 +12,11 @@ dist/
 .env.local
 .env.*.local
 
+# OAuth / secrets locais (n8n, Google Cloud)
+credentials/*
+!credentials/README.md
+*.apps.googleusercontent.com.json
+
 # prisma
 packages/database/src/generated
 !packages/database/prisma/migrations
