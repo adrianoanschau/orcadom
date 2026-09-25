@@ -18,6 +18,7 @@
     "docker:down": "docker compose down"
   },
   "devDependencies": {
+    "@changesets/cli": "^3.0.3",
     "@orcadom/config": "workspace:*",
     "eslint": "^10.11.0",
     "prettier": "^3.9.0",

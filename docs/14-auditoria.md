@@ -230,33 +230,33 @@ entidade individualmente.
 
 ### Fase 1 — Modelagem e mecanismo de captura
 
-- [ ] Migration com `AuditLog`, `AuditAction`, `AuditSource`.
-- [ ] `AsyncLocalStorage` de contexto de ator + `ActorContextInterceptor`.
-- [ ] Prisma Client Extension cobrindo a lista inicial de models
+- [x] Migration com `AuditLog`, `AuditAction`, `AuditSource`.
+- [x] `AsyncLocalStorage` de contexto de ator + `ActorContextInterceptor`.
+- [x] Prisma Client Extension cobrindo a lista inicial de models
       auditados, com `sanitize()` removendo campos sensíveis.
-- [ ] Testes confirmando que uma escrita dentro de `prisma.$transaction`
+- [x] Testes confirmando que uma escrita dentro de `prisma.$transaction`
       (ex: criação de transação com atualização de saldo) também é
       capturada corretamente — a extension precisa funcionar tanto no
       client normal quanto no client transacional.
 
 ### Fase 2 — Jobs agendados
 
-- [ ] `CRON_INSTALLMENT` e `CRON_RECURRING` definindo o contexto de ator
+- [x] `CRON_INSTALLMENT` e `CRON_RECURRING` definindo o contexto de ator
       manualmente antes de cada execução (seção 4.1).
-- [ ] Confirmar que entradas geradas por job aparecem com `actorUserId`
+- [x] Confirmar que entradas geradas por job aparecem com `actorUserId`
       nulo e o `source` correto — nunca atribuídas a um usuário por
       engano.
 
 ### Fase 3 — API e formatação
 
-- [ ] `GET /audit-logs` (por entidade e por household).
-- [ ] `auditMessageFormatter`, com mapeamento inicial para os models mais
+- [x] `GET /audit-logs` (por entidade e por household).
+- [x] `auditMessageFormatter`, com mapeamento inicial para os models mais
       usados (`Transaction`, `Budget`, `HouseholdMember`).
 
 ### Fase 4 — Frontend
 
-- [ ] Seção "Histórico" nas telas de detalhe já existentes.
-- [ ] Tela `/settings/activity` (feed do household).
+- [x] Seção "Histórico" nas telas de detalhe já existentes.
+- [x] Tela `/settings/activity` (feed do household).
 
 ## 8. Riscos e pontos de atenção
 

@@ -89,6 +89,20 @@ enum InviteStatus {
   REVOKED
 }
 
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+}
+
+enum AuditSource {
+  USER
+  AUTOMATION_EMAIL
+  CRON_INSTALLMENT
+  CRON_RECURRING
+  SYSTEM
+}
+
 model User {
   id           String   @id @default(uuid())
   name         String
@@ -101,6 +115,7 @@ model User {
   transactions    Transaction[]
   emailImportLogs EmailImportLog[]
   notifications   Notification[]
+  auditLogs       AuditLog[]
 
   @@map("users")
 }
@@ -123,6 +138,7 @@ model Household {
   installmentPlans      InstallmentPlan[]
   recurringTransactions RecurringTransaction[]
   categoryMemories      CategoryMemory[]
+  auditLogs             AuditLog[]
 
   @@map("households")
 }
@@ -434,4 +450,26 @@ model CategoryMemory {
   @@unique([householdId, pattern, categoryId])
   @@index([householdId, pattern])
   @@map("category_memory")
+}
+
+model AuditLog {
+  id         String      @id @default(uuid())
+  entityType String
+  entityId   String
+  action     AuditAction
+  source     AuditSource
+  before     Json?
+  after      Json?
+  metadata   Json?
+  createdAt  DateTime    @default(now())
+
+  actorUserId String?
+  actorUser   User?      @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  householdId String?
+  household   Household? @relation(fields: [householdId], references: [id], onDelete: SetNull)
+
+  @@index([householdId, entityType, entityId])
+  @@index([householdId, createdAt])
+  @@map("audit_logs")
 }
