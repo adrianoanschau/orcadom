@@ -1,5 +1,41 @@
 # Contribuindo com o Orcadom
 
+## Conventional Commits
+
+Toda mensagem de commit precisa seguir
+[Conventional Commits](https://www.conventionalcommits.org/pt-br/v1.0.0/):
+
+    tipo(escopo)?: descrição
+
+O Husky roda o commitlint no hook `commit-msg` — um commit fora do padrão
+é rejeitado localmente. O CI (`commitlint.yml`) repete a checagem em
+todo PR contra `main`.
+
+| Tipo       | Quando usar                              |
+| ---------- | ---------------------------------------- |
+| `feat`     | Nova funcionalidade visível              |
+| `fix`      | Correção de bug                          |
+| `docs`     | Só documentação                          |
+| `style`    | Formatação, sem mudança de comportamento |
+| `refactor` | Reestruturação sem feat nem fix          |
+| `perf`     | Melhoria de performance                  |
+| `test`     | Testes                                   |
+| `build`    | Build, dependências, monorepo            |
+| `ci`       | Workflows e automação de CI              |
+| `chore`    | Manutenção que não se encaixa acima      |
+| `revert`   | Reverte um commit anterior               |
+
+A descrição fica em minúsculas, no imperativo, sem ponto final.
+Escopo é opcional (`api`, `web`, `database`, `types`…).
+
+```
+feat(web): mostra histórico de auditoria na transação
+fix(api): corrige cálculo de saldo em transferência
+chore: atualiza dependências do prisma
+```
+
+Breaking change: `feat!:` no header, ou o rodapé `BREAKING CHANGE:`.
+
 ## Antes de abrir um PR
 
 Toda mudança que altera comportamento do produto precisa de um changeset:
@@ -15,11 +51,11 @@ configuração interna sem efeito observável) podem receber a label
 
 ### Qual tipo escolher
 
-| Tipo | Quando usar |
-|---|---|
+| Tipo    | Quando usar                                                                                                  |
+| ------- | ------------------------------------------------------------------------------------------------------------ |
 | `major` | Mudança incompatível — a partir de `1.0.0`. Antes disso, a fase `0.x` permite breaking changes como `minor`. |
-| `minor` | Nova funcionalidade visível para o usuário |
-| `patch` | Correção de bug ou ajuste interno sem comportamento novo |
+| `minor` | Nova funcionalidade visível para o usuário                                                                   |
+| `patch` | Correção de bug ou ajuste interno sem comportamento novo                                                     |
 
 Infraestrutura sem efeito observável (CI, observabilidade, backup) também
 é `patch` — ou dispensa changeset com a label `no-changeset`.
