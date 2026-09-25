@@ -25,13 +25,13 @@ todo PR contra `main`.
 | `chore`    | Manutenção que não se encaixa acima      |
 | `revert`   | Reverte um commit anterior               |
 
-A descrição fica em minúsculas, no imperativo, sem ponto final.
+A descrição é em **inglês**, minúsculas, imperativo, sem ponto final.
 Escopo é opcional (`api`, `web`, `database`, `types`…).
 
 ```
-feat(web): mostra histórico de auditoria na transação
-fix(api): corrige cálculo de saldo em transferência
-chore: atualiza dependências do prisma
+feat(web): show transaction audit history
+fix(api): correct balance calculation on transfers
+chore: update prisma dependencies
 ```
 
 Breaking change: `feat!:` no header, ou o rodapé `BREAKING CHANGE:`.

@@ -1,0 +1,32 @@
+---
+description: Após cada alteração, sugerir uma mensagem de Conventional Commit
+alwaysApply: true
+---
+
+# Sugerir commit após cada alteração
+
+Ao concluir uma implementação, correção ou conjunto de mudanças, **sempre
+sugerir** uma mensagem de commit — sem criar o commit, a menos que o
+usuário peça.
+
+A mensagem deve passar no commitlint
+(`@commitlint/config-conventional`) e no Husky (`commit-msg`):
+
+```
+tipo(escopo)?: descrição
+```
+
+- `tipo`: `feat` | `fix` | `docs` | `style` | `refactor` | `perf` | `test` | `build` | `ci` | `chore` | `revert`
+- `escopo` opcional: `api`, `web`, `database`, `types`, `config`
+- description in **English**, lowercase, imperative, no trailing period
+- header ≤ 100 characters; body only if the "why" does not fit the header
+- breaking change: `feat!:` or footer `BREAKING CHANGE:`
+
+```
+feat(web): show transaction audit history
+fix(api): correct balance calculation on transfers
+ci: enforce conventional commits with husky
+```
+
+Ofereça **uma** mensagem pronta para copiar (ou 2 alternativas se o tipo
+for ambíguo). Não invente changeset só por causa da sugestão.
