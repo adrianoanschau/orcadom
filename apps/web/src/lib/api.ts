@@ -9,6 +9,26 @@ export class ApiError extends Error {
 }
 
 const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? '/backend';
+const HOUSEHOLD_STORAGE_KEY = 'orcadom.householdId';
+
+export function getActiveHouseholdId(): string | null {
+  if (typeof window === 'undefined') return null;
+  return window.localStorage.getItem(HOUSEHOLD_STORAGE_KEY);
+}
+
+export function setActiveHouseholdId(id: string | null): void {
+  if (typeof window === 'undefined') return;
+  if (id) window.localStorage.setItem(HOUSEHOLD_STORAGE_KEY, id);
+  else window.localStorage.removeItem(HOUSEHOLD_STORAGE_KEY);
+}
+
+function needsHouseholdHeader(path: string): boolean {
+  if (path.startsWith('/auth/')) return false;
+  if (path === '/households' || path.startsWith('/households?')) return false;
+  if (path.startsWith('/households/invites/')) return false;
+  if (path.startsWith('/notifications')) return false;
+  return true;
+}
 
 function readMessage(payload: unknown): string {
   if (!payload || typeof payload !== 'object' || !('message' in payload)) {
@@ -24,6 +44,10 @@ export async function api<T>(path: string, init: RequestInit = {}, retry = true)
   const headers = new Headers(init.headers);
   if (init.body && !(init.body instanceof FormData) && !headers.has('content-type')) {
     headers.set('content-type', 'application/json');
+  }
+  const householdId = getActiveHouseholdId();
+  if (needsHouseholdHeader(path) && householdId && !headers.has('x-household-id')) {
+    headers.set('x-household-id', householdId);
   }
 
   const response = await fetch(`${baseUrl}${path}`, {

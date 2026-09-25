@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post } from '@nestjs/common';
 import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
-import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
+import { CurrentHousehold } from '../../common/decorators/current-household.decorator.js';
 import {
   BankAccountMappingParams,
   CreateBankAccountMappingBody,
@@ -15,27 +15,27 @@ export class BankAccountMappingsController {
   constructor(private readonly mappings: BankAccountMappingsService) {}
 
   @Get()
-  list(@CurrentUser() userId: string) {
-    return this.mappings.list(userId);
+  list(@CurrentHousehold() householdId: string) {
+    return this.mappings.list(householdId);
   }
 
   @Post()
-  create(@CurrentUser() userId: string, @Body() body: CreateBankAccountMappingBody) {
-    return this.mappings.create(userId, body);
+  create(@CurrentHousehold() householdId: string, @Body() body: CreateBankAccountMappingBody) {
+    return this.mappings.create(householdId, body);
   }
 
   @Patch(':id')
   update(
-    @CurrentUser() userId: string,
+    @CurrentHousehold() householdId: string,
     @Param() params: BankAccountMappingParams,
     @Body() body: UpdateBankAccountMappingBody,
   ) {
-    return this.mappings.update(userId, params.id, body);
+    return this.mappings.update(householdId, params.id, body);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  remove(@CurrentUser() userId: string, @Param() params: BankAccountMappingParams): Promise<void> {
-    return this.mappings.remove(userId, params.id);
+  remove(@CurrentHousehold() householdId: string, @Param() params: BankAccountMappingParams): Promise<void> {
+    return this.mappings.remove(householdId, params.id);
   }
 }

@@ -23,7 +23,7 @@ export class NotificationsService {
 
   async notifyBudget(payload: BudgetThresholdPayload): Promise<void> {
     const category = await this.prisma.client.category.findFirst({
-      where: { id: payload.categoryId, userId: payload.userId },
+      where: { id: payload.categoryId, householdId: payload.householdId },
       select: { name: true },
     });
     const copy = budgetNotificationCopy(
@@ -31,8 +31,7 @@ export class NotificationsService {
       category?.name ?? 'esta categoria',
       payload.month,
     );
-    await this.persist({
-      userId: payload.userId,
+    await this.fanOut(payload.householdId, {
       type: copy.type,
       title: copy.title,
       message: copy.message,
@@ -42,13 +41,25 @@ export class NotificationsService {
 
   async notifyEmailImport(payload: EmailImportEventPayload, unmapped: boolean): Promise<void> {
     const copy = emailImportNotificationCopy(payload.fileName, unmapped);
-    await this.persist({
-      userId: payload.userId,
+    await this.fanOut(payload.householdId, {
       type: copy.type,
       title: copy.title,
       message: copy.message,
       metadata: { importBatchId: payload.importBatchId },
     });
+  }
+
+  private async fanOut(
+    householdId: string,
+    input: { type: NotificationKind; title: string; message: string; metadata: Record<string, string> },
+  ): Promise<void> {
+    const members = await this.prisma.client.householdMember.findMany({
+      where: { householdId },
+      select: { userId: true },
+    });
+    for (const member of members) {
+      await this.persist({ ...input, userId: member.userId });
+    }
   }
 
   async list(userId: string, query: ListNotificationsQuery) {

@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
 import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
+import { CurrentHousehold } from '../../common/decorators/current-household.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { CreateInstallmentPlanBody, InstallmentPlanParams } from './installment-plans.dto.js';
 import { InstallmentPlansService } from './installment-plans.service.js';
@@ -11,23 +12,30 @@ export class InstallmentPlansController {
   constructor(private readonly plans: InstallmentPlansService) {}
 
   @Post()
-  create(@CurrentUser() userId: string, @Body() body: CreateInstallmentPlanBody) {
-    return this.plans.create(userId, body);
+  create(
+    @CurrentHousehold() householdId: string,
+    @CurrentUser() userId: string,
+    @Body() body: CreateInstallmentPlanBody,
+  ) {
+    return this.plans.create(householdId, userId, body);
   }
 
   @Get()
-  list(@CurrentUser() userId: string) {
-    return this.plans.list(userId);
+  list(@CurrentHousehold() householdId: string) {
+    return this.plans.list(householdId);
   }
 
   @Get(':id')
-  get(@CurrentUser() userId: string, @Param() params: InstallmentPlanParams) {
-    return this.plans.get(userId, params.id);
+  get(@CurrentHousehold() householdId: string, @Param() params: InstallmentPlanParams) {
+    return this.plans.get(householdId, params.id);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  remove(@CurrentUser() userId: string, @Param() params: InstallmentPlanParams): Promise<void> {
-    return this.plans.remove(userId, params.id);
+  remove(
+    @CurrentHousehold() householdId: string,
+    @Param() params: InstallmentPlanParams,
+  ): Promise<void> {
+    return this.plans.remove(householdId, params.id);
   }
 }

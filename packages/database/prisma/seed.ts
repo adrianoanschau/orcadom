@@ -30,18 +30,32 @@ async function main(): Promise<void> {
     },
   });
 
+  const membership = await prisma.householdMember.findFirst({
+    where: { userId: user.id },
+    orderBy: { joinedAt: 'asc' },
+  });
+  const household =
+    membership?.householdId
+      ? await prisma.household.findUniqueOrThrow({ where: { id: membership.householdId } })
+      : await prisma.household.create({
+          data: {
+            name: 'Família de Usuário demo',
+            members: { create: { userId: user.id, role: 'OWNER' } },
+          },
+        });
+
   for (const category of categories) {
     await prisma.category.upsert({
       where: {
-        userId_name_type: {
-          userId: user.id,
+        householdId_name_type: {
+          householdId: household.id,
           name: category.name,
           type: category.type,
         },
       },
       update: {},
       create: {
-        userId: user.id,
+        householdId: household.id,
         name: category.name,
         type: category.type,
         icon: category.icon,

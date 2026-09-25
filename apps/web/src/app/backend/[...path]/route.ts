@@ -10,8 +10,10 @@ async function forward(request: NextRequest, context: { params: Promise<{ path: 
   const headers = new Headers();
   const cookie = request.headers.get('cookie');
   const contentType = request.headers.get('content-type');
+  const householdId = request.headers.get('x-household-id');
   if (cookie) headers.set('cookie', cookie);
   if (contentType) headers.set('content-type', contentType);
+  if (householdId) headers.set('x-household-id', householdId);
 
   const hasBody = request.method !== 'GET' && request.method !== 'HEAD';
   const upstream = await fetch(target, {

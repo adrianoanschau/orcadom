@@ -10,6 +10,7 @@ const protectedPrefixes = [
   '/recurring',
   '/imports',
   '/settings',
+  '/invite',
 ];
 
 export function proxy(request: NextRequest) {

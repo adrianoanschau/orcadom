@@ -5,6 +5,7 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ZodValidationPipe } from 'nestjs-zod';
 import { AppController } from './app.controller.js';
+import { HouseholdGuard } from './common/guards/household.guard.js';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
 import { PrismaModule } from './common/prisma.module.js';
 import { AccountsModule } from './modules/accounts/accounts.module.js';
@@ -19,6 +20,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { SettingsModule } from './modules/settings/settings.module.js';
 import { InstallmentPlansModule } from './modules/installment-plans/installment-plans.module.js';
 import { RecurringTransactionsModule } from './modules/recurring-transactions/recurring-transactions.module.js';
+import { HouseholdsModule } from './modules/households/households.module.js';
 import { TransactionsModule } from './modules/transactions/transactions.module.js';
 
 @Module({
@@ -29,6 +31,7 @@ import { TransactionsModule } from './modules/transactions/transactions.module.j
     PrismaModule,
     BudgetsModule,
     AuthModule,
+    HouseholdsModule,
     AccountsModule,
     CategoriesModule,
     TransactionsModule,
@@ -45,6 +48,7 @@ import { TransactionsModule } from './modules/transactions/transactions.module.j
   providers: [
     { provide: APP_PIPE, useClass: ZodValidationPipe },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: HouseholdGuard },
   ],
 })
 export class AppModule {}

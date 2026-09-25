@@ -31,7 +31,7 @@ interface UploadedFile {
 }
 
 export interface CreatePendingBatchInput {
-  userId: string;
+  householdId: string;
   accountId: string | null;
   fileName: string;
   format: 'OFX' | 'CSV';
@@ -51,11 +51,11 @@ export class ImportsService {
     private readonly budgetEvents: BudgetEventsService,
   ) {}
 
-  async upload(userId: string, accountId: string, file: UploadedFile | undefined) {
+  async upload(householdId: string, accountId: string, file: UploadedFile | undefined) {
     if (!file || file.buffer.length === 0) {
       throw new BadRequestException('Envie um arquivo OFX ou CSV.');
     }
-    await this.assertAccount(userId, accountId);
+    await this.assertAccount(householdId, accountId);
 
     const text = decodeStatementText(file.buffer);
     const format = detectFormat(file.originalname, text);
@@ -76,7 +76,7 @@ export class ImportsService {
     }
 
     return this.createPendingBatch({
-      userId,
+      householdId,
       accountId,
       fileName: file.originalname || `extrato.${format.toLowerCase()}`,
       format,
@@ -93,12 +93,12 @@ export class ImportsService {
       isDuplicate: false,
     }));
     const duplicateRows = input.accountId
-      ? (await this.markDuplicates(input.userId, input.accountId, rows)).length
+      ? (await this.markDuplicates(input.householdId, input.accountId, rows)).length
       : 0;
 
     const batch = await this.prisma.client.importBatch.create({
       data: {
-        userId: input.userId,
+        householdId: input.householdId,
         accountId: input.accountId,
         fileName: input.fileName,
         format: input.format,
@@ -113,7 +113,7 @@ export class ImportsService {
     });
 
     this.cachePreview(batch.id, {
-      userId: input.userId,
+      householdId: input.householdId,
       accountId: input.accountId,
       fileName: batch.fileName,
       format: input.format,
@@ -122,13 +122,13 @@ export class ImportsService {
       rows,
     });
 
-    return this.toPreview(batch, rows, input.userId);
+    return this.toPreview(batch, rows, input.householdId);
   }
 
-  async listOpen(userId: string) {
+  async listOpen(householdId: string) {
     const batches = await this.prisma.client.importBatch.findMany({
       where: {
-        userId,
+        householdId,
         status: { in: [ImportStatus.PENDING, ImportStatus.UNMAPPED_ACCOUNT] },
       },
       orderBy: { createdAt: 'desc' },
@@ -153,28 +153,28 @@ export class ImportsService {
     }));
   }
 
-  async preview(userId: string, batchId: string) {
-    const batch = await this.findOwnedBatch(userId, batchId);
+  async preview(householdId: string, batchId: string) {
+    const batch = await this.findOwnedBatch(householdId, batchId);
     if (batch.status !== ImportStatus.PENDING && batch.status !== ImportStatus.UNMAPPED_ACCOUNT) {
       throw new BadRequestException('Este lote já foi encerrado.');
     }
     const stored = this.loadPreview(batch);
-    if (stored?.userId !== userId) {
+    if (stored?.householdId !== householdId) {
       throw new GoneException('A prévia expirou. Envie o arquivo novamente.');
     }
     if (stored.accountId) {
-      await this.markDuplicates(userId, stored.accountId, stored.rows);
+      await this.markDuplicates(householdId, stored.accountId, stored.rows);
     }
-    return this.toPreview(batch, stored.rows, userId);
+    return this.toPreview(batch, stored.rows, householdId);
   }
 
-  async confirm(userId: string, batchId: string, dto: ConfirmImportDto) {
-    const batch = await this.findOwnedBatch(userId, batchId);
+  async confirm(householdId: string, userId: string, batchId: string, dto: ConfirmImportDto) {
+    const batch = await this.findOwnedBatch(householdId, batchId);
     if (batch.status !== ImportStatus.PENDING && batch.status !== ImportStatus.UNMAPPED_ACCOUNT) {
       throw new BadRequestException('Este lote já foi encerrado.');
     }
     const stored = this.loadPreview(batch);
-    if (stored?.userId !== userId) {
+    if (stored?.householdId !== householdId) {
       throw new GoneException('A prévia expirou. Envie o arquivo novamente.');
     }
 
@@ -182,15 +182,15 @@ export class ImportsService {
     if (!accountId) {
       throw new BadRequestException('Selecione a conta deste extrato antes de confirmar.');
     }
-    await this.assertAccount(userId, accountId);
+    await this.assertAccount(householdId, accountId);
 
     if (batch.bankId && batch.acctId) {
       await this.prisma.client.bankAccountMapping.upsert({
         where: {
-          userId_bankId_acctId: { userId, bankId: batch.bankId, acctId: batch.acctId },
+          householdId_bankId_acctId: { householdId, bankId: batch.bankId, acctId: batch.acctId },
         },
         update: { accountId },
-        create: { userId, bankId: batch.bankId, acctId: batch.acctId, accountId },
+        create: { householdId, bankId: batch.bankId, acctId: batch.acctId, accountId },
       });
     }
 
@@ -204,7 +204,7 @@ export class ImportsService {
     });
 
     await this.assertCategories(
-      userId,
+      householdId,
       selected.map((row) => ({ categoryId: row.categoryId, type: row.type })),
     );
 
@@ -213,7 +213,7 @@ export class ImportsService {
       if (row.type !== 'EXPENSE') continue;
       const key = `${row.categoryId}:${monthFromDate(row.date)}`;
       if (previousByKey.has(key)) continue;
-      const snapshot = await this.budgetEvents.snapshot(userId, row.categoryId, row.date);
+      const snapshot = await this.budgetEvents.snapshot(householdId, row.categoryId, row.date);
       previousByKey.set(key, {
         categoryId: row.categoryId,
         date: row.date,
@@ -227,6 +227,7 @@ export class ImportsService {
         const externalId = await this.uniqueExternalId(tx, accountId, row.externalId);
         const transaction = await tx.transaction.create({
           data: {
+            householdId,
             userId,
             accountId,
             importBatchId: batch.id,
@@ -240,7 +241,7 @@ export class ImportsService {
           },
         });
         await applyBalance(tx, transaction, 1);
-        await this.categoryMemory.upsert(userId, transaction.description, row.categoryId, tx);
+        await this.categoryMemory.upsert(householdId, transaction.description, row.categoryId, tx);
         count += 1;
       }
 
@@ -259,7 +260,7 @@ export class ImportsService {
 
     this.store.delete(batchId);
     for (const item of previousByKey.values()) {
-      await this.budgetEvents.emitIfCrossed(userId, item.categoryId, item.date, item.status);
+      await this.budgetEvents.emitIfCrossed(householdId, item.categoryId, item.date, item.status);
     }
     return {
       id: batch.id,
@@ -269,8 +270,8 @@ export class ImportsService {
     };
   }
 
-  async discard(userId: string, batchId: string): Promise<void> {
-    const batch = await this.findOwnedBatch(userId, batchId);
+  async discard(householdId: string, batchId: string): Promise<void> {
+    const batch = await this.findOwnedBatch(householdId, batchId);
     if (batch.status !== ImportStatus.PENDING && batch.status !== ImportStatus.UNMAPPED_ACCOUNT) {
       throw new BadRequestException('Este lote já foi encerrado.');
     }
@@ -287,7 +288,7 @@ export class ImportsService {
 
   private loadPreview(batch: {
     id: string;
-    userId: string;
+    householdId: string;
     accountId: string | null;
     fileName: string;
     format: 'OFX' | 'CSV';
@@ -296,12 +297,12 @@ export class ImportsService {
     preview: unknown;
   }): StoredImportPreview | null {
     const cached = this.store.get(batch.id);
-    if (cached?.userId === batch.userId) return cached;
+    if (cached?.householdId === batch.householdId) return cached;
     if (!Array.isArray(batch.preview)) return null;
 
     const rows = hydratePreviewRows(batch.preview as SerializedImportRow[]);
     const payload: StoredImportPreview = {
-      userId: batch.userId,
+      householdId: batch.householdId,
       accountId: batch.accountId,
       fileName: batch.fileName,
       format: batch.format,
@@ -314,13 +315,13 @@ export class ImportsService {
   }
 
   private async markDuplicates(
-    userId: string,
+    householdId: string,
     accountId: string,
     rows: StoredImportRow[],
   ): Promise<StoredImportRow[]> {
     const existing = await this.prisma.client.transaction.findMany({
       where: {
-        userId,
+        householdId,
         accountId,
         externalId: { in: rows.map((row) => row.externalId) },
       },
@@ -348,9 +349,9 @@ export class ImportsService {
     return exists ? `${externalId}#${randomUUID()}` : externalId;
   }
 
-  private async assertAccount(userId: string, accountId: string): Promise<void> {
+  private async assertAccount(householdId: string, accountId: string): Promise<void> {
     const account = await this.prisma.client.account.findFirst({
-      where: { id: accountId, userId },
+      where: { id: accountId, householdId },
       select: { id: true },
     });
     if (!account) {
@@ -359,12 +360,12 @@ export class ImportsService {
   }
 
   private async assertCategories(
-    userId: string,
+    householdId: string,
     rows: { categoryId: string; type: 'INCOME' | 'EXPENSE' }[],
   ): Promise<void> {
     const ids = [...new Set(rows.map((row) => row.categoryId))];
     const categories = await this.prisma.client.category.findMany({
-      where: { userId, id: { in: ids } },
+      where: { householdId, id: { in: ids } },
       select: { id: true, type: true },
     });
     if (categories.length !== ids.length) {
@@ -378,8 +379,8 @@ export class ImportsService {
     }
   }
 
-  private async findOwnedBatch(userId: string, id: string) {
-    const batch = await this.prisma.client.importBatch.findFirst({ where: { id, userId } });
+  private async findOwnedBatch(householdId: string, id: string) {
+    const batch = await this.prisma.client.importBatch.findFirst({ where: { id, householdId } });
     if (!batch) {
       throw new NotFoundException('Importação não encontrada.');
     }
@@ -402,10 +403,10 @@ export class ImportsService {
       createdAt: Date;
     },
     rows: StoredImportRow[],
-    userId: string,
+    householdId: string,
   ) {
     const suggestions = await this.categoryMemory.suggestAll(
-      userId,
+      householdId,
       rows.map((row) => row.description),
     );
     const previewRows = rows.map((row, index) => {

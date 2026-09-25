@@ -7,10 +7,10 @@ import { PrismaService } from '../../common/prisma.service.js';
 export class AccountsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(userId: string, dto: CreateAccountDto) {
+  async create(householdId: string, dto: CreateAccountDto) {
     const account = await this.prisma.client.account.create({
       data: {
-        userId,
+        householdId,
         name: dto.name,
         type: dto.type,
         balance: toDecimal(dto.balance ?? 0),
@@ -20,20 +20,20 @@ export class AccountsService {
     return this.toResponse(account);
   }
 
-  async list(userId: string) {
+  async list(householdId: string) {
     const accounts = await this.prisma.client.account.findMany({
-      where: { userId },
+      where: { householdId },
       orderBy: { createdAt: 'asc' },
     });
     return accounts.map((account) => this.toResponse(account));
   }
 
-  async get(userId: string, id: string) {
-    return this.toResponse(await this.findOwned(userId, id));
+  async get(householdId: string, id: string) {
+    return this.toResponse(await this.findOwned(householdId, id));
   }
 
-  async update(userId: string, id: string, dto: UpdateAccountDto) {
-    await this.findOwned(userId, id);
+  async update(householdId: string, id: string, dto: UpdateAccountDto) {
+    await this.findOwned(householdId, id);
     const account = await this.prisma.client.account.update({
       where: { id },
       data: {
@@ -44,11 +44,11 @@ export class AccountsService {
     return this.toResponse(account);
   }
 
-  async remove(userId: string, id: string): Promise<void> {
-    await this.findOwned(userId, id);
+  async remove(householdId: string, id: string): Promise<void> {
+    await this.findOwned(householdId, id);
     const linked = await this.prisma.client.transaction.count({
       where: {
-        userId,
+        householdId,
         OR: [{ accountId: id }, { fromAccountId: id }, { toAccountId: id }],
       },
     });
@@ -58,8 +58,8 @@ export class AccountsService {
     await this.prisma.client.account.delete({ where: { id } });
   }
 
-  private async findOwned(userId: string, id: string) {
-    const account = await this.prisma.client.account.findFirst({ where: { id, userId } });
+  private async findOwned(householdId: string, id: string) {
+    const account = await this.prisma.client.account.findFirst({ where: { id, householdId } });
     if (!account) {
       throw new NotFoundException('Conta não encontrada.');
     }

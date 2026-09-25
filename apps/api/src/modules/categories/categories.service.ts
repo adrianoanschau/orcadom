@@ -6,10 +6,10 @@ import { PrismaService } from '../../common/prisma.service.js';
 export class CategoriesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(userId: string, dto: CreateCategoryDto): Promise<CategoryResponse> {
+  async create(householdId: string, dto: CreateCategoryDto): Promise<CategoryResponse> {
     try {
       const category = await this.prisma.client.category.create({
-        data: { userId, name: dto.name, type: dto.type, icon: dto.icon, color: dto.color },
+        data: { householdId, name: dto.name, type: dto.type, icon: dto.icon, color: dto.color },
       });
       return this.toResponse(category);
     } catch (error) {
@@ -20,16 +20,16 @@ export class CategoriesService {
     }
   }
 
-  async list(userId: string, query: ListCategoriesQuery): Promise<CategoryResponse[]> {
+  async list(householdId: string, query: ListCategoriesQuery): Promise<CategoryResponse[]> {
     const categories = await this.prisma.client.category.findMany({
-      where: { userId, ...(query.type ? { type: query.type } : {}) },
+      where: { householdId, ...(query.type ? { type: query.type } : {}) },
       orderBy: [{ type: 'asc' }, { name: 'asc' }],
     });
     return categories.map((category) => this.toResponse(category));
   }
 
-  async update(userId: string, id: string, dto: UpdateCategoryDto): Promise<CategoryResponse> {
-    await this.findOwned(userId, id);
+  async update(householdId: string, id: string, dto: UpdateCategoryDto): Promise<CategoryResponse> {
+    await this.findOwned(householdId, id);
     try {
       const category = await this.prisma.client.category.update({
         where: { id },
@@ -48,10 +48,10 @@ export class CategoriesService {
     }
   }
 
-  async remove(userId: string, id: string): Promise<void> {
-    await this.findOwned(userId, id);
+  async remove(householdId: string, id: string): Promise<void> {
+    await this.findOwned(householdId, id);
     const linked = await this.prisma.client.transaction.count({
-      where: { userId, categoryId: id },
+      where: { householdId, categoryId: id },
     });
     if (linked > 0) {
       throw new ConflictException('A categoria possui lançamentos e não pode ser excluída.');
@@ -59,8 +59,8 @@ export class CategoriesService {
     await this.prisma.client.category.delete({ where: { id } });
   }
 
-  private async findOwned(userId: string, id: string) {
-    const category = await this.prisma.client.category.findFirst({ where: { id, userId } });
+  private async findOwned(householdId: string, id: string) {
+    const category = await this.prisma.client.category.findFirst({ where: { id, householdId } });
     if (!category) {
       throw new NotFoundException('Categoria não encontrada.');
     }

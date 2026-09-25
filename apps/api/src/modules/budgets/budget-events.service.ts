@@ -6,7 +6,7 @@ import { monthFromDate, shouldEmitThreshold, type BudgetStatus } from './budget-
 export const BUDGET_THRESHOLD_CROSSED = 'budget.threshold_crossed';
 
 export interface BudgetThresholdPayload {
-  userId: string;
+  householdId: string;
   categoryId: string;
   month: string;
   status: Exclude<BudgetStatus, 'on_track'>;
@@ -19,23 +19,23 @@ export class BudgetEventsService {
     private readonly events: EventEmitter2,
   ) {}
 
-  async snapshot(userId: string, categoryId: string | null | undefined, date: Date) {
+  async snapshot(householdId: string, categoryId: string | null | undefined, date: Date) {
     if (!categoryId) return null;
-    return this.budgets.progressFor(userId, categoryId, monthFromDate(date));
+    return this.budgets.progressFor(householdId, categoryId, monthFromDate(date));
   }
 
   async emitIfCrossed(
-    userId: string,
+    householdId: string,
     categoryId: string | null | undefined,
     date: Date,
     previous: BudgetStatus | null | undefined,
   ): Promise<void> {
     if (!categoryId) return;
-    const current = await this.budgets.progressFor(userId, categoryId, monthFromDate(date));
+    const current = await this.budgets.progressFor(householdId, categoryId, monthFromDate(date));
     if (!current || !shouldEmitThreshold(previous, current.status)) return;
 
     const payload: BudgetThresholdPayload = {
-      userId,
+      householdId,
       categoryId,
       month: current.month,
       status: current.status,

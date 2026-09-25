@@ -4,9 +4,10 @@ import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { api } from '@/lib/api';
+import { api, setActiveHouseholdId } from '@/lib/api';
+import { useHousehold } from './household-provider';
 import { NotificationBell } from './notification-bell';
-import { Button } from './ui';
+import { Button, Select } from './ui';
 
 const links = [
   { href: '/dashboard', label: 'Painel' },
@@ -18,11 +19,13 @@ const links = [
   { href: '/recurring', label: 'Recorrentes' },
   { href: '/imports', label: 'Importar' },
   { href: '/settings/import-alias', label: 'Email' },
+  { href: '/settings/household', label: 'Família' },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const queryClient = useQueryClient();
+  const { households, household, setHouseholdId } = useHousehold();
 
   return (
     <div className="min-h-screen">
@@ -46,11 +49,30 @@ export function AppShell({ children }: { children: ReactNode }) {
               );
             })}
           </nav>
+          {households.length > 1 ? (
+            <Select
+              aria-label="Espaço ativo"
+              className="w-auto min-w-[10rem]"
+              value={household?.id ?? ''}
+              onChange={(event) => {
+                setHouseholdId(event.target.value);
+              }}
+            >
+              {households.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
+            </Select>
+          ) : household ? (
+            <span className="text-sm text-ink-soft">{household.name}</span>
+          ) : null}
           <NotificationBell />
           <Button
             variant="ghost"
             onClick={() => {
               void api('/auth/logout', { method: 'POST' }).finally(() => {
+                setActiveHouseholdId(null);
                 queryClient.clear();
                 window.location.assign('/login');
               });

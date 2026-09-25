@@ -79,8 +79,8 @@ export default function ImportAliasPage() {
       <div>
         <h1 className="font-display text-[28px] font-semibold">Importação por email</h1>
         <p className="mt-2 text-sm text-ink-soft">
-          Encaminhe o OFX do banco para o seu endereço exclusivo. O extrato entra como prévia — a
-          confirmação continua sendo sua.
+          Encaminhe o OFX do banco para o endereço exclusivo deste espaço. Qualquer membro pode
+          encaminhar; a confirmação da prévia continua humana.
         </p>
       </div>
 

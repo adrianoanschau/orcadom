@@ -16,30 +16,30 @@ export class TransactionsService {
     private readonly budgetEvents: BudgetEventsService,
   ) {}
 
-  async create(userId: string, dto: CreateTransactionDto) {
-    await this.assertReferences(userId, dto);
+  async create(householdId: string, userId: string, dto: CreateTransactionDto) {
+    await this.assertReferences(householdId, dto);
     const date = new Date(dto.date);
     const previous =
       dto.type === TransactionType.EXPENSE
-        ? await this.budgetEvents.snapshot(userId, dto.categoryId, date)
+        ? await this.budgetEvents.snapshot(householdId, dto.categoryId, date)
         : null;
     const created = await this.prisma.client.$transaction(async (tx) => {
-      const transaction = await tx.transaction.create({ data: this.toData(userId, dto) });
+      const transaction = await tx.transaction.create({ data: this.toData(householdId, userId, dto) });
       await applyBalance(tx, transaction, 1);
       if (transaction.categoryId && transaction.type !== TransactionType.TRANSFER) {
-        await this.categoryMemory.upsert(userId, transaction.description, transaction.categoryId, tx);
+        await this.categoryMemory.upsert(householdId, transaction.description, transaction.categoryId, tx);
       }
       return transaction;
     });
     if (dto.type === TransactionType.EXPENSE) {
-      await this.budgetEvents.emitIfCrossed(userId, dto.categoryId, date, previous?.status);
+      await this.budgetEvents.emitIfCrossed(householdId, dto.categoryId, date, previous?.status);
     }
     return this.toResponse(created);
   }
 
-  async list(userId: string, query: ListTransactionsQuery) {
+  async list(householdId: string, query: ListTransactionsQuery) {
     const where = {
-      userId,
+      householdId,
       ...(query.categoryId ? { categoryId: query.categoryId } : {}),
       ...(query.from || query.to
         ? {
@@ -76,11 +76,11 @@ export class TransactionsService {
     };
   }
 
-  async update(userId: string, id: string, dto: CreateTransactionDto) {
-    const current = await this.findOwned(userId, id);
-    await this.assertReferences(userId, dto);
+  async update(householdId: string, id: string, dto: CreateTransactionDto) {
+    const current = await this.findOwned(householdId, id);
+    await this.assertReferences(householdId, dto);
     const nextDate = new Date(dto.date);
-    const previousByKey = await this.snapshotExpenseKeys(userId, [
+    const previousByKey = await this.snapshotExpenseKeys(householdId, [
       current.type === TransactionType.EXPENSE && current.categoryId
         ? { categoryId: current.categoryId, date: current.date }
         : null,
@@ -94,22 +94,22 @@ export class TransactionsService {
       }
       const transaction = await tx.transaction.update({
         where: { id },
-        data: this.toData(userId, dto),
+        data: this.toData(householdId, current.userId, dto),
       });
       if (current.postingStatus !== PostingStatus.SCHEDULED) {
         await applyBalance(tx, transaction, 1);
       }
       if (transaction.categoryId && transaction.type !== TransactionType.TRANSFER) {
-        await this.categoryMemory.upsert(userId, transaction.description, transaction.categoryId, tx);
+        await this.categoryMemory.upsert(householdId, transaction.description, transaction.categoryId, tx);
       }
       return transaction;
     });
-    await this.emitExpenseKeys(userId, previousByKey);
+    await this.emitExpenseKeys(householdId, previousByKey);
     return this.toResponse(updated);
   }
 
-  async remove(userId: string, id: string): Promise<void> {
-    const current = await this.findOwned(userId, id);
+  async remove(householdId: string, id: string): Promise<void> {
+    const current = await this.findOwned(householdId, id);
     await this.prisma.client.$transaction(async (tx) => {
       if (current.postingStatus !== PostingStatus.SCHEDULED) {
         await applyBalance(tx, current, -1);
@@ -119,7 +119,7 @@ export class TransactionsService {
   }
 
   private async snapshotExpenseKeys(
-    userId: string,
+    householdId: string,
     candidates: ({ categoryId: string; date: Date } | null)[],
   ) {
     const previousByKey = new Map<string, { categoryId: string; date: Date; status: BudgetStatus | null }>();
@@ -127,7 +127,7 @@ export class TransactionsService {
       if (!candidate) continue;
       const key = `${candidate.categoryId}:${monthFromDate(candidate.date)}`;
       if (previousByKey.has(key)) continue;
-      const snapshot = await this.budgetEvents.snapshot(userId, candidate.categoryId, candidate.date);
+      const snapshot = await this.budgetEvents.snapshot(householdId, candidate.categoryId, candidate.date);
       previousByKey.set(key, {
         categoryId: candidate.categoryId,
         date: candidate.date,
@@ -138,22 +138,22 @@ export class TransactionsService {
   }
 
   private async emitExpenseKeys(
-    userId: string,
+    householdId: string,
     previousByKey: Map<string, { categoryId: string; date: Date; status: BudgetStatus | null }>,
   ): Promise<void> {
     for (const item of previousByKey.values()) {
-      await this.budgetEvents.emitIfCrossed(userId, item.categoryId, item.date, item.status);
+      await this.budgetEvents.emitIfCrossed(householdId, item.categoryId, item.date, item.status);
     }
   }
 
-  private async assertReferences(userId: string, dto: CreateTransactionDto): Promise<void> {
+  private async assertReferences(householdId: string, dto: CreateTransactionDto): Promise<void> {
     if (dto.type === 'TRANSFER') {
-      await this.assertAccounts(userId, [dto.fromAccountId, dto.toAccountId]);
+      await this.assertAccounts(householdId, [dto.fromAccountId, dto.toAccountId]);
       return;
     }
-    await this.assertAccounts(userId, [dto.accountId]);
+    await this.assertAccounts(householdId, [dto.accountId]);
     const category = await this.prisma.client.category.findFirst({
-      where: { id: dto.categoryId, userId },
+      where: { id: dto.categoryId, householdId },
     });
     if (!category) {
       throw new NotFoundException('Categoria não encontrada.');
@@ -163,10 +163,10 @@ export class TransactionsService {
     }
   }
 
-  private async assertAccounts(userId: string, ids: (string | undefined)[]): Promise<void> {
+  private async assertAccounts(householdId: string, ids: (string | undefined)[]): Promise<void> {
     const unique = [...new Set(ids.filter((id): id is string => Boolean(id)))];
     const found = await this.prisma.client.account.findMany({
-      where: { userId, id: { in: unique } },
+      where: { householdId, id: { in: unique } },
       select: { id: true },
     });
     if (found.length !== unique.length) {
@@ -174,9 +174,10 @@ export class TransactionsService {
     }
   }
 
-  private toData(userId: string, dto: CreateTransactionDto) {
+  private toData(householdId: string, userId: string, dto: CreateTransactionDto) {
     const transfer = dto.type === TransactionType.TRANSFER;
     return {
+      householdId,
       userId,
       description: dto.description,
       amount: toDecimal(dto.amount),
@@ -189,8 +190,10 @@ export class TransactionsService {
     };
   }
 
-  private async findOwned(userId: string, id: string) {
-    const transaction = await this.prisma.client.transaction.findFirst({ where: { id, userId } });
+  private async findOwned(householdId: string, id: string) {
+    const transaction = await this.prisma.client.transaction.findFirst({
+      where: { id, householdId },
+    });
     if (!transaction) {
       throw new NotFoundException('Lançamento não encontrado.');
     }

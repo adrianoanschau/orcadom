@@ -14,9 +14,9 @@ export class InstallmentPlansService {
     private readonly budgetEvents: BudgetEventsService,
   ) {}
 
-  async create(userId: string, dto: CreateInstallmentPlanDto) {
-    await this.assertAccount(userId, dto.accountId);
-    await this.assertExpenseCategory(userId, dto.categoryId);
+  async create(householdId: string, userId: string, dto: CreateInstallmentPlanDto) {
+    await this.assertAccount(householdId, dto.accountId);
+    await this.assertExpenseCategory(householdId, dto.categoryId);
     const purchaseDate = new Date(dto.purchaseDate);
     const generated = generateInstallments({
       totalAmount: dto.totalAmount,
@@ -27,12 +27,12 @@ export class InstallmentPlansService {
     if (!first) {
       throw new BadRequestException('Informe pelo menos duas parcelas.');
     }
-    const previous = await this.budgetEvents.snapshot(userId, dto.categoryId, first.date);
+    const previous = await this.budgetEvents.snapshot(householdId, dto.categoryId, first.date);
 
     const plan = await this.prisma.client.$transaction(async (tx) => {
       const created = await tx.installmentPlan.create({
         data: {
-          userId,
+          householdId,
           description: dto.description,
           totalAmount: toDecimal(dto.totalAmount),
           installmentsCount: dto.installmentsCount,
@@ -46,6 +46,7 @@ export class InstallmentPlansService {
         const posted = isDueOnOrBefore(row.date);
         const transaction = await tx.transaction.create({
           data: {
+            householdId,
             userId,
             description: `${dto.description} (${String(row.installmentNumber)}/${String(dto.installmentsCount)})`,
             amount: row.amount,
@@ -65,13 +66,13 @@ export class InstallmentPlansService {
       return created;
     });
 
-    await this.budgetEvents.emitIfCrossed(userId, dto.categoryId, first.date, previous?.status);
-    return this.get(userId, plan.id);
+    await this.budgetEvents.emitIfCrossed(householdId, dto.categoryId, first.date, previous?.status);
+    return this.get(householdId, plan.id);
   }
 
-  async list(userId: string) {
+  async list(householdId: string) {
     const plans = await this.prisma.client.installmentPlan.findMany({
-      where: { userId },
+      where: { householdId },
       include: {
         account: { select: { id: true, name: true } },
         category: { select: { id: true, name: true } },
@@ -82,9 +83,9 @@ export class InstallmentPlansService {
     return plans.map((plan) => this.toSummary(plan));
   }
 
-  async get(userId: string, id: string) {
+  async get(householdId: string, id: string) {
     const plan = await this.prisma.client.installmentPlan.findFirst({
-      where: { id, userId },
+      where: { id, householdId },
       include: {
         account: { select: { id: true, name: true } },
         category: { select: { id: true, name: true } },
@@ -107,9 +108,9 @@ export class InstallmentPlansService {
     };
   }
 
-  async remove(userId: string, id: string): Promise<void> {
+  async remove(householdId: string, id: string): Promise<void> {
     const plan = await this.prisma.client.installmentPlan.findFirst({
-      where: { id, userId },
+      where: { id, householdId },
       include: { installments: { select: { id: true, postingStatus: true } } },
     });
     if (!plan) {
@@ -161,15 +162,15 @@ export class InstallmentPlansService {
     };
   }
 
-  private async assertAccount(userId: string, accountId: string): Promise<void> {
-    const account = await this.prisma.client.account.findFirst({ where: { id: accountId, userId } });
+  private async assertAccount(householdId: string, accountId: string): Promise<void> {
+    const account = await this.prisma.client.account.findFirst({ where: { id: accountId, householdId } });
     if (!account) {
       throw new NotFoundException('Conta não encontrada.');
     }
   }
 
-  private async assertExpenseCategory(userId: string, categoryId: string): Promise<void> {
-    const category = await this.prisma.client.category.findFirst({ where: { id: categoryId, userId } });
+  private async assertExpenseCategory(householdId: string, categoryId: string): Promise<void> {
+    const category = await this.prisma.client.category.findFirst({ where: { id: categoryId, householdId } });
     if (!category) {
       throw new NotFoundException('Categoria não encontrada.');
     }

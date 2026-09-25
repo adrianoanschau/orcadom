@@ -17,7 +17,7 @@ export const NOTIFICATION_CHANNEL_POLICY: Record<NotificationKind, NotificationC
 };
 
 export interface EmailImportEventPayload {
-  userId: string;
+  householdId: string;
   importBatchId: string;
   fileName: string;
 }

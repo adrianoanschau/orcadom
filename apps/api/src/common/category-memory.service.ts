@@ -11,9 +11,11 @@ export interface CategorySuggestion {
 interface MemoryWriter {
   categoryMemory: {
     upsert(args: {
-      where: { userId_pattern_categoryId: { userId: string; pattern: string; categoryId: string } };
+      where: {
+        householdId_pattern_categoryId: { householdId: string; pattern: string; categoryId: string };
+      };
       update: { occurrences: { increment: number }; lastUsedAt: Date };
-      create: { userId: string; pattern: string; categoryId: string; occurrences: number };
+      create: { householdId: string; pattern: string; categoryId: string; occurrences: number };
     }): Promise<unknown>;
   };
 }
@@ -23,7 +25,7 @@ export class CategoryMemoryService {
   constructor(private readonly prisma: PrismaService) {}
 
   async upsert(
-    userId: string,
+    householdId: string,
     description: string,
     categoryId: string,
     db: MemoryWriter = this.prisma.client,
@@ -32,19 +34,19 @@ export class CategoryMemoryService {
     if (!pattern) return;
 
     await db.categoryMemory.upsert({
-      where: { userId_pattern_categoryId: { userId, pattern, categoryId } },
+      where: { householdId_pattern_categoryId: { householdId, pattern, categoryId } },
       update: { occurrences: { increment: 1 }, lastUsedAt: new Date() },
-      create: { userId, pattern, categoryId, occurrences: 1 },
+      create: { householdId, pattern, categoryId, occurrences: 1 },
     });
   }
 
-  async suggestAll(userId: string, descriptions: string[]): Promise<(CategorySuggestion | null)[]> {
+  async suggestAll(householdId: string, descriptions: string[]): Promise<(CategorySuggestion | null)[]> {
     const patterns = descriptions.map((description) => normalizeDescription(description));
     const unique = [...new Set(patterns.filter(Boolean))];
     const memories =
       unique.length > 0
         ? await this.prisma.client.categoryMemory.findMany({
-            where: { userId, pattern: { in: unique } },
+            where: { householdId, pattern: { in: unique } },
             orderBy: [{ occurrences: 'desc' }, { lastUsedAt: 'desc' }],
           })
         : [];
@@ -64,23 +66,21 @@ export class CategoryMemoryService {
         suggestions.push({ categoryId: exact.categoryId, confidence: 'high', source: 'memory' });
         continue;
       }
-      suggestions.push(await this.suggestBySimilarity(userId, description));
+      suggestions.push(await this.suggestBySimilarity(householdId, description));
     }
     return suggestions;
   }
 
   private async suggestBySimilarity(
-    userId: string,
+    householdId: string,
     rawDescription: string,
   ): Promise<CategorySuggestion | null> {
     if (!rawDescription.trim()) return null;
 
-    const similar = await this.prisma.client.$queryRaw<
-      { categoryId: string; score: number }[]
-    >`
+    const similar = await this.prisma.client.$queryRaw<{ categoryId: string; score: number }[]>`
       SELECT "categoryId", similarity(description, ${rawDescription}) AS score
       FROM transactions
-      WHERE "userId" = ${userId}
+      WHERE "householdId" = ${householdId}
         AND "categoryId" IS NOT NULL
         AND similarity(description, ${rawDescription}) >= 0.25
       ORDER BY score DESC

@@ -77,6 +77,18 @@ enum NotificationChannel {
   EMAIL
 }
 
+enum HouseholdRole {
+  OWNER
+  MEMBER
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}
+
 model User {
   id           String   @id @default(uuid())
   name         String
@@ -85,20 +97,69 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  accounts            Account[]
-  categories          Category[]
-  transactions        Transaction[]
-  importBatches       ImportBatch[]
-  categoryMemories    CategoryMemory[]
-  importAlias         UserImportAlias?
-  bankAccountMappings BankAccountMapping[]
-  emailImportLogs     EmailImportLog[]
-  notifications       Notification[]
-  budgets             Budget[]
-  installmentPlans       InstallmentPlan[]
-  recurringTransactions  RecurringTransaction[]
+  memberships     HouseholdMember[]
+  transactions    Transaction[]
+  emailImportLogs EmailImportLog[]
+  notifications   Notification[]
 
   @@map("users")
+}
+
+model Household {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+
+  members               HouseholdMember[]
+  invites               HouseholdInvite[]
+  accounts              Account[]
+  categories            Category[]
+  transactions          Transaction[]
+  importBatches         ImportBatch[]
+  importAlias           HouseholdImportAlias?
+  bankAccountMappings   BankAccountMapping[]
+  emailImportLogs       EmailImportLog[]
+  budgets               Budget[]
+  installmentPlans      InstallmentPlan[]
+  recurringTransactions RecurringTransaction[]
+  categoryMemories      CategoryMemory[]
+
+  @@map("households")
+}
+
+model HouseholdMember {
+  id       String        @id @default(uuid())
+  role     HouseholdRole @default(MEMBER)
+  joinedAt DateTime      @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, householdId])
+  @@index([householdId])
+  @@map("household_members")
+}
+
+model HouseholdInvite {
+  id        String        @id @default(uuid())
+  email     String
+  token     String        @unique
+  role      HouseholdRole @default(MEMBER)
+  status    InviteStatus  @default(PENDING)
+  expiresAt DateTime
+  createdAt DateTime      @default(now())
+
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  invitedByUserId String
+
+  @@index([householdId, status])
+  @@index([email, status])
+  @@map("household_invites")
 }
 
 model Account {
@@ -110,18 +171,18 @@ model Account {
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
 
-  transactions        Transaction[] @relation("AccountTransactions")
-  transfersFrom       Transaction[] @relation("TransferFromAccount")
-  transfersTo         Transaction[] @relation("TransferToAccount")
-  importBatches       ImportBatch[]
-  bankAccountMappings BankAccountMapping[]
-  installmentPlans       InstallmentPlan[]
-  recurringTransactions  RecurringTransaction[]
+  transactions          Transaction[]          @relation("AccountTransactions")
+  transfersFrom         Transaction[]          @relation("TransferFromAccount")
+  transfersTo           Transaction[]          @relation("TransferToAccount")
+  importBatches         ImportBatch[]
+  bankAccountMappings   BankAccountMapping[]
+  installmentPlans      InstallmentPlan[]
+  recurringTransactions RecurringTransaction[]
 
-  @@index([userId])
+  @@index([householdId])
   @@map("accounts")
 }
 
@@ -132,17 +193,17 @@ model Category {
   icon  String?
   color String?
 
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
 
-  transactions     Transaction[]
-  categoryMemories CategoryMemory[]
-  budgets          Budget[]
+  transactions          Transaction[]
+  categoryMemories      CategoryMemory[]
+  budgets               Budget[]
   installmentPlans      InstallmentPlan[]
   recurringTransactions RecurringTransaction[]
 
-  @@unique([userId, name, type])
-  @@index([userId])
+  @@unique([householdId, name, type])
+  @@index([householdId])
   @@map("categories")
 }
 
@@ -155,17 +216,18 @@ model Transaction {
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // Usado quando type = INCOME ou EXPENSE
   accountId String?
   account   Account? @relation("AccountTransactions", fields: [accountId], references: [id])
 
   categoryId String?
   category   Category? @relation(fields: [categoryId], references: [id])
 
-  // Usado apenas quando type = TRANSFER
   fromAccountId String?
   fromAccount   Account? @relation("TransferFromAccount", fields: [fromAccountId], references: [id])
 
@@ -177,16 +239,16 @@ model Transaction {
   importBatchId String?
   importBatch   ImportBatch?      @relation(fields: [importBatchId], references: [id])
 
-  postingStatus      PostingStatus    @default(POSTED)
-  installmentNumber  Int?
-  installmentPlanId  String?
-  installmentPlan    InstallmentPlan? @relation(fields: [installmentPlanId], references: [id], onDelete: SetNull)
-
+  postingStatus          PostingStatus         @default(POSTED)
+  installmentNumber      Int?
+  installmentPlanId      String?
+  installmentPlan        InstallmentPlan?      @relation(fields: [installmentPlanId], references: [id], onDelete: SetNull)
   recurringTransactionId String?
   recurringTransaction   RecurringTransaction? @relation(fields: [recurringTransactionId], references: [id], onDelete: SetNull)
 
   @@unique([accountId, externalId])
   @@unique([recurringTransactionId, date])
+  @@index([householdId, date])
   @@index([userId, date])
   @@index([accountId])
   @@index([postingStatus, date])
@@ -201,8 +263,8 @@ model InstallmentPlan {
   purchaseDate      DateTime
   createdAt         DateTime @default(now())
 
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
 
   accountId String
   account   Account @relation(fields: [accountId], references: [id])
@@ -212,7 +274,7 @@ model InstallmentPlan {
 
   installments Transaction[]
 
-  @@index([userId])
+  @@index([householdId])
   @@map("installment_plans")
 }
 
@@ -228,8 +290,8 @@ model RecurringTransaction {
   active      Boolean             @default(true)
   createdAt   DateTime            @default(now())
 
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
 
   accountId String
   account   Account @relation(fields: [accountId], references: [id])
@@ -239,7 +301,7 @@ model RecurringTransaction {
 
   occurrences Transaction[]
 
-  @@index([userId, active])
+  @@index([householdId, active])
   @@map("recurring_transactions")
 }
 
@@ -258,8 +320,8 @@ model ImportBatch {
   createdAt     DateTime     @default(now())
   confirmedAt   DateTime?
 
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
 
   accountId String?
   account   Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
@@ -267,20 +329,20 @@ model ImportBatch {
   transactions    Transaction[]
   emailImportLogs EmailImportLog[]
 
-  @@index([userId])
-  @@index([userId, status])
+  @@index([householdId])
+  @@index([householdId, status])
   @@map("import_batches")
 }
 
-model UserImportAlias {
+model HouseholdImportAlias {
   id        String   @id @default(uuid())
   token     String   @unique
   createdAt DateTime @default(now())
 
-  userId String @unique
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  householdId String    @unique
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
 
-  @@map("user_import_aliases")
+  @@map("household_import_aliases")
 }
 
 model BankAccountMapping {
@@ -288,14 +350,14 @@ model BankAccountMapping {
   bankId String
   acctId String
 
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
 
   accountId String
   account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, bankId, acctId])
-  @@index([userId])
+  @@unique([householdId, bankId, acctId])
+  @@index([householdId])
   @@map("bank_account_mappings")
 }
 
@@ -308,6 +370,9 @@ model EmailImportLog {
   errorMessage     String?
   createdAt        DateTime          @default(now())
 
+  householdId String?
+  household   Household? @relation(fields: [householdId], references: [id], onDelete: SetNull)
+
   userId String?
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
@@ -315,6 +380,7 @@ model EmailImportLog {
   importBatch   ImportBatch? @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
 
   @@unique([messageId, attachmentHash])
+  @@index([householdId, createdAt])
   @@index([status, createdAt])
   @@map("email_import_logs")
 }
@@ -343,13 +409,13 @@ model Budget {
   effectiveTo   DateTime?
   createdAt     DateTime  @default(now())
 
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
 
   categoryId String
   category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
-  @@index([userId, categoryId, effectiveFrom])
+  @@index([householdId, categoryId, effectiveFrom])
   @@map("budgets")
 }
 
@@ -359,13 +425,13 @@ model CategoryMemory {
   occurrences Int      @default(1)
   lastUsedAt  DateTime @default(now())
 
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
 
   categoryId String
   category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, pattern, categoryId])
-  @@index([userId, pattern])
+  @@unique([householdId, pattern, categoryId])
+  @@index([householdId, pattern])
   @@map("category_memory")
 }

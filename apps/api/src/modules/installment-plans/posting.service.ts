@@ -23,11 +23,11 @@ export class PostingService {
 
     let posted = 0;
     for (const row of due) {
-      const previous = await this.budgetEvents.snapshot(row.userId, row.categoryId, row.date);
+      const previous = await this.budgetEvents.snapshot(row.householdId, row.categoryId, row.date);
       const result = await this.prisma.client.$transaction((tx) => postIfScheduled(tx, row.id));
       if (result !== 'posted') continue;
       posted += 1;
-      await this.budgetEvents.emitIfCrossed(row.userId, row.categoryId, row.date, previous?.status);
+      await this.budgetEvents.emitIfCrossed(row.householdId, row.categoryId, row.date, previous?.status);
     }
     if (posted > 0) {
       this.logger.log(`Postou ${String(posted)} lançamento(s) agendado(s).`);

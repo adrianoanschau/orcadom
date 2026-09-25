@@ -5,6 +5,7 @@ import type { LoginDto, RegisterDto } from '@orcadom/types';
 import bcrypt from 'bcryptjs';
 import type { Response } from 'express';
 import { PrismaService } from '../../common/prisma.service.js';
+import { HouseholdsService } from '../households/households.service.js';
 
 type CookieResponse = Pick<Response, 'cookie' | 'clearCookie'>;
 
@@ -17,6 +18,7 @@ export class AuthService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly households: HouseholdsService,
     private readonly jwt: JwtService,
     config: ConfigService,
   ) {
@@ -37,9 +39,9 @@ export class AuthService {
         name: dto.name,
         email: dto.email,
         passwordHash: await bcrypt.hash(dto.password, 10),
-        importAlias: { create: { token: createAliasToken() } },
       },
     });
+    await this.households.createForUser(user.id, `Família de ${dto.name}`);
     await this.setSession(response, user.id);
     return this.toPublicUser(user);
   }
@@ -129,13 +131,6 @@ export class AuthService {
   private toPublicUser(user: { id: string; name: string; email: string }) {
     return { id: user.id, name: user.name, email: user.email };
   }
-}
-
-function createAliasToken(): string {
-  const alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789';
-  const bytes = new Uint8Array(8);
-  crypto.getRandomValues(bytes);
-  return [...bytes].map((byte) => alphabet[byte % alphabet.length]).join('');
 }
 
 function durationMs(value: string): number {

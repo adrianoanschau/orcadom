@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post } from '@nestjs/common';
 import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
-import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
+import { CurrentHousehold } from '../../common/decorators/current-household.decorator.js';
 import {
   CreateRecurringTransactionBody,
   RecurringTransactionParams,
@@ -15,37 +15,40 @@ export class RecurringTransactionsController {
   constructor(private readonly recurring: RecurringTransactionsService) {}
 
   @Post()
-  create(@CurrentUser() userId: string, @Body() body: CreateRecurringTransactionBody) {
-    return this.recurring.create(userId, body);
+  create(@CurrentHousehold() householdId: string, @Body() body: CreateRecurringTransactionBody) {
+    return this.recurring.create(householdId, body);
   }
 
   @Get()
-  list(@CurrentUser() userId: string) {
-    return this.recurring.list(userId);
+  list(@CurrentHousehold() householdId: string) {
+    return this.recurring.list(householdId);
   }
 
   @Patch(':id/pause')
-  pause(@CurrentUser() userId: string, @Param() params: RecurringTransactionParams) {
-    return this.recurring.pause(userId, params.id);
+  pause(@CurrentHousehold() householdId: string, @Param() params: RecurringTransactionParams) {
+    return this.recurring.pause(householdId, params.id);
   }
 
   @Patch(':id/resume')
-  resume(@CurrentUser() userId: string, @Param() params: RecurringTransactionParams) {
-    return this.recurring.resume(userId, params.id);
+  resume(@CurrentHousehold() householdId: string, @Param() params: RecurringTransactionParams) {
+    return this.recurring.resume(householdId, params.id);
   }
 
   @Patch(':id')
   update(
-    @CurrentUser() userId: string,
+    @CurrentHousehold() householdId: string,
     @Param() params: RecurringTransactionParams,
     @Body() body: UpdateRecurringTransactionBody,
   ) {
-    return this.recurring.update(userId, params.id, body);
+    return this.recurring.update(householdId, params.id, body);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  remove(@CurrentUser() userId: string, @Param() params: RecurringTransactionParams): Promise<void> {
-    return this.recurring.remove(userId, params.id);
+  remove(
+    @CurrentHousehold() householdId: string,
+    @Param() params: RecurringTransactionParams,
+  ): Promise<void> {
+    return this.recurring.remove(householdId, params.id);
   }
 }

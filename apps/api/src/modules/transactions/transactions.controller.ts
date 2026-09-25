@@ -11,6 +11,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
+import { CurrentHousehold } from '../../common/decorators/current-household.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import {
   CreateTransactionBody,
@@ -27,27 +28,34 @@ export class TransactionsController {
   constructor(private readonly transactions: TransactionsService) {}
 
   @Post()
-  create(@CurrentUser() userId: string, @Body() body: CreateTransactionBody) {
-    return this.transactions.create(userId, body);
+  create(
+    @CurrentHousehold() householdId: string,
+    @CurrentUser() userId: string,
+    @Body() body: CreateTransactionBody,
+  ) {
+    return this.transactions.create(householdId, userId, body);
   }
 
   @Get()
-  list(@CurrentUser() userId: string, @Query() query: ListTransactionsQueryDto) {
-    return this.transactions.list(userId, query);
+  list(@CurrentHousehold() householdId: string, @Query() query: ListTransactionsQueryDto) {
+    return this.transactions.list(householdId, query);
   }
 
   @Patch(':id')
   update(
-    @CurrentUser() userId: string,
+    @CurrentHousehold() householdId: string,
     @Param() params: TransactionParams,
     @Body() body: UpdateTransactionBody,
   ) {
-    return this.transactions.update(userId, params.id, body);
+    return this.transactions.update(householdId, params.id, body);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  remove(@CurrentUser() userId: string, @Param() params: TransactionParams): Promise<void> {
-    return this.transactions.remove(userId, params.id);
+  remove(
+    @CurrentHousehold() householdId: string,
+    @Param() params: TransactionParams,
+  ): Promise<void> {
+    return this.transactions.remove(householdId, params.id);
   }
 }

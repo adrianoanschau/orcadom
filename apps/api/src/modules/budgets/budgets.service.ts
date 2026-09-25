@@ -9,19 +9,19 @@ import { computeBudgetProgress, monthEndExclusive, monthStart } from './budget-p
 export class BudgetsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(userId: string, dto: CreateBudgetDto) {
-    await this.assertExpenseCategory(userId, dto.categoryId);
+  async create(householdId: string, dto: CreateBudgetDto) {
+    await this.assertExpenseCategory(householdId, dto.categoryId);
     const from = monthStart(currentYearMonth());
-    return this.replaceActive(userId, dto.categoryId, dto.amount, from);
+    return this.replaceActive(householdId, dto.categoryId, dto.amount, from);
   }
 
-  async list(userId: string, month: string) {
+  async list(householdId: string, month: string) {
     const start = monthStart(month);
     const end = monthEndExclusive(month);
     const [budgets, spentRows] = await Promise.all([
       this.prisma.client.budget.findMany({
         where: {
-          userId,
+          householdId,
           effectiveFrom: { lte: start },
           OR: [{ effectiveTo: null }, { effectiveTo: { gt: start } }],
         },
@@ -31,7 +31,7 @@ export class BudgetsService {
       this.prisma.client.transaction.groupBy({
         by: ['categoryId'],
         where: {
-          userId,
+          householdId,
           type: TransactionType.EXPENSE,
           categoryId: { not: null },
           date: { gte: start, lt: end },
@@ -68,14 +68,14 @@ export class BudgetsService {
     };
   }
 
-  async update(userId: string, id: string, dto: UpdateBudgetDto) {
-    const current = await this.findOwned(userId, id);
+  async update(householdId: string, id: string, dto: UpdateBudgetDto) {
+    const current = await this.findOwned(householdId, id);
     const from = monthStart(currentYearMonth());
-    return this.replaceActive(userId, current.categoryId, dto.amount, from);
+    return this.replaceActive(householdId, current.categoryId, dto.amount, from);
   }
 
-  async remove(userId: string, id: string): Promise<void> {
-    const current = await this.findOwned(userId, id);
+  async remove(householdId: string, id: string): Promise<void> {
+    const current = await this.findOwned(householdId, id);
     const from = monthStart(currentYearMonth());
     if (current.effectiveTo && current.effectiveTo <= from) {
       throw new BadRequestException('Este orçamento já foi encerrado.');
@@ -86,11 +86,11 @@ export class BudgetsService {
     });
   }
 
-  async progressFor(userId: string, categoryId: string, month: string) {
+  async progressFor(householdId: string, categoryId: string, month: string) {
     const start = monthStart(month);
     const budget = await this.prisma.client.budget.findFirst({
       where: {
-        userId,
+        householdId,
         categoryId,
         effectiveFrom: { lte: start },
         OR: [{ effectiveTo: null }, { effectiveTo: { gt: start } }],
@@ -101,7 +101,7 @@ export class BudgetsService {
     const end = monthEndExclusive(month);
     const { _sum } = await this.prisma.client.transaction.aggregate({
       where: {
-        userId,
+        householdId,
         categoryId,
         type: TransactionType.EXPENSE,
         date: { gte: start, lt: end },
@@ -118,9 +118,9 @@ export class BudgetsService {
     };
   }
 
-  private async replaceActive(userId: string, categoryId: string, amount: number, from: Date) {
+  private async replaceActive(householdId: string, categoryId: string, amount: number, from: Date) {
     const active = await this.prisma.client.budget.findFirst({
-      where: { userId, categoryId, effectiveTo: null },
+      where: { householdId, categoryId, effectiveTo: null },
     });
 
     const created = await this.prisma.client.$transaction(async (tx) => {
@@ -135,7 +135,7 @@ export class BudgetsService {
       }
       return tx.budget.create({
         data: {
-          userId,
+          householdId,
           categoryId,
           amount: toDecimal(amount),
           effectiveFrom: from,
@@ -146,9 +146,9 @@ export class BudgetsService {
     return this.toResponse(created);
   }
 
-  private async assertExpenseCategory(userId: string, categoryId: string): Promise<void> {
+  private async assertExpenseCategory(householdId: string, categoryId: string): Promise<void> {
     const category = await this.prisma.client.category.findFirst({
-      where: { id: categoryId, userId },
+      where: { id: categoryId, householdId },
     });
     if (!category) {
       throw new NotFoundException('Categoria não encontrada.');
@@ -158,8 +158,8 @@ export class BudgetsService {
     }
   }
 
-  private async findOwned(userId: string, id: string) {
-    const budget = await this.prisma.client.budget.findFirst({ where: { id, userId } });
+  private async findOwned(householdId: string, id: string) {
+    const budget = await this.prisma.client.budget.findFirst({ where: { id, householdId } });
     if (!budget) {
       throw new NotFoundException('Orçamento não encontrado.');
     }

@@ -7,7 +7,7 @@ export interface StoredImportRow extends ParsedStatementRow {
 }
 
 export interface StoredImportPreview {
-  userId: string;
+  householdId: string;
   accountId: string | null;
   fileName: string;
   format: 'OFX' | 'CSV';

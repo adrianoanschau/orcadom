@@ -1,11 +1,13 @@
 import { Controller, Get, HttpCode, HttpStatus, Param, Patch, Query } from '@nestjs/common';
 import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
+import { SkipHousehold } from '../../common/decorators/skip-household.decorator.js';
 import { ListNotificationsQueryDto, NotificationParams } from './notifications.dto.js';
 import { NotificationsService } from './notifications.service.js';
 
 @ApiTags('notifications')
 @ApiCookieAuth('accessToken')
+@SkipHousehold()
 @Controller('notifications')
 export class NotificationsController {
   constructor(private readonly notifications: NotificationsService) {}

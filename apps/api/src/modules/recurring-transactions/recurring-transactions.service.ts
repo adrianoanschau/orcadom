@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { PostingStatus, TransactionType } from '@orcadom/database';
+import { HouseholdRole, PostingStatus, TransactionType } from '@orcadom/database';
 import type {
   CreateRecurringTransactionDto,
   UpdateRecurringTransactionDto,
@@ -24,13 +24,13 @@ export class RecurringTransactionsService {
     private readonly budgetEvents: BudgetEventsService,
   ) {}
 
-  async create(userId: string, dto: CreateRecurringTransactionDto) {
-    await this.assertAccount(userId, dto.accountId);
-    await this.assertCategory(userId, dto.categoryId, dto.type);
+  async create(householdId: string, dto: CreateRecurringTransactionDto) {
+    await this.assertAccount(householdId, dto.accountId);
+    await this.assertCategory(householdId, dto.categoryId, dto.type);
     const startDate = new Date(dto.startDate);
     const created = await this.prisma.client.recurringTransaction.create({
       data: {
-        userId,
+        householdId,
         description: dto.description,
         amount: toDecimal(dto.amount),
         type: dto.type,
@@ -43,12 +43,12 @@ export class RecurringTransactionsService {
       },
     });
     await this.generateFor(created.id);
-    return this.get(userId, created.id);
+    return this.get(householdId, created.id);
   }
 
-  async list(userId: string) {
+  async list(householdId: string) {
     const rows = await this.prisma.client.recurringTransaction.findMany({
-      where: { userId },
+      where: { householdId },
       include: {
         account: { select: { name: true } },
         category: { select: { name: true } },
@@ -59,15 +59,15 @@ export class RecurringTransactionsService {
     return rows.map((row) => this.toResponse(row));
   }
 
-  async get(userId: string, id: string) {
-    const row = await this.findOwned(userId, id);
+  async get(householdId: string, id: string) {
+    const row = await this.findOwned(householdId, id);
     return this.toResponse(row);
   }
 
-  async update(userId: string, id: string, dto: UpdateRecurringTransactionDto) {
-    const current = await this.findOwned(userId, id);
-    if (dto.accountId) await this.assertAccount(userId, dto.accountId);
-    if (dto.categoryId) await this.assertCategory(userId, dto.categoryId, current.type);
+  async update(householdId: string, id: string, dto: UpdateRecurringTransactionDto) {
+    const current = await this.findOwned(householdId, id);
+    if (dto.accountId) await this.assertAccount(householdId, dto.accountId);
+    if (dto.categoryId) await this.assertCategory(householdId, dto.categoryId, current.type);
     await this.prisma.client.recurringTransaction.update({
       where: { id: current.id },
       data: {
@@ -80,30 +80,30 @@ export class RecurringTransactionsService {
         ...(dto.categoryId !== undefined ? { categoryId: dto.categoryId } : {}),
       },
     });
-    return this.get(userId, id);
+    return this.get(householdId, id);
   }
 
-  async pause(userId: string, id: string) {
-    await this.findOwned(userId, id);
+  async pause(householdId: string, id: string) {
+    await this.findOwned(householdId, id);
     await this.prisma.client.recurringTransaction.update({
       where: { id },
       data: { active: false },
     });
-    return this.get(userId, id);
+    return this.get(householdId, id);
   }
 
-  async resume(userId: string, id: string) {
-    await this.findOwned(userId, id);
+  async resume(householdId: string, id: string) {
+    await this.findOwned(householdId, id);
     await this.prisma.client.recurringTransaction.update({
       where: { id },
       data: { active: true },
     });
     await this.generateFor(id);
-    return this.get(userId, id);
+    return this.get(householdId, id);
   }
 
-  async remove(userId: string, id: string): Promise<void> {
-    const current = await this.findOwned(userId, id);
+  async remove(householdId: string, id: string): Promise<void> {
+    const current = await this.findOwned(householdId, id);
     await this.prisma.client.$transaction(async (tx) => {
       await tx.transaction.deleteMany({
         where: {
@@ -141,19 +141,21 @@ export class RecurringTransactionsService {
 
     const last = recurring.occurrences[0]?.date ?? null;
     const dates = occurrenceDatesUntil(toRule(recurring), last, recurrenceHorizon());
+    const recorderId = await this.recorderUserId(recurring.householdId);
     let created = 0;
 
     for (const date of dates) {
       const posted = isDueOnOrBefore(date);
       const previous =
         posted && recurring.type === TransactionType.EXPENSE
-          ? await this.budgetEvents.snapshot(recurring.userId, recurring.categoryId, date)
+          ? await this.budgetEvents.snapshot(recurring.householdId, recurring.categoryId, date)
           : null;
       try {
         await this.prisma.client.$transaction(async (tx) => {
           const transaction = await tx.transaction.create({
             data: {
-              userId: recurring.userId,
+              householdId: recurring.householdId,
+              userId: recorderId,
               accountId: recurring.accountId,
               categoryId: recurring.categoryId,
               description: recurring.description,
@@ -171,7 +173,7 @@ export class RecurringTransactionsService {
         created += 1;
         if (posted && recurring.type === TransactionType.EXPENSE) {
           await this.budgetEvents.emitIfCrossed(
-            recurring.userId,
+            recurring.householdId,
             recurring.categoryId,
             date,
             previous?.status,
@@ -185,9 +187,9 @@ export class RecurringTransactionsService {
     return created;
   }
 
-  private async findOwned(userId: string, id: string) {
+  private async findOwned(householdId: string, id: string) {
     const row = await this.prisma.client.recurringTransaction.findFirst({
-      where: { id, userId },
+      where: { id, householdId },
       include: {
         account: { select: { name: true } },
         category: { select: { name: true } },
@@ -200,15 +202,26 @@ export class RecurringTransactionsService {
     return row;
   }
 
-  private async assertAccount(userId: string, accountId: string): Promise<void> {
-    const account = await this.prisma.client.account.findFirst({ where: { id: accountId, userId } });
+  private async recorderUserId(householdId: string): Promise<string> {
+    const owner = await this.prisma.client.householdMember.findFirst({
+      where: { householdId, role: HouseholdRole.OWNER },
+      orderBy: { joinedAt: 'asc' },
+    });
+    if (!owner) {
+      throw new NotFoundException('Espaço sem responsável.');
+    }
+    return owner.userId;
+  }
+
+  private async assertAccount(householdId: string, accountId: string): Promise<void> {
+    const account = await this.prisma.client.account.findFirst({ where: { id: accountId, householdId } });
     if (!account) {
       throw new NotFoundException('Conta não encontrada.');
     }
   }
 
-  private async assertCategory(userId: string, categoryId: string, type: string): Promise<void> {
-    const category = await this.prisma.client.category.findFirst({ where: { id: categoryId, userId } });
+  private async assertCategory(householdId: string, categoryId: string, type: string): Promise<void> {
+    const category = await this.prisma.client.category.findFirst({ where: { id: categoryId, householdId } });
     if (!category) {
       throw new NotFoundException('Categoria não encontrada.');
     }

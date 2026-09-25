@@ -6,8 +6,8 @@ import { buildImportAddress, defaultMailbox, generateImportToken } from '../impo
 export class SettingsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getImportAlias(userId: string) {
-    const alias = await this.ensureAlias(userId);
+  async getImportAlias(householdId: string) {
+    const alias = await this.ensureAlias(householdId);
     const address = buildImportAddress(alias.token, defaultMailbox());
     return {
       token: alias.token,
@@ -17,9 +17,9 @@ export class SettingsService {
     };
   }
 
-  async listEmailImportLogs(userId: string) {
+  async listEmailImportLogs(householdId: string) {
     const logs = await this.prisma.client.emailImportLog.findMany({
-      where: { userId },
+      where: { householdId },
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
@@ -34,21 +34,28 @@ export class SettingsService {
     }));
   }
 
-  async ensureAlias(userId: string) {
-    const existing = await this.prisma.client.userImportAlias.findUnique({ where: { userId } });
+  async ensureAlias(householdId: string) {
+    const existing = await this.prisma.client.householdImportAlias.findUnique({
+      where: { householdId },
+    });
     if (existing) return existing;
 
     for (let attempt = 0; attempt < 5; attempt += 1) {
       const token = generateImportToken();
       try {
-        return await this.prisma.client.userImportAlias.create({ data: { userId, token } });
+        return await this.prisma.client.householdImportAlias.create({
+          data: { householdId, token },
+        });
       } catch {
         // token collision; retry
       }
     }
 
-    return this.prisma.client.userImportAlias.create({
-      data: { userId, token: `${generateImportToken()}${generateImportToken()}`.slice(0, 8) },
+    return this.prisma.client.householdImportAlias.create({
+      data: {
+        householdId,
+        token: `${generateImportToken()}${generateImportToken()}`.slice(0, 8),
+      },
     });
   }
 }

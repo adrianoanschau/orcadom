@@ -229,39 +229,39 @@ passos, sem downtime destrutivo:
 
 ### Fase 1 — Modelagem e migração de dados
 
-- [ ] Migration aditiva com `Household`, `HouseholdMember`,
+- [x] Migration aditiva com `Household`, `HouseholdMember`,
       `HouseholdInvite` e as colunas `householdId` opcionais nas tabelas
       da seção 3.2.
-- [ ] Script de backfill (seção 7, passos 1–2), testado primeiro em
+- [x] Script de backfill (seção 7, passos 1–2), testado primeiro em
       ambiente de staging com uma cópia dos dados reais.
-- [ ] Migration final tornando `householdId` obrigatório, só após
+- [x] Migration final tornando `householdId` obrigatório, só após
       validação de que o backfill rodou sem linhas órfãs.
 
 ### Fase 2 — Autenticação e guard de household
 
-- [ ] `HouseholdGuard`, aplicado a todas as rotas que hoje dependem de
+- [x] `HouseholdGuard`, aplicado a todas as rotas que hoje dependem de
       `userId` para escopo de dado.
-- [ ] Decorator `@CurrentHousehold()`, equivalente ao `@CurrentUser()` já
+- [x] Decorator `@CurrentHousehold()`, equivalente ao `@CurrentUser()` já
       existente.
-- [ ] Endpoints de `households` (criação, listagem, convite, aceite,
+- [x] Endpoints de `households` (criação, listagem, convite, aceite,
       remoção de membro).
 
 ### Fase 3 — Adaptação dos módulos existentes
 
-- [ ] Trocar todo filtro de `userId` por `householdId` nos services de
+- [x] Trocar todo filtro de `userId` por `householdId` nos services de
       `accounts`, `categories`, `transactions`, `budgets`,
       `installment-plans`, `recurring-transactions`, `imports`.
-- [ ] Ajustar `CategoryMemory` e o fluxo de sugestão de categoria
+- [x] Ajustar `CategoryMemory` e o fluxo de sugestão de categoria
       (`suggestCategory()`) para escopo de household.
-- [ ] Migrar `UserImportAlias` para `HouseholdImportAlias`.
+- [x] Migrar `UserImportAlias` para `HouseholdImportAlias`.
 
 ### Fase 4 — Notificações e frontend
 
-- [ ] Fan-out de notificação por membro do household (seção 8).
-- [ ] Frontend: contexto de household ativo + seletor (quando o usuário
+- [x] Fan-out de notificação por membro do household (seção 8).
+- [x] Frontend: contexto de household ativo + seletor (quando o usuário
       pertence a mais de um), header `X-Household-Id` centralizado no
       client HTTP.
-- [ ] Tela de membros e convites (`/settings/household`).
+- [x] Tela de membros e convites (`/settings/household`).
 
 ## 10. Riscos e pontos de atenção
 

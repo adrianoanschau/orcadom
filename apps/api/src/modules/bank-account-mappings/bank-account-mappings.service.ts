@@ -7,20 +7,20 @@ import { PrismaService } from '../../common/prisma.service.js';
 export class BankAccountMappingsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async list(userId: string) {
+  async list(householdId: string) {
     const mappings = await this.prisma.client.bankAccountMapping.findMany({
-      where: { userId },
+      where: { householdId },
       include: { account: { select: { id: true, name: true } } },
       orderBy: [{ bankId: 'asc' }, { acctId: 'asc' }],
     });
     return mappings.map((mapping) => this.toResponse(mapping));
   }
 
-  async create(userId: string, dto: CreateBankAccountMappingDto) {
-    await this.assertAccount(userId, dto.accountId);
+  async create(householdId: string, dto: CreateBankAccountMappingDto) {
+    await this.assertAccount(householdId, dto.accountId);
     try {
       const mapping = await this.prisma.client.bankAccountMapping.create({
-        data: { userId, bankId: dto.bankId, acctId: dto.acctId, accountId: dto.accountId },
+        data: { householdId, bankId: dto.bankId, acctId: dto.acctId, accountId: dto.accountId },
         include: { account: { select: { id: true, name: true } } },
       });
       return this.toResponse(mapping);
@@ -32,9 +32,9 @@ export class BankAccountMappingsService {
     }
   }
 
-  async update(userId: string, id: string, dto: UpdateBankAccountMappingDto) {
-    await this.findOwned(userId, id);
-    await this.assertAccount(userId, dto.accountId);
+  async update(householdId: string, id: string, dto: UpdateBankAccountMappingDto) {
+    await this.findOwned(householdId, id);
+    await this.assertAccount(householdId, dto.accountId);
     const mapping = await this.prisma.client.bankAccountMapping.update({
       where: { id },
       data: { accountId: dto.accountId },
@@ -43,22 +43,22 @@ export class BankAccountMappingsService {
     return this.toResponse(mapping);
   }
 
-  async remove(userId: string, id: string): Promise<void> {
-    await this.findOwned(userId, id);
+  async remove(householdId: string, id: string): Promise<void> {
+    await this.findOwned(householdId, id);
     await this.prisma.client.bankAccountMapping.delete({ where: { id } });
   }
 
-  private async findOwned(userId: string, id: string) {
-    const mapping = await this.prisma.client.bankAccountMapping.findFirst({ where: { id, userId } });
+  private async findOwned(householdId: string, id: string) {
+    const mapping = await this.prisma.client.bankAccountMapping.findFirst({ where: { id, householdId } });
     if (!mapping) {
       throw new NotFoundException('Mapeamento não encontrado.');
     }
     return mapping;
   }
 
-  private async assertAccount(userId: string, accountId: string): Promise<void> {
+  private async assertAccount(householdId: string, accountId: string): Promise<void> {
     const account = await this.prisma.client.account.findFirst({
-      where: { id: accountId, userId },
+      where: { id: accountId, householdId },
       select: { id: true },
     });
     if (!account) {

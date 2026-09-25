@@ -46,7 +46,7 @@ export class AutomationService {
       });
     }
 
-    const alias = await this.prisma.client.userImportAlias.findUnique({ where: { token } });
+    const alias = await this.prisma.client.householdImportAlias.findUnique({ where: { token } });
     if (!alias) {
       return this.recordLog({
         messageId: dto.messageId,
@@ -66,7 +66,7 @@ export class AutomationService {
         messageId: dto.messageId,
         attachmentHash,
         recipientAddress,
-        userId: alias.userId,
+        householdId: alias.householdId,
         status: EmailImportStatus.ERROR,
         errorMessage: error instanceof Error ? error.message : 'Falha ao ler o OFX.',
       });
@@ -77,7 +77,7 @@ export class AutomationService {
         messageId: dto.messageId,
         attachmentHash,
         recipientAddress,
-        userId: alias.userId,
+        householdId: alias.householdId,
         status: EmailImportStatus.ERROR,
         errorMessage: 'Nenhum lançamento encontrado no OFX.',
       });
@@ -88,8 +88,8 @@ export class AutomationService {
       identity.bankId && identity.acctId
         ? await this.prisma.client.bankAccountMapping.findUnique({
             where: {
-              userId_bankId_acctId: {
-                userId: alias.userId,
+              householdId_bankId_acctId: {
+                householdId: alias.householdId,
                 bankId: identity.bankId,
                 acctId: identity.acctId,
               },
@@ -99,7 +99,7 @@ export class AutomationService {
 
     const unmapped = !mapping;
     const preview = await this.imports.createPendingBatch({
-      userId: alias.userId,
+      householdId: alias.householdId,
       accountId: mapping?.accountId ?? null,
       fileName: dto.fileName ?? 'extrato.ofx',
       format: 'OFX',
@@ -115,14 +115,14 @@ export class AutomationService {
         messageId: dto.messageId,
         attachmentHash,
         recipientAddress,
-        userId: alias.userId,
+        householdId: alias.householdId,
         importBatchId: preview.id,
         status: unmapped ? EmailImportStatus.UNMAPPED_ACCOUNT : EmailImportStatus.PROCESSED,
       },
     });
 
     this.events.emit(unmapped ? EMAIL_IMPORT_UNMAPPED_ACCOUNT : EMAIL_IMPORT_READY, {
-      userId: alias.userId,
+      householdId: alias.householdId,
       importBatchId: preview.id,
       fileName: preview.fileName,
     });
@@ -147,7 +147,7 @@ export class AutomationService {
     attachmentHash: string;
     recipientAddress: string;
     status: EmailImportStatus;
-    userId?: string;
+    householdId?: string;
     importBatchId?: string;
     errorMessage?: string;
   }) {

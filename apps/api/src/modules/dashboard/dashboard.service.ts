@@ -7,7 +7,7 @@ import { PrismaService } from '../../common/prisma.service.js';
 export class DashboardService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async summary(userId: string, month: string) {
+  async summary(householdId: string, month: string) {
     const [yearText, monthText] = month.split('-');
     const year = Number(yearText);
     const monthIndex = Number(monthText) - 1;
@@ -17,25 +17,25 @@ export class DashboardService {
 
     const [income, expense, balance, grouped, scheduled] = await Promise.all([
       this.prisma.client.transaction.aggregate({
-        where: { userId, type: TransactionType.INCOME, date: period },
+        where: { householdId, type: TransactionType.INCOME, date: period },
         _sum: { amount: true },
       }),
       this.prisma.client.transaction.aggregate({
-        where: { userId, type: TransactionType.EXPENSE, date: period },
+        where: { householdId, type: TransactionType.EXPENSE, date: period },
         _sum: { amount: true },
       }),
       this.prisma.client.account.aggregate({
-        where: { userId },
+        where: { householdId },
         _sum: { balance: true },
       }),
       this.prisma.client.transaction.groupBy({
         by: ['categoryId'],
-        where: { userId, type: TransactionType.EXPENSE, date: period, categoryId: { not: null } },
+        where: { householdId, type: TransactionType.EXPENSE, date: period, categoryId: { not: null } },
         _sum: { amount: true },
       }),
       this.prisma.client.transaction.aggregate({
         where: {
-          userId,
+          householdId,
           type: TransactionType.EXPENSE,
           postingStatus: PostingStatus.SCHEDULED,
         },
@@ -45,7 +45,7 @@ export class DashboardService {
 
     const categoryIds = grouped.flatMap((row) => (row.categoryId ? [row.categoryId] : []));
     const categories = await this.prisma.client.category.findMany({
-      where: { userId, id: { in: categoryIds } },
+      where: { householdId, id: { in: categoryIds } },
       select: { id: true, name: true },
     });
     const names = new Map(categories.map((category) => [category.id, category.name]));

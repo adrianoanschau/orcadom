@@ -11,7 +11,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
-import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
+import { CurrentHousehold } from '../../common/decorators/current-household.decorator.js';
 import { CategoriesService } from './categories.service.js';
 import {
   CategoryParams,
@@ -27,27 +27,27 @@ export class CategoriesController {
   constructor(private readonly categories: CategoriesService) {}
 
   @Post()
-  create(@CurrentUser() userId: string, @Body() body: CreateCategoryBody) {
-    return this.categories.create(userId, body);
+  create(@CurrentHousehold() householdId: string, @Body() body: CreateCategoryBody) {
+    return this.categories.create(householdId, body);
   }
 
   @Get()
-  list(@CurrentUser() userId: string, @Query() query: ListCategoriesQueryDto) {
-    return this.categories.list(userId, query);
+  list(@CurrentHousehold() householdId: string, @Query() query: ListCategoriesQueryDto) {
+    return this.categories.list(householdId, query);
   }
 
   @Patch(':id')
   update(
-    @CurrentUser() userId: string,
+    @CurrentHousehold() householdId: string,
     @Param() params: CategoryParams,
     @Body() body: UpdateCategoryBody,
   ) {
-    return this.categories.update(userId, params.id, body);
+    return this.categories.update(householdId, params.id, body);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  remove(@CurrentUser() userId: string, @Param() params: CategoryParams): Promise<void> {
-    return this.categories.remove(userId, params.id);
+  remove(@CurrentHousehold() householdId: string, @Param() params: CategoryParams): Promise<void> {
+    return this.categories.remove(householdId, params.id);
   }
 }

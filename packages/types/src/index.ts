@@ -6,6 +6,18 @@ export {
 } from './account.types.js';
 export { loginSchema, registerSchema, type LoginDto, type RegisterDto } from './auth.types.js';
 export {
+  createHouseholdInviteSchema,
+  createHouseholdSchema,
+  householdRoleSchema,
+  inviteStatusSchema,
+  updateHouseholdSchema,
+  type CreateHouseholdDto,
+  type CreateHouseholdInviteDto,
+  type HouseholdRole,
+  type InviteStatus,
+  type UpdateHouseholdDto,
+} from './household.types.js';
+export {
   createBudgetSchema,
   listBudgetsQuerySchema,
   updateBudgetSchema,

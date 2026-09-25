@@ -10,7 +10,7 @@ import {
   Post,
 } from '@nestjs/common';
 import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
-import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
+import { CurrentHousehold } from '../../common/decorators/current-household.decorator.js';
 import { AccountParams, CreateAccountBody, UpdateAccountBody } from './accounts.dto.js';
 import { AccountsService } from './accounts.service.js';
 
@@ -21,32 +21,32 @@ export class AccountsController {
   constructor(private readonly accounts: AccountsService) {}
 
   @Post()
-  create(@CurrentUser() userId: string, @Body() body: CreateAccountBody) {
-    return this.accounts.create(userId, body);
+  create(@CurrentHousehold() householdId: string, @Body() body: CreateAccountBody) {
+    return this.accounts.create(householdId, body);
   }
 
   @Get()
-  list(@CurrentUser() userId: string) {
-    return this.accounts.list(userId);
+  list(@CurrentHousehold() householdId: string) {
+    return this.accounts.list(householdId);
   }
 
   @Get(':id')
-  get(@CurrentUser() userId: string, @Param() params: AccountParams) {
-    return this.accounts.get(userId, params.id);
+  get(@CurrentHousehold() householdId: string, @Param() params: AccountParams) {
+    return this.accounts.get(householdId, params.id);
   }
 
   @Patch(':id')
   update(
-    @CurrentUser() userId: string,
+    @CurrentHousehold() householdId: string,
     @Param() params: AccountParams,
     @Body() body: UpdateAccountBody,
   ) {
-    return this.accounts.update(userId, params.id, body);
+    return this.accounts.update(householdId, params.id, body);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  remove(@CurrentUser() userId: string, @Param() params: AccountParams): Promise<void> {
-    return this.accounts.remove(userId, params.id);
+  remove(@CurrentHousehold() householdId: string, @Param() params: AccountParams): Promise<void> {
+    return this.accounts.remove(householdId, params.id);
   }
 }

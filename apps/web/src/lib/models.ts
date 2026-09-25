@@ -206,3 +206,36 @@ export interface BudgetList {
   month: string;
   budgets: BudgetProgress[];
 }
+
+export type HouseholdRole = 'OWNER' | 'MEMBER';
+
+export interface HouseholdMembership {
+  id: string;
+  name: string;
+  role: HouseholdRole;
+  joinedAt: string;
+  createdAt: string;
+}
+
+export interface HouseholdMember {
+  userId: string;
+  name: string;
+  email: string;
+  role: HouseholdRole;
+  joinedAt: string;
+}
+
+export interface HouseholdInvite {
+  id: string;
+  email: string;
+  token: string;
+  role: HouseholdRole;
+  status: 'PENDING' | 'ACCEPTED' | 'EXPIRED' | 'REVOKED';
+  expiresAt: string;
+  createdAt: string;
+}
+
+export interface HouseholdMembersResponse {
+  members: HouseholdMember[];
+  invites: HouseholdInvite[];
+}
