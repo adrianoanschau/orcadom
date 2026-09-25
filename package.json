@@ -1,7 +1,7 @@
 {
   "name": "orcadom",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.9.0",
   "scripts": {
     "dev": "turbo run dev",
     "dev:split": "./scripts/dev.sh",
@@ -10,6 +10,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "turbo run test",
+    "changeset": "changeset",
+    "changeset:version": "changeset version && node scripts/sync-release-version.mjs",
     "db:up": "docker compose up -d postgres",
     "db:down": "docker compose down",
     "db:generate": "turbo run db:generate",

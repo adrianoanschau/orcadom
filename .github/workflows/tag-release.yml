@@ -1,0 +1,30 @@
+name: Tag Release
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  tag:
+    if: startsWith(github.event.head_commit.message, 'chore: release')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lê a versão atual
+        id: version
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Cria a tag
+        run: |
+          git tag "v${{ steps.version.outputs.version }}"
+          git push origin "v${{ steps.version.outputs.version }}"
+
+      - name: Cria a GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "v${{ steps.version.outputs.version }}"
+          body_path: CHANGELOG.md
+          generate_release_notes: false
