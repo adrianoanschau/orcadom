@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createBudgetSchema, updateBudgetSchema } from '@orcadom/types';
 import { useState } from 'react';
+import { EntityAudit } from '@/components/entity-audit';
 import { BudgetProgressBar, Button, CategoryChip, Notice, controlClass } from '@/components/ui';
 import { ApiError, api } from '@/lib/api';
 import { currentMonth, humanize } from '@/lib/format';
@@ -27,6 +28,7 @@ export default function BudgetsPage() {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['budgets'] }),
       queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
+      queryClient.invalidateQueries({ queryKey: ['audit-logs'] }),
     ]);
   }
 
@@ -206,6 +208,7 @@ function BudgetRow({
           O histórico não é editável. Volte ao mês atual para mudar o limite.
         </p>
       )}
+      {budget ? <EntityAudit entityType="Budget" entityId={budget.id} /> : null}
     </li>
   );
 }

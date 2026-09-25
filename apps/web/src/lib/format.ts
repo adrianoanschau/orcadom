@@ -4,6 +4,12 @@ export function formatMoney(value: string) {
   );
 }
 
+export function formatDateTime(iso: string) {
+  return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(
+    new Date(iso),
+  );
+}
+
 export function formatDate(iso: string) {
   return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'medium', timeZone: 'UTC' }).format(
     new Date(iso),

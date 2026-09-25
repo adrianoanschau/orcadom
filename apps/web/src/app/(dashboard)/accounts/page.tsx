@@ -8,6 +8,7 @@ import { ApiError, api } from '@/lib/api';
 import { humanize } from '@/lib/format';
 import { accountTypeLabels, type AccountType } from '@/lib/labels';
 import type { Account } from '@/lib/models';
+import { EntityAudit } from '@/components/entity-audit';
 import { AccountCard, Button, Field, Modal, Notice, Select, controlClass } from '@/components/ui';
 
 interface AccountForm {
@@ -64,6 +65,7 @@ export default function AccountsPage() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['accounts'] });
       await queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      await queryClient.invalidateQueries({ queryKey: ['audit-logs'] });
       closeForm();
     },
     onError: (caught: unknown) => {
@@ -203,6 +205,7 @@ export default function AccountsPage() {
             </Button>
           </div>
         </form>
+        {editing ? <EntityAudit entityType="Account" entityId={editing.id} /> : null}
       </Modal>
 
       <Modal

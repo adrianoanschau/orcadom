@@ -10,6 +10,7 @@ import { ApiError, api } from '@/lib/api';
 import { dateToNoonIso, formatDate, humanize, todayInput } from '@/lib/format';
 import { transactionTypeLabels, type TransactionType } from '@/lib/labels';
 import type { Account, Category, Transaction, TransactionPage } from '@/lib/models';
+import { EntityAudit } from '@/components/entity-audit';
 import {
   Button,
   Field,
@@ -136,6 +137,7 @@ export default function TransactionsPage() {
       await queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       await queryClient.invalidateQueries({ queryKey: ['installment-plans'] });
       await queryClient.invalidateQueries({ queryKey: ['budgets'] });
+      await queryClient.invalidateQueries({ queryKey: ['audit-logs'] });
       closeForm();
     },
     onError: (caught: unknown) => {
@@ -458,6 +460,7 @@ export default function TransactionsPage() {
             </Button>
           </div>
         </form>
+        {editing ? <EntityAudit entityType="Transaction" entityId={editing.id} /> : null}
       </Modal>
 
       <Modal

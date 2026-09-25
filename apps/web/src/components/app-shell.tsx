@@ -20,6 +20,7 @@ const links = [
   { href: '/imports', label: 'Importar' },
   { href: '/settings/import-alias', label: 'Email' },
   { href: '/settings/household', label: 'Família' },
+  { href: '/settings/activity', label: 'Atividade' },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {

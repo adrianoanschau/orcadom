@@ -239,3 +239,23 @@ export interface HouseholdMembersResponse {
   members: HouseholdMember[];
   invites: HouseholdInvite[];
 }
+
+export type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE';
+export type AuditSource =
+  | 'USER'
+  | 'AUTOMATION_EMAIL'
+  | 'CRON_INSTALLMENT'
+  | 'CRON_RECURRING'
+  | 'SYSTEM';
+
+export interface AuditLogEntry {
+  id: string;
+  entityType: string;
+  entityId: string;
+  action: AuditAction;
+  source: AuditSource;
+  actorName: string | null;
+  headline: string;
+  changes: string[];
+  createdAt: string;
+}
