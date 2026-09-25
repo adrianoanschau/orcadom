@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { TransactionType } from '@orcadom/database';
+import { PostingStatus, TransactionType } from '@orcadom/database';
 import type { CreateTransactionDto, ListTransactionsQuery } from '@orcadom/types';
 import { applyBalance } from '../../common/balance.js';
 import { CategoryMemoryService } from '../../common/category-memory.service.js';
@@ -89,12 +89,16 @@ export class TransactionsService {
         : null,
     ]);
     const updated = await this.prisma.client.$transaction(async (tx) => {
-      await applyBalance(tx, current, -1);
+      if (current.postingStatus !== PostingStatus.SCHEDULED) {
+        await applyBalance(tx, current, -1);
+      }
       const transaction = await tx.transaction.update({
         where: { id },
         data: this.toData(userId, dto),
       });
-      await applyBalance(tx, transaction, 1);
+      if (current.postingStatus !== PostingStatus.SCHEDULED) {
+        await applyBalance(tx, transaction, 1);
+      }
       if (transaction.categoryId && transaction.type !== TransactionType.TRANSFER) {
         await this.categoryMemory.upsert(userId, transaction.description, transaction.categoryId, tx);
       }
@@ -107,7 +111,9 @@ export class TransactionsService {
   async remove(userId: string, id: string): Promise<void> {
     const current = await this.findOwned(userId, id);
     await this.prisma.client.$transaction(async (tx) => {
-      await applyBalance(tx, current, -1);
+      if (current.postingStatus !== PostingStatus.SCHEDULED) {
+        await applyBalance(tx, current, -1);
+      }
       await tx.transaction.delete({ where: { id } });
     });
   }
@@ -203,6 +209,9 @@ export class TransactionsService {
     toAccountId: string | null;
     source?: string;
     externalId?: string | null;
+    postingStatus?: string;
+    installmentPlanId?: string | null;
+    installmentNumber?: number | null;
     createdAt: Date;
     updatedAt: Date;
   }) {
@@ -218,6 +227,9 @@ export class TransactionsService {
       toAccountId: transaction.toAccountId,
       source: transaction.source ?? 'MANUAL',
       externalId: transaction.externalId ?? null,
+      postingStatus: transaction.postingStatus ?? 'POSTED',
+      installmentPlanId: transaction.installmentPlanId ?? null,
+      installmentNumber: transaction.installmentNumber ?? null,
       createdAt: transaction.createdAt.toISOString(),
       updatedAt: transaction.updatedAt.toISOString(),
     };

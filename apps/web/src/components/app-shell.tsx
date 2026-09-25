@@ -14,6 +14,7 @@ const links = [
   { href: '/categories', label: 'Categorias' },
   { href: '/transactions', label: 'Lançamentos' },
   { href: '/budgets', label: 'Orçamentos' },
+  { href: '/installments', label: 'Parcelas' },
   { href: '/imports', label: 'Importar' },
   { href: '/settings/import-alias', label: 'Email' },
 ];

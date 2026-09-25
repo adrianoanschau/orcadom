@@ -224,28 +224,28 @@ chamando `POST /installment-plans` em vez de `POST /transactions`.
 
 ### Fase 1 — Modelagem
 
-- [ ] Migration com `InstallmentPlan`, `PostingStatus` e os novos campos
+- [x] Migration com `InstallmentPlan`, `PostingStatus` e os novos campos
       de `Transaction`.
-- [ ] Função `generateInstallments()` com testes cobrindo arredondamento
+- [x] Função `generateInstallments()` com testes cobrindo arredondamento
       (valores que não dividem exatamente) e geração de datas.
 
 ### Fase 2 — API
 
-- [ ] `POST /installment-plans`, criando o plano e as N parcelas dentro de
+- [x] `POST /installment-plans`, criando o plano e as N parcelas dentro de
       `prisma.$transaction`, aplicando saldo apenas na primeira parcela
       (se vencida).
-- [ ] `GET /installment-plans` e `GET /installment-plans/:id`, com cálculo
+- [x] `GET /installment-plans` e `GET /installment-plans/:id`, com cálculo
       de progresso.
-- [ ] `DELETE /installment-plans/:id`, removendo apenas parcelas
+- [x] `DELETE /installment-plans/:id`, removendo apenas parcelas
       `SCHEDULED`.
-- [ ] Job `postDueInstallments()` com `@nestjs/schedule`, incluindo a
+- [x] Job `postDueInstallments()` com `@nestjs/schedule`, incluindo a
       revalidação de status dentro da transação para idempotência.
 
 ### Fase 3 — Frontend
 
-- [ ] Alternador "É parcelado?" no formulário de nova transação.
-- [ ] Tela `/installments` com progresso por plano.
-- [ ] Card "Compromissos futuros" no dashboard.
+- [x] Alternador "É parcelado?" no formulário de nova transação.
+- [x] Tela `/installments` com progresso por plano.
+- [x] Card "Compromissos futuros" no dashboard.
 
 ## 10. Riscos e pontos de atenção
 

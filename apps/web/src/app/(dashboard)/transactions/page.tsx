@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { createTransactionSchema } from '@orcadom/types';
+import { createInstallmentPlanSchema, createTransactionSchema } from '@orcadom/types';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useState } from 'react';
@@ -37,6 +37,7 @@ interface TransactionForm {
   categoryId: string;
   fromAccountId: string;
   toAccountId: string;
+  installmentsCount: string;
 }
 
 const emptyFilters: Filters = { accountId: '', categoryId: '', from: '', to: '', page: 1 };
@@ -53,6 +54,7 @@ const emptyForm: TransactionForm = {
   categoryId: '',
   fromAccountId: '',
   toAccountId: '',
+  installmentsCount: '2',
 };
 
 export default function TransactionsPage() {
@@ -67,6 +69,7 @@ export default function TransactionsPage() {
   const [error, setError] = useState<string | null>(null);
   const form = useForm<TransactionForm>({ defaultValues: emptyForm });
   const type = form.watch('type');
+  const [installment, setInstallment] = useState(false);
 
   const accounts = useQuery({ queryKey: ['accounts'], queryFn: () => api<Account[]>('/accounts') });
   const categories = useQuery({
@@ -87,12 +90,28 @@ export default function TransactionsPage() {
   function closeForm() {
     setOpen(false);
     setEditing(null);
+    setInstallment(false);
     setError(null);
     form.reset(emptyForm);
   }
 
   const save = useMutation({
     mutationFn: async (values: TransactionForm) => {
+      if (installment && values.type === 'EXPENSE' && !editing) {
+        const parsed = createInstallmentPlanSchema.safeParse({
+          description: values.description,
+          totalAmount: Number(values.amount),
+          installmentsCount: Number(values.installmentsCount),
+          purchaseDate: dateToNoonIso(values.date),
+          accountId: values.accountId || undefined,
+          categoryId: values.categoryId || undefined,
+        });
+        if (!parsed.success) {
+          const issue = parsed.error.issues[0];
+          throw new ApiError(humanize(issue?.message ?? 'Valor inválido.'), 400);
+        }
+        return api('/installment-plans', { method: 'POST', body: JSON.stringify(parsed.data) });
+      }
       const transfer = values.type === 'TRANSFER';
       const parsed = createTransactionSchema.safeParse({
         description: values.description,
@@ -115,6 +134,8 @@ export default function TransactionsPage() {
       await queryClient.invalidateQueries({ queryKey: ['transactions'] });
       await queryClient.invalidateQueries({ queryKey: ['accounts'] });
       await queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      await queryClient.invalidateQueries({ queryKey: ['installment-plans'] });
+      await queryClient.invalidateQueries({ queryKey: ['budgets'] });
       closeForm();
     },
     onError: (caught: unknown) => {
@@ -130,6 +151,7 @@ export default function TransactionsPage() {
       await queryClient.invalidateQueries({ queryKey: ['transactions'] });
       await queryClient.invalidateQueries({ queryKey: ['accounts'] });
       await queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      await queryClient.invalidateQueries({ queryKey: ['installment-plans'] });
       setPendingDelete(null);
     },
     onError: (caught: unknown) => {
@@ -159,6 +181,7 @@ export default function TransactionsPage() {
           <Button
             onClick={() => {
               setEditing(null);
+              setInstallment(false);
               form.reset({ ...emptyForm, date: todayInput() });
               setError(null);
               setOpen(true);
@@ -268,7 +291,9 @@ export default function TransactionsPage() {
                   categoryId: transaction.categoryId ?? '',
                   fromAccountId: transaction.fromAccountId ?? '',
                   toAccountId: transaction.toAccountId ?? '',
+                  installmentsCount: '2',
                 });
+                setInstallment(false);
                 setError(null);
                 setOpen(true);
               }}
@@ -332,7 +357,7 @@ export default function TransactionsPage() {
           <Field label="Descrição">
             <input className={controlClass} {...form.register('description')} />
           </Field>
-          <Field label="Valor">
+          <Field label={installment && type === 'EXPENSE' ? 'Valor total' : 'Valor'}>
             <input
               type="number"
               min="0.01"
@@ -350,9 +375,33 @@ export default function TransactionsPage() {
               ))}
             </Select>
           </Field>
-          <Field label="Data">
+          <Field label={installment && type === 'EXPENSE' ? 'Data da compra' : 'Data'}>
             <input type="date" className={controlClass} {...form.register('date')} />
           </Field>
+          {type === 'EXPENSE' && !editing ? (
+            <label className="flex items-center gap-2 text-sm text-ink">
+              <input
+                type="checkbox"
+                checked={installment}
+                onChange={(event) => {
+                  setInstallment(event.target.checked);
+                }}
+              />
+              É parcelado?
+            </label>
+          ) : null}
+          {installment && type === 'EXPENSE' && !editing ? (
+            <Field label="Número de parcelas">
+              <input
+                type="number"
+                min="2"
+                max="60"
+                step="1"
+                className={`${controlClass} tabular-nums`}
+                {...form.register('installmentsCount')}
+              />
+            </Field>
+          ) : null}
           {type === 'TRANSFER' ? (
             <>
               <Field label="Conta de origem">
@@ -466,5 +515,8 @@ function metaFor(
   }
   const account = accounts.get(transaction.accountId ?? '') ?? 'conta';
   const category = categories.get(transaction.categoryId ?? '') ?? 'categoria';
-  return `${date} · ${account} · ${category}`;
+  const installment =
+    transaction.installmentNumber != null ? ` · parcela ${String(transaction.installmentNumber)}` : '';
+  const scheduled = transaction.postingStatus === 'SCHEDULED' ? ' · agendada' : '';
+  return `${date} · ${account} · ${category}${installment}${scheduled}`;
 }

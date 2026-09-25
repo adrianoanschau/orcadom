@@ -40,6 +40,10 @@ export {
   type UpdateBankAccountMappingDto,
 } from './email-import.types.js';
 export {
+  createInstallmentPlanSchema,
+  type CreateInstallmentPlanDto,
+} from './installment.types.js';
+export {
   dashboardQuerySchema,
   idParamSchema,
   listNotificationsQuerySchema,

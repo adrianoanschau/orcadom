@@ -53,11 +53,24 @@ export default function DashboardPage() {
 
       {data ? (
         <>
-          <div className="mt-6 grid gap-4 md:grid-cols-3">
+          <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <StatCard label="Receitas" value={formatMoney(data.income)} tone="income" />
             <StatCard label="Despesas" value={formatMoney(data.expense)} tone="expense" />
             <StatCard label="Saldo das contas" value={formatMoney(data.balance)} tone="balance" />
+            <StatCard
+              label="Compromissos futuros"
+              value={formatMoney(data.scheduledCommitments)}
+              tone="expense"
+            />
           </div>
+          {Number(data.scheduledCommitments) > 0 ? (
+            <p className="mt-2 text-sm text-ink-soft">
+              Parcelas ainda não debitadas.{' '}
+              <Link href="/installments" className="text-brand">
+                Ver planos
+              </Link>
+            </p>
+          ) : null}
           {empty ? (
             <div className="mt-6 rounded-lg bg-surface p-6">
               <h2 className="font-display text-[21px] font-medium">Nenhum movimento neste mês</h2>

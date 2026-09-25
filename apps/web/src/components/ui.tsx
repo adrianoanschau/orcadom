@@ -215,6 +215,30 @@ const budgetStatusLabel: Record<'on_track' | 'warning' | 'exceeded', string> = {
   exceeded: 'Estourado',
 };
 
+export function ProgressBar({
+  ratio,
+  toneClass,
+  label,
+}: {
+  ratio: number;
+  toneClass: string;
+  label: string;
+}) {
+  const percent = Math.min(Math.max(ratio, 0) * 100, 100);
+  return (
+    <div
+      className="h-2 overflow-hidden rounded-pill bg-surface-sunken"
+      role="progressbar"
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={Math.round(percent)}
+      aria-label={label}
+    >
+      <div className={`h-full rounded-pill ${toneClass}`} style={{ width: `${String(percent)}%` }} />
+    </div>
+  );
+}
+
 export function BudgetProgressBar({
   spent,
   limit,
@@ -226,22 +250,13 @@ export function BudgetProgressBar({
   ratio: number;
   status: 'on_track' | 'warning' | 'exceeded';
 }) {
-  const percent = Math.min(Math.max(ratio, 0) * 100, 100);
   return (
     <div>
-      <div
-        className="h-2 overflow-hidden rounded-pill bg-surface-sunken"
-        role="progressbar"
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={Math.round(percent)}
-        aria-label={`${budgetStatusLabel[status]}: ${formatMoney(spent)} de ${formatMoney(limit)}`}
-      >
-        <div
-          className={`h-full rounded-pill ${budgetBarTone[status]}`}
-          style={{ width: `${String(percent)}%` }}
-        />
-      </div>
+      <ProgressBar
+        ratio={ratio}
+        toneClass={budgetBarTone[status]}
+        label={`${budgetStatusLabel[status]}: ${formatMoney(spent)} de ${formatMoney(limit)}`}
+      />
       <p className="mt-2 flex flex-wrap items-baseline justify-between gap-2 text-sm">
         <span className="tabular-nums text-ink">
           {formatMoney(spent)} de {formatMoney(limit)}

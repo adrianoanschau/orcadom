@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { TransactionType } from '@orcadom/database';
+import { PostingStatus, TransactionType } from '@orcadom/database';
 import { moneyString, toDecimal } from '../../common/money.js';
 import { PrismaService } from '../../common/prisma.service.js';
 
@@ -15,7 +15,7 @@ export class DashboardService {
     const end = new Date(Date.UTC(year, monthIndex + 1, 1));
     const period = { gte: start, lt: end };
 
-    const [income, expense, balance, grouped] = await Promise.all([
+    const [income, expense, balance, grouped, scheduled] = await Promise.all([
       this.prisma.client.transaction.aggregate({
         where: { userId, type: TransactionType.INCOME, date: period },
         _sum: { amount: true },
@@ -33,6 +33,14 @@ export class DashboardService {
         where: { userId, type: TransactionType.EXPENSE, date: period, categoryId: { not: null } },
         _sum: { amount: true },
       }),
+      this.prisma.client.transaction.aggregate({
+        where: {
+          userId,
+          type: TransactionType.EXPENSE,
+          postingStatus: PostingStatus.SCHEDULED,
+        },
+        _sum: { amount: true },
+      }),
     ]);
 
     const categoryIds = grouped.flatMap((row) => (row.categoryId ? [row.categoryId] : []));
@@ -47,6 +55,7 @@ export class DashboardService {
       income: moneyString(income._sum.amount ?? toDecimal(0)),
       expense: moneyString(expense._sum.amount ?? toDecimal(0)),
       balance: moneyString(balance._sum.balance ?? toDecimal(0)),
+      scheduledCommitments: moneyString(scheduled._sum.amount ?? toDecimal(0)),
       expensesByCategory: grouped
         .map((row) => ({
           categoryId: row.categoryId,

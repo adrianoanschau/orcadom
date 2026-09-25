@@ -28,6 +28,9 @@ export interface Transaction {
   toAccountId: string | null;
   source?: 'MANUAL' | 'IMPORTED';
   externalId?: string | null;
+  postingStatus?: 'SCHEDULED' | 'POSTED';
+  installmentPlanId?: string | null;
+  installmentNumber?: number | null;
 }
 
 export interface TransactionPage {
@@ -42,7 +45,34 @@ export interface DashboardSummary {
   income: string;
   expense: string;
   balance: string;
+  scheduledCommitments: string;
   expensesByCategory: { categoryId: string | null; name: string; total: string }[];
+}
+
+export interface InstallmentPlanSummary {
+  id: string;
+  description: string;
+  totalAmount: string;
+  installmentsCount: number;
+  purchaseDate: string;
+  accountId: string;
+  accountName: string;
+  categoryId: string | null;
+  categoryName: string | null;
+  postedCount: number;
+  scheduledCount: number;
+  remainingAmount: string;
+}
+
+export interface InstallmentPlanDetail extends InstallmentPlanSummary {
+  installments: {
+    id: string;
+    description: string;
+    amount: string;
+    date: string;
+    postingStatus: 'SCHEDULED' | 'POSTED';
+    installmentNumber: number | null;
+  }[];
 }
 
 export interface ImportPreviewRow {

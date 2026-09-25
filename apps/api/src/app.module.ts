@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD, APP_PIPE } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ZodValidationPipe } from 'nestjs-zod';
 import { AppController } from './app.controller.js';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
@@ -16,18 +17,21 @@ import { BankAccountMappingsModule } from './modules/bank-account-mappings/bank-
 import { ImportsModule } from './modules/imports/imports.module.js';
 import { NotificationsModule } from './modules/notifications/notifications.module.js';
 import { SettingsModule } from './modules/settings/settings.module.js';
+import { InstallmentPlansModule } from './modules/installment-plans/installment-plans.module.js';
 import { TransactionsModule } from './modules/transactions/transactions.module.js';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     EventEmitterModule.forRoot(),
+    ScheduleModule.forRoot(),
     PrismaModule,
     BudgetsModule,
     AuthModule,
     AccountsModule,
     CategoriesModule,
     TransactionsModule,
+    InstallmentPlansModule,
     DashboardModule,
     ImportsModule,
     AutomationModule,
