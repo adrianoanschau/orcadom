@@ -4,9 +4,11 @@ import { NotificationChannel, Prisma } from '@orcadom/database';
 import type { ListNotificationsQuery } from '@orcadom/types';
 import { PrismaService } from '../../common/prisma.service.js';
 import type { BudgetThresholdPayload } from '../budgets/budget-events.service.js';
+import type { SavingsGoalCompletedPayload } from '../savings-goals/savings-goal-events.service.js';
 import {
   budgetNotificationCopy,
   emailImportNotificationCopy,
+  savingsGoalCompletedCopy,
   type EmailImportEventPayload,
   type NotificationKind,
   wantsEmail,
@@ -36,6 +38,16 @@ export class NotificationsService {
       title: copy.title,
       message: copy.message,
       metadata: { categoryId: payload.categoryId, month: payload.month },
+    });
+  }
+
+  async notifySavingsGoal(payload: SavingsGoalCompletedPayload): Promise<void> {
+    const copy = savingsGoalCompletedCopy(payload.name, payload.targetAmount);
+    await this.fanOut(payload.householdId, {
+      type: copy.type,
+      title: copy.title,
+      message: copy.message,
+      metadata: { goalId: payload.goalId },
     });
   }
 

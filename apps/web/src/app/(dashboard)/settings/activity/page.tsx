@@ -15,6 +15,7 @@ const entityLabels: Record<string, string> = {
   RecurringTransaction: 'Recorrência',
   ImportBatch: 'Importação',
   HouseholdMember: 'Membro',
+  SavingsGoal: 'Meta',
 };
 
 export default function ActivityPage() {

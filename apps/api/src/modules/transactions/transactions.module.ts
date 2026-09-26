@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
 import { BudgetsModule } from '../budgets/budgets.module.js';
+import { SavingsGoalsModule } from '../savings-goals/savings-goals.module.js';
 import { TransactionsController } from './transactions.controller.js';
 import { TransactionsService } from './transactions.service.js';
 
 @Module({
-  imports: [BudgetsModule],
+  imports: [BudgetsModule, SavingsGoalsModule],
   controllers: [TransactionsController],
   providers: [TransactionsService],
 })

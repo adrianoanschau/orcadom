@@ -55,6 +55,12 @@ export class AccountsService {
     if (linked > 0) {
       throw new ConflictException('A conta possui lançamentos e não pode ser excluída.');
     }
+    const goals = await this.prisma.client.savingsGoal.count({
+      where: { householdId, accountId: id },
+    });
+    if (goals > 0) {
+      throw new ConflictException('A conta está vinculada a uma meta de economia e não pode ser excluída.');
+    }
     await this.prisma.client.account.delete({ where: { id } });
   }
 

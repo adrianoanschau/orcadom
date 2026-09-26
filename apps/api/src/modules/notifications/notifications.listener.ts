@@ -5,6 +5,10 @@ import {
   type BudgetThresholdPayload,
 } from '../budgets/budget-events.service.js';
 import {
+  SAVINGS_GOAL_COMPLETED,
+  type SavingsGoalCompletedPayload,
+} from '../savings-goals/savings-goal-events.service.js';
+import {
   EMAIL_IMPORT_READY,
   EMAIL_IMPORT_UNMAPPED_ACCOUNT,
   type EmailImportEventPayload,
@@ -20,6 +24,11 @@ export class NotificationsListener {
   @OnEvent(BUDGET_THRESHOLD_CROSSED)
   async onBudgetThreshold(payload: BudgetThresholdPayload): Promise<void> {
     await this.safe('budget.threshold_crossed', () => this.notifications.notifyBudget(payload));
+  }
+
+  @OnEvent(SAVINGS_GOAL_COMPLETED)
+  async onSavingsGoalCompleted(payload: SavingsGoalCompletedPayload): Promise<void> {
+    await this.safe('savings-goal.completed', () => this.notifications.notifySavingsGoal(payload));
   }
 
   @OnEvent(EMAIL_IMPORT_READY)

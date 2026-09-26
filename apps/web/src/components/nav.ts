@@ -23,6 +23,7 @@ export const moreNav: NavGroup[] = [
       { href: '/accounts', label: 'Contas' },
       { href: '/categories', label: 'Categorias' },
       { href: '/budgets', label: 'Orçamentos' },
+      { href: '/savings-goals', label: 'Metas' },
     ],
   },
   {

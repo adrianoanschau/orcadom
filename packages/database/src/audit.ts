@@ -10,6 +10,7 @@ export const AUDITED_MODELS = [
   'RecurringTransaction',
   'ImportBatch',
   'HouseholdMember',
+  'SavingsGoal',
 ] as const;
 
 export type AuditedModel = (typeof AUDITED_MODELS)[number];
@@ -35,9 +36,13 @@ const FIELD_LABELS: Record<string, string> = {
   totalAmount: 'valor total',
   installmentsCount: 'parcelas',
   frequency: 'frequência',
+  targetAmount: 'valor alvo',
+  targetDate: 'prazo',
+  startDate: 'início',
+  completedAt: 'conclusão',
 };
 
-const MONEY_FIELDS = new Set(['amount', 'balance', 'totalAmount']);
+const MONEY_FIELDS = new Set(['amount', 'balance', 'totalAmount', 'targetAmount']);
 
 const VALUE_LABELS: Record<string, Record<string, string>> = {
   role: { OWNER: 'responsável', MEMBER: 'membro' },
@@ -51,6 +56,7 @@ const VALUE_LABELS: Record<string, Record<string, string>> = {
   },
   postingStatus: { SCHEDULED: 'agendada', POSTED: 'postada' },
   frequency: { WEEKLY: 'semanal', MONTHLY: 'mensal', YEARLY: 'anual' },
+  status: { ACTIVE: 'ativa', COMPLETED: 'concluída', ABANDONED: 'abandonada' },
 };
 
 export interface AuditWriteInput {
@@ -216,7 +222,7 @@ function describeDiff(
 
 function describeSnapshot(record: Record<string, unknown>): string[] {
   const lines: string[] = [];
-  for (const key of ['name', 'description', 'amount', 'totalAmount', 'fileName', 'role']) {
+  for (const key of ['name', 'description', 'amount', 'totalAmount', 'targetAmount', 'fileName', 'role']) {
     if (!(key in record)) continue;
     const label = FIELD_LABELS[key] ?? key;
     lines.push(`${label}: ${formatField(key, record[key])}`);

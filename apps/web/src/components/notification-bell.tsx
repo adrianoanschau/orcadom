@@ -129,6 +129,9 @@ function notificationHref(item: AppNotification): string {
   if (item.type === 'EMAIL_IMPORT_READY' || item.type === 'EMAIL_IMPORT_UNMAPPED_ACCOUNT') {
     return batchId ? `/imports?batchId=${batchId}` : '/imports';
   }
+  if (item.type === 'SAVINGS_GOAL_COMPLETED') {
+    return item.metadata?.goalId ? `/savings-goals/${item.metadata.goalId}` : '/savings-goals';
+  }
   return '/budgets';
 }
 

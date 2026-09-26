@@ -7,6 +7,7 @@ import { moneyString, toDecimal } from '../../common/money.js';
 import { PrismaService } from '../../common/prisma.service.js';
 import { BudgetEventsService } from '../budgets/budget-events.service.js';
 import { monthFromDate, type BudgetStatus } from '../budgets/budget-progress.js';
+import { SavingsGoalsService } from '../savings-goals/savings-goals.service.js';
 
 @Injectable()
 export class TransactionsService {
@@ -14,6 +15,7 @@ export class TransactionsService {
     private readonly prisma: PrismaService,
     private readonly categoryMemory: CategoryMemoryService,
     private readonly budgetEvents: BudgetEventsService,
+    private readonly savingsGoals: SavingsGoalsService,
   ) {}
 
   async create(householdId: string, userId: string, dto: CreateTransactionDto) {
@@ -33,6 +35,9 @@ export class TransactionsService {
     });
     if (dto.type === TransactionType.EXPENSE) {
       await this.budgetEvents.emitIfCrossed(householdId, dto.categoryId, date, previous?.status);
+    }
+    if (dto.type === TransactionType.TRANSFER) {
+      await this.savingsGoals.completeIfReached(householdId, dto.toAccountId);
     }
     return this.toResponse(created);
   }
@@ -105,6 +110,9 @@ export class TransactionsService {
       return transaction;
     });
     await this.emitExpenseKeys(householdId, previousByKey);
+    if (dto.type === TransactionType.TRANSFER) {
+      await this.savingsGoals.completeIfReached(householdId, dto.toAccountId);
+    }
     return this.toResponse(updated);
   }
 

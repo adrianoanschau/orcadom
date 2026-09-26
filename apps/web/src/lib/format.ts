@@ -41,6 +41,22 @@ export function currentMonth() {
   return todayInput().slice(0, 7);
 }
 
+export function daysUntil(iso: string, now = new Date()): number {
+  const target = new Date(iso);
+  const start = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const end = Date.UTC(target.getUTCFullYear(), target.getUTCMonth(), target.getUTCDate());
+  return Math.round((end - start) / 86_400_000);
+}
+
+export function daysUntilLabel(iso: string): string {
+  const days = daysUntil(iso);
+  if (days > 1) return `faltam ${String(days)} dias`;
+  if (days === 1) return 'falta 1 dia';
+  if (days === 0) return 'vence hoje';
+  if (days === -1) return 'prazo venceu ontem';
+  return `prazo vencido há ${String(Math.abs(days))} dias`;
+}
+
 export function dateToNoonIso(value: string) {
   return `${value}T12:00:00.000Z`;
 }

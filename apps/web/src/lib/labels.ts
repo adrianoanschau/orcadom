@@ -16,6 +16,13 @@ export const recurrenceFrequencyLabels = {
   YEARLY: 'Anual',
 } as const;
 
+export const savingsGoalStatusLabels = {
+  ACTIVE: 'Ativa',
+  COMPLETED: 'Concluída',
+  ABANDONED: 'Abandonada',
+} as const;
+
 export type AccountType = keyof typeof accountTypeLabels;
 export type TransactionType = keyof typeof transactionTypeLabels;
 export type RecurrenceFrequency = keyof typeof recurrenceFrequencyLabels;
+export type SavingsGoalStatusLabel = keyof typeof savingsGoalStatusLabels;

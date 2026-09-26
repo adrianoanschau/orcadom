@@ -23,6 +23,7 @@ import { SettingsModule } from './modules/settings/settings.module.js';
 import { InstallmentPlansModule } from './modules/installment-plans/installment-plans.module.js';
 import { RecurringTransactionsModule } from './modules/recurring-transactions/recurring-transactions.module.js';
 import { HouseholdsModule } from './modules/households/households.module.js';
+import { SavingsGoalsModule } from './modules/savings-goals/savings-goals.module.js';
 import { TransactionsModule } from './modules/transactions/transactions.module.js';
 
 @Module({
@@ -40,6 +41,7 @@ import { TransactionsModule } from './modules/transactions/transactions.module.j
     TransactionsModule,
     InstallmentPlansModule,
     RecurringTransactionsModule,
+    SavingsGoalsModule,
     DashboardModule,
     ImportsModule,
     AutomationModule,

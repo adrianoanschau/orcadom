@@ -5,13 +5,14 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { api } from '@/lib/api';
-import { currentMonth, formatMoney } from '@/lib/format';
-import type { BudgetList, DashboardSummary } from '@/lib/models';
+import { currentMonth, daysUntil, daysUntilLabel, formatMoney } from '@/lib/format';
+import type { BudgetList, DashboardSummary, SavingsGoal } from '@/lib/models';
 import {
   ButtonLink,
   BudgetProgressBar,
   EmptyState,
   PageHeader,
+  ProgressBar,
   StatCard,
   controlClass,
 } from '@/components/ui';
@@ -26,7 +27,12 @@ export default function DashboardPage() {
     queryKey: ['budgets', month],
     queryFn: () => api<BudgetList>(`/budgets?month=${month}`),
   });
+  const goals = useQuery({
+    queryKey: ['savings-goals'],
+    queryFn: () => api<SavingsGoal[]>('/savings-goals'),
+  });
   const data = summary.data;
+  const featuredGoals = pickFeaturedGoals(goals.data ?? []);
   const empty = data ? Number(data.income) === 0 && Number(data.expense) === 0 : false;
   const chart = (data?.expensesByCategory ?? []).map((item) => ({
     name: item.name || 'Sem categoria',
@@ -119,6 +125,41 @@ export default function DashboardPage() {
             )}
           </section>
           <section className="mt-6 rounded-lg bg-surface p-6">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="font-display text-h2 font-medium">Metas de economia</h2>
+              <Link href="/savings-goals" className="text-sm text-brand">
+                Gerenciar
+              </Link>
+            </div>
+            {featuredGoals.length ? (
+              <ul className="mt-4 space-y-4">
+                {featuredGoals.map((goal) => (
+                  <li key={goal.id}>
+                    <Link href={`/savings-goals/${goal.id}`} className="mb-2 block text-sm font-medium text-ink">
+                      {goal.name}
+                    </Link>
+                    <ProgressBar
+                      ratio={goal.ratio}
+                      tone={goal.ratio >= 1 ? 'income' : 'brand'}
+                      label={`${formatMoney(goal.saved)} de ${formatMoney(goal.targetAmount)} guardados`}
+                    />
+                    <p className="mt-2 text-sm text-ink">
+                      {formatMoney(goal.saved)} de {formatMoney(goal.targetAmount)} guardados
+                      {goal.targetDate ? ` · ${daysUntilLabel(goal.targetDate)}` : ''}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-4 text-sm text-ink-soft">
+                Nenhuma meta ativa.{' '}
+                <Link href="/savings-goals" className="text-brand">
+                  Definir uma meta
+                </Link>
+              </p>
+            )}
+          </section>
+          <section className="mt-6 rounded-lg bg-surface p-6">
             <h2 className="font-display text-h2 font-medium">Despesas por categoria</h2>
             {chart.length === 0 ? (
               <p className="mt-4 text-sm text-ink-soft">Nenhuma despesa neste mês.</p>
@@ -144,4 +185,18 @@ export default function DashboardPage() {
       ) : null}
     </section>
   );
+}
+
+function pickFeaturedGoals(goals: SavingsGoal[]): SavingsGoal[] {
+  return goals
+    .filter((goal) => goal.status === 'ACTIVE')
+    .slice()
+    .sort((left, right) => featuredScore(right) - featuredScore(left))
+    .slice(0, 3);
+}
+
+function featuredScore(goal: SavingsGoal): number {
+  const due = goal.targetDate ? daysUntil(goal.targetDate) : null;
+  const deadlineScore = due === null ? 0 : Math.max(0, 1 - due / 90);
+  return Math.max(goal.ratio, deadlineScore);
 }

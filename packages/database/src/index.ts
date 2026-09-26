@@ -16,6 +16,7 @@ import {
   Prisma,
   PrismaClient,
   RecurrenceFrequency,
+  SavingsGoalStatus,
   TransactionSource,
   TransactionType,
 } from './generated/prisma/client.js';
@@ -75,6 +76,7 @@ export {
   Prisma,
   PrismaClient,
   RecurrenceFrequency,
+  SavingsGoalStatus,
   TransactionSource,
   TransactionType,
 };

@@ -5,7 +5,8 @@ export type NotificationKind =
   | 'BUDGET_WARNING'
   | 'BUDGET_EXCEEDED'
   | 'EMAIL_IMPORT_READY'
-  | 'EMAIL_IMPORT_UNMAPPED_ACCOUNT';
+  | 'EMAIL_IMPORT_UNMAPPED_ACCOUNT'
+  | 'SAVINGS_GOAL_COMPLETED';
 
 export type NotificationChannelKind = 'IN_APP' | 'EMAIL';
 
@@ -14,6 +15,7 @@ export const NOTIFICATION_CHANNEL_POLICY: Record<NotificationKind, NotificationC
   BUDGET_EXCEEDED: ['IN_APP', 'EMAIL'],
   EMAIL_IMPORT_READY: ['IN_APP'],
   EMAIL_IMPORT_UNMAPPED_ACCOUNT: ['IN_APP', 'EMAIL'],
+  SAVINGS_GOAL_COMPLETED: ['IN_APP'],
 };
 
 export interface EmailImportEventPayload {
@@ -51,6 +53,17 @@ export function budgetNotificationCopy(
     type: 'BUDGET_EXCEEDED' as const,
     title: 'Orçamento estourado',
     message: `O gasto de ${categoryName} em ${period} passou do limite.`,
+  };
+}
+
+export function savingsGoalCompletedCopy(name: string, targetAmount: string) {
+  const formatted = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
+    .format(Number(targetAmount))
+    .replace(/[\u00a0\u202f]/g, ' ');
+  return {
+    type: 'SAVINGS_GOAL_COMPLETED' as const,
+    title: 'Meta de economia concluída',
+    message: `A meta ${name} (${formatted}) foi atingida.`,
   };
 }
 

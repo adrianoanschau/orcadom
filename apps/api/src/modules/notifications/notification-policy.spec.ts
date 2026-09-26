@@ -3,6 +3,7 @@ import {
   budgetNotificationCopy,
   emailImportNotificationCopy,
   formatMonthLabel,
+  savingsGoalCompletedCopy,
   wantsEmail,
 } from './notification-policy.js';
 
@@ -12,6 +13,17 @@ describe('wantsEmail', () => {
     expect(wantsEmail('EMAIL_IMPORT_READY')).toBe(false);
     expect(wantsEmail('BUDGET_EXCEEDED')).toBe(true);
     expect(wantsEmail('EMAIL_IMPORT_UNMAPPED_ACCOUNT')).toBe(true);
+    expect(wantsEmail('SAVINGS_GOAL_COMPLETED')).toBe(false);
+  });
+});
+
+describe('savingsGoalCompletedCopy', () => {
+  it('monta título e mensagem com o nome e o valor', () => {
+    expect(savingsGoalCompletedCopy('Viagem', '5000.00')).toEqual({
+      type: 'SAVINGS_GOAL_COMPLETED',
+      title: 'Meta de economia concluída',
+      message: 'A meta Viagem (R$ 5.000,00) foi atingida.',
+    });
   });
 });
 

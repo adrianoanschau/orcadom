@@ -167,14 +167,15 @@ export type NotificationType =
   | 'BUDGET_WARNING'
   | 'BUDGET_EXCEEDED'
   | 'EMAIL_IMPORT_READY'
-  | 'EMAIL_IMPORT_UNMAPPED_ACCOUNT';
+  | 'EMAIL_IMPORT_UNMAPPED_ACCOUNT'
+  | 'SAVINGS_GOAL_COMPLETED';
 
 export interface AppNotification {
   id: string;
   type: NotificationType;
   title: string;
   message: string;
-  metadata: { importBatchId?: string; categoryId?: string; month?: string } | null;
+  metadata: { importBatchId?: string; categoryId?: string; month?: string; goalId?: string } | null;
   channels: ('IN_APP' | 'EMAIL')[];
   readAt: string | null;
   createdAt: string;
@@ -205,6 +206,40 @@ export interface BudgetProgress {
 export interface BudgetList {
   month: string;
   budgets: BudgetProgress[];
+}
+
+export type SavingsGoalStatus = 'ACTIVE' | 'COMPLETED' | 'ABANDONED';
+
+export interface SavingsGoal {
+  id: string;
+  name: string;
+  targetAmount: string;
+  targetDate: string | null;
+  startDate: string;
+  status: SavingsGoalStatus;
+  accountId: string;
+  accountName: string;
+  saved: string;
+  ratio: number;
+  remaining: string;
+  completedAt: string | null;
+  createdAt: string;
+}
+
+export interface SavingsGoalTransfer {
+  id: string;
+  description: string;
+  amount: string;
+  date: string;
+  direction: 'in' | 'out';
+  fromAccountId: string | null;
+  toAccountId: string | null;
+  fromAccountName: string | null;
+  toAccountName: string | null;
+}
+
+export interface SavingsGoalDetail extends SavingsGoal {
+  transfers: SavingsGoalTransfer[];
 }
 
 export type HouseholdRole = 'OWNER' | 'MEMBER';

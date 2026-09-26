@@ -73,4 +73,12 @@ export {
   type ListNotificationsQuery,
   type ListTransactionsQuery,
 } from './query.types.js';
+export {
+  createSavingsGoalSchema,
+  savingsGoalStatusSchema,
+  updateSavingsGoalSchema,
+  type CreateSavingsGoalDto,
+  type SavingsGoalStatus,
+  type UpdateSavingsGoalDto,
+} from './savings-goal.types.js';
 export { createTransactionSchema, type CreateTransactionDto } from './transaction.types.js';

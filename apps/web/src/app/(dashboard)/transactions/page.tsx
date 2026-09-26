@@ -140,6 +140,7 @@ export default function TransactionsPage() {
       await queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       await queryClient.invalidateQueries({ queryKey: ['installment-plans'] });
       await queryClient.invalidateQueries({ queryKey: ['budgets'] });
+      await queryClient.invalidateQueries({ queryKey: ['savings-goals'] });
       await queryClient.invalidateQueries({ queryKey: ['audit-logs'] });
       closeForm();
     },
@@ -157,6 +158,7 @@ export default function TransactionsPage() {
       await queryClient.invalidateQueries({ queryKey: ['accounts'] });
       await queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       await queryClient.invalidateQueries({ queryKey: ['installment-plans'] });
+      await queryClient.invalidateQueries({ queryKey: ['savings-goals'] });
       setPendingDelete(null);
     },
     onError: (caught: unknown) => {
