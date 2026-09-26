@@ -17,7 +17,7 @@
         --surface-sunken: #e4e9e4;
         --ink: #1c2420;
         --ink-soft: #5c645f;
-        --ink-faint: #93998f;
+        --ink-faint: #6b7169;
         --hairline: #d7ded6;
         --brand: #0d6e63;
         --brand-hover: #0a574f;
@@ -25,7 +25,7 @@
         --income: #2f7d5a;
         --expense: #c4462f;
         --transfer: #3b6e91;
-        --pending: #b8873a;
+        --pending: #8a6424;
         --r-sm: 8px;
         --r-md: 14px;
         --r-lg: 22px;
@@ -398,6 +398,138 @@
         font-size: 13px;
       }
 
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        font-size: 14px;
+        font-weight: 600;
+        padding: 4px 10px;
+        border-radius: var(--r-pill);
+      }
+      .badge-brand {
+        background: var(--brand-tint);
+        color: var(--brand);
+      }
+      .badge-income {
+        background: #e4efe8;
+        color: var(--income);
+      }
+      .badge-expense {
+        background: #f8e6e2;
+        color: var(--expense);
+      }
+      .badge-pending {
+        background: #f3eadc;
+        color: var(--pending);
+      }
+      .badge-neutral {
+        background: var(--surface-sunken);
+        color: var(--ink-soft);
+      }
+
+      .progress {
+        height: 8px;
+        border-radius: var(--r-pill);
+        background: var(--surface-sunken);
+        overflow: hidden;
+      }
+      .progress > span {
+        display: block;
+        height: 100%;
+        border-radius: var(--r-pill);
+      }
+
+      .nav-demo {
+        display: grid;
+        grid-template-columns: 180px 1fr;
+        border: 1px solid var(--hairline);
+        border-radius: var(--r-lg);
+        overflow: hidden;
+        background: var(--surface);
+        min-height: 180px;
+      }
+      .nav-side {
+        border-right: 1px solid var(--hairline);
+        padding: var(--sp-4);
+        font-size: 13px;
+      }
+      .nav-side strong {
+        display: block;
+        color: var(--brand);
+        font-family: 'Fraunces', serif;
+        font-size: 18px;
+        margin-bottom: var(--sp-3);
+      }
+      .nav-side p {
+        margin: 0 0 6px;
+        color: var(--ink-soft);
+      }
+      .nav-side p.active {
+        color: var(--brand);
+        font-weight: 600;
+      }
+      .nav-main {
+        padding: var(--sp-4);
+        background: var(--canvas);
+        color: var(--ink-soft);
+        font-size: 14px;
+      }
+
+      .tabbar-demo {
+        display: none;
+        border: 1px solid var(--hairline);
+        border-radius: var(--r-lg);
+        overflow: hidden;
+        background: var(--surface);
+      }
+      .tabbar-demo .tabs {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        border-top: 1px solid var(--hairline);
+      }
+      .tabbar-demo .tab {
+        text-align: center;
+        padding: 12px 4px;
+        font-size: 12px;
+        color: var(--ink-soft);
+      }
+      .tabbar-demo .tab.active {
+        color: var(--brand);
+        font-weight: 600;
+      }
+      .tabbar-demo .screen {
+        padding: var(--sp-4);
+        background: var(--canvas);
+        min-height: 80px;
+        color: var(--ink-soft);
+        font-size: 14px;
+      }
+
+      .sheet-demo {
+        border: 1px solid var(--hairline);
+        border-radius: var(--r-lg);
+        background: var(--surface);
+        padding: var(--sp-5);
+        max-width: 360px;
+      }
+
+      .decision-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+      .decision-table th,
+      .decision-table td {
+        text-align: left;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--hairline);
+        vertical-align: top;
+      }
+      .decision-table th {
+        color: var(--ink-soft);
+        font-weight: 600;
+      }
+
       @media (max-width: 640px) {
         .token-cols {
           grid-template-columns: 1fr;
@@ -411,6 +543,12 @@
         }
         .type-meta {
           flex: none;
+        }
+        .nav-demo {
+          display: none;
+        }
+        .tabbar-demo {
+          display: block;
         }
       }
     </style>
@@ -484,9 +622,9 @@
             </div>
           </div>
           <div class="swatch">
-            <div class="swatch-color" style="background: #b8873a"></div>
+            <div class="swatch-color" style="background: #8a6424"></div>
             <div class="swatch-label">
-              <span class="swatch-name">pending</span><span class="swatch-hex">#B8873A</span>
+              <span class="swatch-name">pending</span><span class="swatch-hex">#8A6424</span>
             </div>
           </div>
         </div>
@@ -671,6 +809,111 @@
               <div class="stat-label">Saldo</div>
               <div class="stat-value">R$ 2.339,70</div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Badge de status</h2>
+        <p class="section-note">
+          Um único componente para estados recorrentes — orçamento, importação, recorrência, papel
+          no espaço. A cor segue o token semântico; não inventar uma paleta paralela por feature.
+        </p>
+        <div class="row-flex">
+          <span class="badge badge-income">No ritmo</span>
+          <span class="badge badge-pending">Atenção</span>
+          <span class="badge badge-expense">Estourado</span>
+          <span class="badge badge-brand">Importado</span>
+          <span class="badge badge-pending">possível duplicata</span>
+          <span class="badge badge-neutral">membro</span>
+        </div>
+      </section>
+
+      <section>
+        <h2>Barra de progresso</h2>
+        <p class="section-note">
+          Mesmo componente para orçamento (tom semântico do status) e parcelamento (tom de marca).
+          Trilha em <code>surface-sunken</code>, preenchimento em pílula.
+        </p>
+        <div class="card" style="max-width: 420px">
+          <div class="comp-label">Orçamento — 82% (atenção)</div>
+          <div class="progress"><span style="width: 82%; background: var(--pending)"></span></div>
+          <div class="comp-label" style="margin-top: 16px">Parcelas — 3 de 10</div>
+          <div class="progress"><span style="width: 30%; background: var(--brand)"></span></div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Responsividade</h2>
+        <p class="section-note">
+          Breakpoints do Tailwind, sem escala própria. O layout padrão é o de celular; desktop entra
+          a partir de <code>lg</code> (1024px).
+        </p>
+        <table class="decision-table">
+          <thead>
+            <tr>
+              <th>Padrão</th>
+              <th>Decisão</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Navegação</td>
+              <td>
+                Mobile: barra inferior (Painel, Lançamentos, Importar, Mais). Desktop
+                <code>lg+</code>: sidebar agrupada.
+              </td>
+            </tr>
+            <tr>
+              <td>Tabelas densas</td>
+              <td>
+                Prévia de importação vira cartão empilhado abaixo de <code>md</code>. Extrato de
+                lançamentos, parcelas e auditoria já são listas/cartões.
+              </td>
+            </tr>
+            <tr>
+              <td>Grids de cards</td>
+              <td>Uma coluna abaixo de 640px; duas a partir de <code>sm</code>.</td>
+            </tr>
+            <tr>
+              <td>Formulários</td>
+              <td>
+                Campos empilham abaixo de <code>md</code>. Valor + data (ou frequência) ficam lado a
+                lado só a partir daí. Área de toque mínima 44px; valor usa teclado decimal.
+              </td>
+            </tr>
+            <tr>
+              <td>Modais</td>
+              <td>Abaixo de <code>md</code>: folha de tela cheia. A partir de <code>md</code>: diálogo centralizado.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>Navegação</h2>
+        <p class="section-note">
+          Onze destinos não cabem numa faixa. O dia a dia fica à mão; o resto entra em “Mais” no
+          celular e em grupos na sidebar do desktop.
+        </p>
+        <div class="nav-demo" aria-hidden>
+          <div class="nav-side">
+            <strong>Orcadom</strong>
+            <p class="active">Painel</p>
+            <p>Lançamentos</p>
+            <p>Importar</p>
+            <p>Contas</p>
+            <p>Orçamentos</p>
+          </div>
+          <div class="nav-main">Sidebar a partir de 1024px — grupos Dia a dia, Organização, Compromissos, Espaço.</div>
+        </div>
+        <div class="tabbar-demo" aria-hidden>
+          <div class="screen">Cabeçalho compacto: marca, espaço, sino.</div>
+          <div class="tabs">
+            <div class="tab active">Painel</div>
+            <div class="tab">Lançamentos</div>
+            <div class="tab">Importar</div>
+            <div class="tab">Mais</div>
           </div>
         </div>
       </section>

@@ -52,17 +52,17 @@ Toda tela construída até aqui entra na revisão — usado como checklist de
 cobertura, não como lista exaustiva de UI (algumas features têm mais de
 uma tela):
 
-| Origem | Telas |
-|---|---|
-| MVP (`00`–`06`) | Login/registro, listagem e formulário de contas, listagem e formulário de categorias, listagem e formulário de transações, dashboard |
-| Importação (`07`) | `/imports` — upload e preview |
-| Email (`08`) | `/settings/import-alias`, mapeamento de contas |
-| Orçamentos (`09`) | `/budgets`, seção de orçamentos no dashboard |
-| Notificações (`10`) | Sino de notificação e lista suspensa |
-| Parcelamento (`11`) | Alternador no formulário de transação, `/installments` |
-| Recorrência (`12`) | `/recurring` |
-| Multiusuário (`13`) | Seletor de household, `/settings/household` (membros e convites) |
-| Auditoria (`14`) | Seção "Histórico" nas telas de detalhe, `/settings/activity` |
+| Origem              | Telas                                                                                                                                |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| MVP (`00`–`06`)     | Login/registro, listagem e formulário de contas, listagem e formulário de categorias, listagem e formulário de transações, dashboard |
+| Importação (`07`)   | `/imports` — upload e preview                                                                                                        |
+| Email (`08`)        | `/settings/import-alias`, mapeamento de contas                                                                                       |
+| Orçamentos (`09`)   | `/budgets`, seção de orçamentos no dashboard                                                                                         |
+| Notificações (`10`) | Sino de notificação e lista suspensa                                                                                                 |
+| Parcelamento (`11`) | Alternador no formulário de transação, `/installments`                                                                               |
+| Recorrência (`12`)  | `/recurring`                                                                                                                         |
+| Multiusuário (`13`) | Seletor de household, `/settings/household` (membros e convites)                                                                     |
+| Auditoria (`14`)    | Seção "Histórico" nas telas de detalhe, `/settings/activity`                                                                         |
 
 ## 5. Revisão de Responsividade
 
@@ -71,13 +71,13 @@ uma tela):
 Alinhados ao padrão do Tailwind (já em uso no `apps/web`), sem introduzir
 uma escala própria:
 
-| Breakpoint | Largura | Uso principal |
-|---|---|---|
-| Base (sem prefixo) | < 640px | Celular — layout padrão a partir daqui |
-| `sm` | ≥ 640px | Celular grande / tablet retrato |
-| `md` | ≥ 768px | Tablet |
-| `lg` | ≥ 1024px | Desktop — navegação lateral completa passa a caber |
-| `xl` | ≥ 1280px | Desktop largo |
+| Breakpoint         | Largura  | Uso principal                                      |
+| ------------------ | -------- | -------------------------------------------------- |
+| Base (sem prefixo) | < 640px  | Celular — layout padrão a partir daqui             |
+| `sm`               | ≥ 640px  | Celular grande / tablet retrato                    |
+| `md`               | ≥ 768px  | Tablet                                             |
+| `lg`               | ≥ 1024px | Desktop — navegação lateral completa passa a caber |
+| `xl`               | ≥ 1280px | Desktop largo                                      |
 
 ### 5.2 — Padrões a decidir e aplicar consistentemente
 
@@ -155,40 +155,45 @@ uma escala própria:
 
 ### Fase 1 — Auditoria e diagnóstico
 
-- [ ] Varredura de tokens hardcoded no código de `apps/web`.
-- [ ] Checklist de responsividade preenchido para todas as telas do
+- [x] Varredura de tokens hardcoded no código de `apps/web`.
+- [x] Checklist de responsividade preenchido para todas as telas do
       inventário (seção 4), nos três breakpoints da seção 5.1.
-- [ ] Validação de contraste WCAG AA nas combinações de cor já usadas
+- [x] Validação de contraste WCAG AA nas combinações de cor já usadas
       (texto sobre `brand`, `income`, `expense`, `transfer`, `pending`).
-- [ ] Percurso dos fluxos críticos, com pontos de fricção anotados.
+- [x] Percurso dos fluxos críticos, com pontos de fricção anotados.
 
 ### Fase 2 — Decisões de padrão
 
-- [ ] Decidir e documentar o padrão de navegação mobile (bottom tab bar
+- [x] Decidir e documentar o padrão de navegação mobile (bottom tab bar
       vs. drawer).
-- [ ] Decidir, por tipo de tabela/lista, entre rolagem horizontal e
+- [x] Decidir, por tipo de tabela/lista, entre rolagem horizontal e
       cartão empilhado (seção 5.2).
-- [ ] Decidir o padrão de modal em mobile (full-screen sheet vs. modal
+- [x] Decidir o padrão de modal em mobile (full-screen sheet vs. modal
       reduzido).
-- [ ] Consolidar componentes dispersos em componentes documentados do
+- [x] Consolidar componentes dispersos em componentes documentados do
       design system.
 
 ### Fase 3 — Implementação das correções
 
-- [ ] Aplicar os padrões decididos na Fase 2 em todas as telas do
+- [x] Aplicar os padrões decididos na Fase 2 em todas as telas do
       inventário — não só nas que motivaram a decisão.
-- [ ] Corrigir os itens da varredura de tokens hardcoded.
-- [ ] Corrigir problemas de contraste encontrados.
-- [ ] Reestruturar navegação, se a Fase 2 decidiu por mudança.
+- [x] Corrigir os itens da varredura de tokens hardcoded.
+- [x] Corrigir problemas de contraste encontrados.
+- [x] Reestruturar navegação, se a Fase 2 decidiu por mudança.
 
 ### Fase 4 — Validação final
 
-- [ ] Reexecutar o checklist de responsividade (Fase 1) em todas as
+- [x] Reexecutar o checklist de responsividade (Fase 1) em todas as
       telas, confirmando que os itens marcados com problema foram
       resolvidos.
-- [ ] Revisão cruzada dos fluxos críticos (Fase 1) confirmando que os
+- [x] Revisão cruzada dos fluxos críticos (Fase 1) confirmando que os
       pontos de fricção anotados foram endereçados ou conscientemente
       aceitos como não-bloqueantes.
+
+> Validação por emulação de largura (base / `md` / `lg`). Comportamento
+> de teclado virtual e área de toque real em aparelho físico continua
+> recomendado antes do PWA (item 4 do roadmap), mas não bloqueia o
+> encerramento desta revisão.
 
 ## 9. Riscos e pontos de atenção
 
@@ -206,4 +211,105 @@ uma escala própria:
   cobre boa parte dos casos, mas comportamento de teclado virtual,
   gestos e área de toque real só se confirma em dispositivo físico ou
   emulador completo; vale pelo menos um teste em dispositivo real antes
-  de considerar a Fase 4 concluída, especialmente para os formulários.
+  do item 4 do roadmap (PWA), especialmente para os formulários.
+
+## 10. Decisões da Fase 2
+
+### Navegação
+
+**Barra inferior + sidebar**, não drawer.
+
+Card sorting das seções existentes:
+
+| Grupo        | Destinos                       |
+| ------------ | ------------------------------ |
+| Dia a dia    | Painel, Lançamentos, Importar  |
+| Organização  | Contas, Categorias, Orçamentos |
+| Compromissos | Parcelas, Recorrentes          |
+| Espaço       | Email, Família, Atividade      |
+
+- **< `lg`:** cabeçalho compacto (marca, espaço, sino) + tab bar
+  (Painel, Lançamentos, Importar, Mais). “Mais” abre uma folha inferior
+  com os três grupos restantes e Sair.
+- **`lg+`:** sidebar fixa com os quatro grupos, seletor de espaço, sino
+  e Sair. Sem a faixa de 11 links que quebrava no wrap.
+
+### Tabelas e listas
+
+| Tipo                                              | Decisão                                            |
+| ------------------------------------------------- | -------------------------------------------------- |
+| Prévia de importação (muitas colunas + controles) | Cartão empilhado < `md`; tabela ≥ `md`             |
+| Lançamentos                                       | Lista (`TransactionRow`); ações empilham no mobile |
+| Parcelas de um plano                              | Cartões (já era); sem tabela                       |
+| Feed de auditoria / emails                        | Lista empilhada; data quebra de linha no mobile    |
+| Membros, convites, lotes pendentes                | Lista com wrap; não tabela                         |
+
+Rolagem horizontal da **página** é proibida. A tabela de importação no
+desktop fica em container `overflow-x-auto` só se a linha ainda
+estourar — o caminho principal no celular é o cartão.
+
+### Modal
+
+Abaixo de `md`: folha de tela cheia (formulários longos — lançamento,
+recorrência — e confirmações). A partir de `md`: diálogo centralizado
+como antes. Um padrão só, em todas as telas.
+
+### Componentes consolidados
+
+- `StatusBadge` — tons `neutral` / `brand` / `income` / `expense` /
+  `transfer` / `pending`.
+- `ProgressBar` — tons `brand` / `income` / `expense` / `pending`.
+  `BudgetProgressBar` passa a ser composição (barra + badge).
+
+## 11. Varredura de tokens (priorizada)
+
+| Prioridade | Achado                                                      | Decisão                                                        |
+| ---------- | ----------------------------------------------------------- | -------------------------------------------------------------- |
+| P0         | `pending` `#B8873A` sobre branco ~3,2:1                     | Escurecido para `#8A6424` (~5,4:1)                             |
+| P0         | `ink-faint` `#93998F` sobre branco ~2,9:1 (timestamps)      | Escurecido para `#6B7169` (~5,0:1)                             |
+| P0         | Badge do sino usava `bg-expense` (cor semântica de despesa) | Passou a `bg-brand`                                            |
+| P1         | Hex no gráfico do painel (`#5c645f`, `#c4462f`)             | `var(--color-ink-soft)` / `var(--color-expense)`               |
+| P1         | Defaults de color picker (`#0d6e63`, `#2f7d5a`, `#c4462f`)  | `colors` em `apps/web/src/lib/tokens.ts`                       |
+| P2         | `text-[11px]` / `text-[18px]` fora da escala                | Badge do sino → `text-xs`; título → `text-h2`                  |
+| —          | `text-[40px]` / `[28px]` / `[21px]` / `[20px]`              | Viraram `text-display` / `text-h1` / `text-h2` / `text-amount` |
+| —          | Hex em `globals.css` e no style guide                       | Fonte da verdade; não é exceção                                |
+
+## 12. Fluxos críticos
+
+| Fluxo                     | Fricção                                                            | Tratamento                                                           |
+| ------------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------- |
+| Onboarding (painel vazio) | Só links de texto para três destinos                               | CTAs primário/secundário: criar conta, categorias, lançar            |
+| Primeira transação        | Formulário abria sem conta                                         | Empty state “Crie uma conta primeiro” + atalho                       |
+| Importação pendente       | Tabela de 5 colunas ilegível no celular; confirmar sumia no scroll | Cartões + barra de confirmação `sticky` acima da tab bar             |
+| Definir orçamento         | Sem categoria de despesa, só texto                                 | Empty state com atalho para categorias; badge de status no progresso |
+
+Aceito como não-bloqueante: o usuário ainda precisa criar conta e
+categoria em telas separadas (não há wizard). O caminho ficou explícito;
+um assistente de primeiro acesso fica para depois do PWA, se a fricção
+continuar medida.
+
+## 13. Checklist de responsividade
+
+Status após a Fase 3, nos breakpoints base (< 640px), `md` (768px) e
+`lg` (1024px). “Ok” = cabe sem scroll horizontal da página, toque ≥ 44px
+nos controles principais, hierarquia legível.
+
+| Tela                                | base | `md` | `lg` | Nota                                                |
+| ----------------------------------- | ---- | ---- | ---- | --------------------------------------------------- |
+| Login / registro                    | Ok   | Ok   | Ok   | Cartão central, padding menor no mobile             |
+| Contas (lista + form)               | Ok   | Ok   | Ok   | Grid 1→2 colunas; modal vira tela cheia             |
+| Categorias (lista + form)           | Ok   | Ok   | Ok   | Colunas empilham; ações wrap                        |
+| Lançamentos (lista + form)          | Ok   | Ok   | Ok   | Filtro 1/2/5 colunas; ações da linha empilham       |
+| Painel                              | Ok   | Ok   | Ok   | Stats 1→2→4; gráfico com eixo mais estreito         |
+| `/imports` upload                   | Ok   | Ok   | Ok   | Form 1/2/3 colunas; empty state sem conta           |
+| `/imports` prévia                   | Ok   | Ok   | Ok   | Cartão no mobile, tabela no `md+`                   |
+| `/settings/import-alias`            | Ok   | Ok   | Ok   | Mapeamento 1/2/4; endereço `break-all`              |
+| `/budgets`                          | Ok   | Ok   | Ok   | Limite + botão wrap; badge no progresso             |
+| Sino de notificação                 | Ok   | Ok   | Ok   | Cabeçalho mobile + sidebar desktop; badge `brand`   |
+| Formulário de transação / parcelado | Ok   | Ok   | Ok   | Valor+data lado a lado só no `md+`                  |
+| `/installments`                     | Ok   | Ok   | Ok   | Já era cartão                                       |
+| `/recurring`                        | Ok   | Ok   | Ok   | Lista + form em pares a partir de `md`              |
+| Seletor de household                | Ok   | Ok   | Ok   | Compacto no header mobile; largura total na sidebar |
+| `/settings/household`               | Ok   | Ok   | Ok   | Forms empilham; badge de papel                      |
+| Histórico no detalhe                | Ok   | Ok   | Ok   | Data em linha própria no mobile                     |
+| `/settings/activity`                | Ok   | Ok   | Ok   | Lista; padding reduzido no mobile                   |

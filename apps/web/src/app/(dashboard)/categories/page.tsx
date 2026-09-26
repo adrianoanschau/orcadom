@@ -7,7 +7,18 @@ import { useForm } from 'react-hook-form';
 import { ApiError, api } from '@/lib/api';
 import { humanize } from '@/lib/format';
 import type { Category } from '@/lib/models';
-import { Button, CategoryChip, Field, Modal, Notice, Select, controlClass } from '@/components/ui';
+import {
+  Button,
+  CategoryChip,
+  EmptyState,
+  Field,
+  Modal,
+  Notice,
+  PageHeader,
+  Select,
+  controlClass,
+} from '@/components/ui';
+import { colors } from '@/lib/tokens';
 
 interface CategoryForm {
   name: string;
@@ -15,7 +26,7 @@ interface CategoryForm {
   color: string;
 }
 
-const emptyForm: CategoryForm = { name: '', type: 'EXPENSE', color: '#0d6e63' };
+const emptyForm: CategoryForm = { name: '', type: 'EXPENSE', color: colors.brand };
 
 export default function CategoriesPage() {
   const queryClient = useQueryClient();
@@ -89,8 +100,7 @@ export default function CategoriesPage() {
 
   return (
     <section>
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="font-display text-[28px] font-semibold">Categorias</h1>
+      <PageHeader title="Categorias">
         <Button
           onClick={() => {
             setEditing(null);
@@ -101,7 +111,7 @@ export default function CategoriesPage() {
         >
           Nova categoria
         </Button>
-      </div>
+      </PageHeader>
       {error && !open ? (
         <div className="mt-4">
           <Notice>{error}</Notice>
@@ -109,11 +119,9 @@ export default function CategoriesPage() {
       ) : null}
       {categories.isLoading ? <p className="mt-6 text-ink-soft">Carregando categorias…</p> : null}
       {categories.data?.length === 0 ? (
-        <p className="mt-6 rounded-lg bg-surface p-6 text-ink-soft">
-          Nenhuma categoria ainda. Crie uma de receita ou despesa.
-        </p>
+        <EmptyState title="Nenhuma categoria ainda">Crie uma de receita ou despesa.</EmptyState>
       ) : null}
-      <div className="mt-6 grid gap-4 md:grid-cols-2">
+      <div className="mt-6 grid gap-4 sm:grid-cols-2">
         <CategoryColumn
           title="Receita"
           items={income}
@@ -122,7 +130,7 @@ export default function CategoriesPage() {
             form.reset({
               name: category.name,
               type: category.type,
-              color: category.color ?? '#2f7d5a',
+              color: category.color ?? colors.income,
             });
             setError(null);
             setOpen(true);
@@ -140,7 +148,7 @@ export default function CategoriesPage() {
             form.reset({
               name: category.name,
               type: category.type,
-              color: category.color ?? '#c4462f',
+              color: category.color ?? colors.expense,
             });
             setError(null);
             setOpen(true);
@@ -245,13 +253,13 @@ function CategoryColumn({
 }) {
   return (
     <section className="rounded-lg bg-surface p-6">
-      <h2 className="font-display text-[21px] font-medium">{title}</h2>
+      <h2 className="font-display text-h2 font-medium">{title}</h2>
       {items.length === 0 ? (
         <p className="mt-4 text-sm text-ink-soft">Nenhuma categoria deste tipo.</p>
       ) : null}
       <ul className="mt-4 space-y-3">
         {items.map((category) => (
-          <li key={category.id} className="flex items-center justify-between gap-3">
+          <li key={category.id} className="flex flex-wrap items-center justify-between gap-3">
             <CategoryChip name={category.name} color={category.color} />
             <span className="flex gap-2">
               <Button

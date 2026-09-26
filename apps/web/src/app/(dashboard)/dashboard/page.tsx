@@ -7,7 +7,14 @@ import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recha
 import { api } from '@/lib/api';
 import { currentMonth, formatMoney } from '@/lib/format';
 import type { BudgetList, DashboardSummary } from '@/lib/models';
-import { BudgetProgressBar, StatCard, controlClass } from '@/components/ui';
+import {
+  ButtonLink,
+  BudgetProgressBar,
+  EmptyState,
+  PageHeader,
+  StatCard,
+  controlClass,
+} from '@/components/ui';
 
 export default function DashboardPage() {
   const [month, setMonth] = useState(currentMonth);
@@ -28,11 +35,7 @@ export default function DashboardPage() {
 
   return (
     <section>
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="font-display text-[40px] font-semibold leading-none">Painel</h1>
-          <p className="mt-2 text-sm text-ink-soft">Receitas, despesas e saldo do mês.</p>
-        </div>
+      <PageHeader title="Painel" description="Receitas, despesas e saldo do mês." display>
         <label className="text-sm text-ink-soft">
           Mês
           <input
@@ -44,7 +47,7 @@ export default function DashboardPage() {
             className={`${controlClass} mt-1`}
           />
         </label>
-      </div>
+      </PageHeader>
 
       {summary.isLoading ? <p className="mt-6 text-ink-soft">Carregando resumo…</p> : null}
       {summary.isError ? (
@@ -53,7 +56,7 @@ export default function DashboardPage() {
 
       {data ? (
         <>
-          <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard label="Receitas" value={formatMoney(data.income)} tone="income" />
             <StatCard label="Despesas" value={formatMoney(data.expense)} tone="expense" />
             <StatCard label="Saldo das contas" value={formatMoney(data.balance)} tone="balance" />
@@ -72,27 +75,22 @@ export default function DashboardPage() {
             </p>
           ) : null}
           {empty ? (
-            <div className="mt-6 rounded-lg bg-surface p-6">
-              <h2 className="font-display text-[21px] font-medium">Nenhum movimento neste mês</h2>
-              <p className="mt-2 text-sm text-ink-soft">
-                Crie uma conta, uma categoria e o primeiro lançamento para ver os números aqui.
-              </p>
-              <p className="mt-4 flex flex-wrap gap-4 text-sm">
-                <Link href="/accounts" className="text-brand">
-                  Contas
-                </Link>
-                <Link href="/categories" className="text-brand">
+            <EmptyState title="Nenhum movimento neste mês">
+              <p>Crie uma conta, uma categoria e o primeiro lançamento para ver os números aqui.</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <ButtonLink href="/accounts">Criar conta</ButtonLink>
+                <ButtonLink href="/categories" variant="secondary">
                   Categorias
-                </Link>
-                <Link href="/transactions" className="text-brand">
-                  Lançamentos
-                </Link>
-              </p>
-            </div>
+                </ButtonLink>
+                <ButtonLink href="/transactions" variant="ghost">
+                  Lançar
+                </ButtonLink>
+              </div>
+            </EmptyState>
           ) : null}
           <section className="mt-6 rounded-lg bg-surface p-6">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h2 className="font-display text-[21px] font-medium">Orçamentos do mês</h2>
+              <h2 className="font-display text-h2 font-medium">Orçamentos do mês</h2>
               <Link href="/budgets" className="text-sm text-brand">
                 Gerenciar
               </Link>
@@ -121,7 +119,7 @@ export default function DashboardPage() {
             )}
           </section>
           <section className="mt-6 rounded-lg bg-surface p-6">
-            <h2 className="font-display text-[21px] font-medium">Despesas por categoria</h2>
+            <h2 className="font-display text-h2 font-medium">Despesas por categoria</h2>
             {chart.length === 0 ? (
               <p className="mt-4 text-sm text-ink-soft">Nenhuma despesa neste mês.</p>
             ) : (
@@ -132,11 +130,11 @@ export default function DashboardPage() {
                     <YAxis
                       type="category"
                       dataKey="name"
-                      width={120}
-                      tick={{ fill: '#5c645f', fontSize: 14 }}
+                      width={80}
+                      tick={{ fill: 'var(--color-ink-soft)', fontSize: 12 }}
                     />
                     <Tooltip formatter={(value) => formatMoney(Number(value).toFixed(2))} />
-                    <Bar dataKey="total" fill="#c4462f" radius={8} />
+                    <Bar dataKey="total" fill="var(--color-expense)" radius={8} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>

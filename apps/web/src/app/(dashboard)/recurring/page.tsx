@@ -4,7 +4,17 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createRecurringTransactionSchema, updateRecurringTransactionSchema } from '@orcadom/types';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Button, Field, Modal, Notice, Select, controlClass } from '@/components/ui';
+import {
+  Button,
+  EmptyState,
+  Field,
+  Modal,
+  Notice,
+  PageHeader,
+  Select,
+  StatusBadge,
+  controlClass,
+} from '@/components/ui';
 import { ApiError, api } from '@/lib/api';
 import { dateToNoonIso, formatDate, formatMoney, humanize, todayInput } from '@/lib/format';
 import { recurrenceFrequencyLabels, transactionTypeLabels } from '@/lib/labels';
@@ -114,7 +124,9 @@ export default function RecurringPage() {
       await invalidate();
     },
     onError: (caught: unknown) => {
-      setError(caught instanceof ApiError ? caught.message : 'Não foi possível salvar a recorrência.');
+      setError(
+        caught instanceof ApiError ? caught.message : 'Não foi possível salvar a recorrência.',
+      );
     },
   });
 
@@ -128,7 +140,9 @@ export default function RecurringPage() {
       await invalidate();
     },
     onError: (caught: unknown) => {
-      setError(caught instanceof ApiError ? caught.message : 'Não foi possível atualizar a recorrência.');
+      setError(
+        caught instanceof ApiError ? caught.message : 'Não foi possível atualizar a recorrência.',
+      );
     },
   });
 
@@ -141,19 +155,18 @@ export default function RecurringPage() {
     },
     onError: (caught: unknown) => {
       setPendingDelete(null);
-      setError(caught instanceof ApiError ? caught.message : 'Não foi possível excluir a recorrência.');
+      setError(
+        caught instanceof ApiError ? caught.message : 'Não foi possível excluir a recorrência.',
+      );
     },
   });
 
   return (
     <section>
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="font-display text-[28px] font-semibold">Recorrentes</h1>
-          <p className="mt-2 text-sm text-ink-soft">
-            Aluguel, assinatura, salário. O sistema gera cada ocorrência sozinho.
-          </p>
-        </div>
+      <PageHeader
+        title="Recorrentes"
+        description="Aluguel, assinatura, salário. O sistema gera cada ocorrência sozinho."
+      >
         <Button
           onClick={() => {
             setEditing(null);
@@ -164,7 +177,7 @@ export default function RecurringPage() {
         >
           Nova recorrência
         </Button>
-      </div>
+      </PageHeader>
       {error && !open ? (
         <div className="mt-4">
           <Notice>{error}</Notice>
@@ -172,16 +185,14 @@ export default function RecurringPage() {
       ) : null}
       {items.isLoading ? <p className="mt-6 text-ink-soft">Carregando recorrências…</p> : null}
       {items.data?.length === 0 ? (
-        <p className="mt-6 rounded-lg bg-surface p-6 text-ink-soft">
-          Nenhuma recorrência ainda. Cadastre um lançamento que se repete.
-        </p>
+        <EmptyState>Nenhuma recorrência ainda. Cadastre um lançamento que se repete.</EmptyState>
       ) : null}
       <ul className="mt-6 space-y-4">
         {(items.data ?? []).map((item) => (
           <li key={item.id} className="rounded-lg bg-surface p-6">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <h2 className="font-display text-[21px] font-medium">{item.description}</h2>
+                <h2 className="font-display text-h2 font-medium">{item.description}</h2>
                 <p className="mt-1 text-sm text-ink-soft">
                   {transactionTypeLabels[item.type]} · {recurrenceFrequencyLabels[item.frequency]}
                   {item.frequency === 'MONTHLY' && item.dayOfMonth
@@ -190,15 +201,20 @@ export default function RecurringPage() {
                   · {item.accountName}
                   {item.categoryName ? ` · ${item.categoryName}` : ''}
                 </p>
-                <p className="mt-2 text-lg font-bold tabular-nums text-ink">
+                <p
+                  className={`mt-2 text-amount font-bold tabular-nums ${item.type === 'INCOME' ? 'text-income' : 'text-expense'}`}
+                >
                   {formatMoney(item.amount)}
                 </p>
-                <p className="mt-1 text-sm text-ink-soft">
+                <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-ink-soft">
+                  <StatusBadge tone={item.active ? 'brand' : 'pending'}>
+                    {item.active ? 'Ativa' : 'Pausada'}
+                  </StatusBadge>
                   {item.active
                     ? item.nextOccurrence
                       ? `Próxima: ${formatDate(item.nextOccurrence)}`
                       : 'Sem próxima ocorrência'
-                    : 'Pausada'}
+                    : null}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -268,55 +284,63 @@ export default function RecurringPage() {
           <Field label="Descrição">
             <input className={controlClass} {...form.register('description')} />
           </Field>
-          <Field label="Valor">
-            <input
-              type="number"
-              min="0.01"
-              step="0.01"
-              className={`${controlClass} tabular-nums`}
-              {...form.register('amount')}
-            />
-          </Field>
-          {editing ? (
-            <p className="text-sm text-ink-soft">
-              O tipo permanece {editing.type === 'INCOME' ? 'receita' : 'despesa'}.
-            </p>
-          ) : (
-            <Field label="Tipo">
-              <Select {...form.register('type')}>
-                <option value="EXPENSE">Despesa</option>
-                <option value="INCOME">Receita</option>
-              </Select>
-            </Field>
-          )}
-          <Field label="Frequência">
-            <Select {...form.register('frequency')}>
-              {Object.entries(recurrenceFrequencyLabels).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          {frequency === 'MONTHLY' ? (
-            <Field label="Dia do mês">
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label="Valor">
               <input
                 type="number"
-                min="1"
-                max="31"
+                inputMode="decimal"
+                min="0.01"
+                step="0.01"
                 className={`${controlClass} tabular-nums`}
-                {...form.register('dayOfMonth')}
+                {...form.register('amount')}
               />
             </Field>
-          ) : null}
-          {editing ? null : (
-            <Field label="Início">
-              <input type="date" className={controlClass} {...form.register('startDate')} />
+            {editing ? (
+              <p className="self-end pb-2 text-sm text-ink-soft">
+                O tipo permanece {editing.type === 'INCOME' ? 'receita' : 'despesa'}.
+              </p>
+            ) : (
+              <Field label="Tipo">
+                <Select {...form.register('type')}>
+                  <option value="EXPENSE">Despesa</option>
+                  <option value="INCOME">Receita</option>
+                </Select>
+              </Field>
+            )}
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label="Frequência">
+              <Select {...form.register('frequency')}>
+                {Object.entries(recurrenceFrequencyLabels).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
             </Field>
-          )}
-          <Field label="Fim (opcional)">
-            <input type="date" className={controlClass} {...form.register('endDate')} />
-          </Field>
+            {frequency === 'MONTHLY' ? (
+              <Field label="Dia do mês">
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min="1"
+                  max="31"
+                  className={`${controlClass} tabular-nums`}
+                  {...form.register('dayOfMonth')}
+                />
+              </Field>
+            ) : null}
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            {editing ? null : (
+              <Field label="Início">
+                <input type="date" className={controlClass} {...form.register('startDate')} />
+              </Field>
+            )}
+            <Field label="Fim (opcional)">
+              <input type="date" className={controlClass} {...form.register('endDate')} />
+            </Field>
+          </div>
           <Field label="Conta">
             <Select {...form.register('accountId')}>
               <option value="">Selecione</option>

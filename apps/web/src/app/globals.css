@@ -6,7 +6,7 @@
   --color-surface-sunken: #e4e9e4;
   --color-ink: #1c2420;
   --color-ink-soft: #5c645f;
-  --color-ink-faint: #93998f;
+  --color-ink-faint: #6b7169;
   --color-hairline: #d7ded6;
   --color-brand: #0d6e63;
   --color-brand-hover: #0a574f;
@@ -14,13 +14,17 @@
   --color-income: #2f7d5a;
   --color-expense: #c4462f;
   --color-transfer: #3b6e91;
-  --color-pending: #b8873a;
+  --color-pending: #8a6424;
   --font-display: var(--font-fraunces), serif;
   --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
   --radius-sm: 8px;
   --radius-md: 14px;
   --radius-lg: 22px;
   --radius-pill: 999px;
+  --text-display: 2.5rem;
+  --text-h1: 1.75rem;
+  --text-h2: 1.3125rem;
+  --text-amount: 1.25rem;
 }
 
 body {

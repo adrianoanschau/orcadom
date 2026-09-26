@@ -1,13 +1,29 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { ApiError, api } from '@/lib/api';
 import { formatDate, formatMoney } from '@/lib/format';
-import type { Account, Category, ImportBatchSummary, ImportConfirmResult, ImportPreview } from '@/lib/models';
-import { Button, Field, Notice, Select, controlClass } from '@/components/ui';
+import type {
+  Account,
+  Category,
+  ImportBatchSummary,
+  ImportConfirmResult,
+  ImportPreview,
+  ImportPreviewRow,
+} from '@/lib/models';
+import {
+  Button,
+  ButtonLink,
+  EmptyState,
+  Field,
+  Notice,
+  PageHeader,
+  Select,
+  StatusBadge,
+  controlClass,
+} from '@/components/ui';
 
 interface DraftRow {
   lineId: string;
@@ -94,8 +110,10 @@ function ImportsPageInner() {
     mutationFn: async () => {
       if (!preview) throw new ApiError('Envie um arquivo para confirmar.', 400);
       if (selected.length === 0) throw new ApiError('Selecione ao menos um lançamento.', 400);
-      if (missingCategory) throw new ApiError('Informe a categoria de cada lançamento incluído.', 400);
-      if (!preview.accountId && !accountId) throw new ApiError('Selecione a conta deste extrato.', 400);
+      if (missingCategory)
+        throw new ApiError('Informe a categoria de cada lançamento incluído.', 400);
+      if (!preview.accountId && !accountId)
+        throw new ApiError('Selecione a conta deste extrato.', 400);
       return api<ImportConfirmResult>(`/imports/${preview.id}/confirm`, {
         method: 'POST',
         body: JSON.stringify({
@@ -113,7 +131,9 @@ function ImportsPageInner() {
       router.push(`/transactions?accountId=${result.accountId}`);
     },
     onError: (caught: unknown) => {
-      setError(caught instanceof ApiError ? caught.message : 'Não foi possível confirmar a importação.');
+      setError(
+        caught instanceof ApiError ? caught.message : 'Não foi possível confirmar a importação.',
+      );
     },
   });
 
@@ -131,7 +151,9 @@ function ImportsPageInner() {
       await queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
     onError: (caught: unknown) => {
-      setError(caught instanceof ApiError ? caught.message : 'Não foi possível descartar a prévia.');
+      setError(
+        caught instanceof ApiError ? caught.message : 'Não foi possível descartar a prévia.',
+      );
     },
   });
 
@@ -143,17 +165,14 @@ function ImportsPageInner() {
 
   return (
     <section>
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="font-display text-[28px] font-semibold">Importar extrato</h1>
-          <p className="mt-2 text-sm text-ink-soft">
-            Envie um OFX ou CSV, revise as categorias e confirme o que entra na conta.
-          </p>
-        </div>
-        <Link href="/settings/import-alias" className="text-sm text-brand">
+      <PageHeader
+        title="Importar extrato"
+        description="Envie um OFX ou CSV, revise as categorias e confirme o que entra na conta."
+      >
+        <ButtonLink href="/settings/import-alias" variant="ghost">
           Importar por email
-        </Link>
-      </div>
+        </ButtonLink>
+      </PageHeader>
 
       {error ? (
         <div className="mt-4">
@@ -163,15 +182,20 @@ function ImportsPageInner() {
 
       {!preview && (openBatches.data ?? []).length > 0 ? (
         <div className="mt-6 rounded-lg bg-surface p-6">
-          <h2 className="font-display text-[21px] font-medium">Aguardando revisão</h2>
+          <h2 className="font-display text-h2 font-medium">Aguardando revisão</h2>
           <ul className="mt-3 divide-y divide-hairline">
             {openBatches.data?.map((batch) => (
               <li key={batch.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
                 <div>
                   <p className="text-ink">{batch.fileName}</p>
-                  <p className="text-sm text-ink-soft">
-                    {batch.source === 'EMAIL' ? 'Email' : 'Upload'} · {batch.totalRows} linhas
-                    {batch.status === 'UNMAPPED_ACCOUNT' ? ' · conta ainda não mapeada' : ''}
+                  <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-ink-soft">
+                    <StatusBadge tone="neutral">
+                      {batch.source === 'EMAIL' ? 'Email' : 'Upload'}
+                    </StatusBadge>
+                    {batch.totalRows} linhas
+                    {batch.status === 'UNMAPPED_ACCOUNT' ? (
+                      <StatusBadge tone="pending">conta ainda não mapeada</StatusBadge>
+                    ) : null}
                     {batch.bankId ? ` · ${batch.bankId}/${batch.acctId ?? '—'}` : ''}
                   </p>
                 </div>
@@ -182,7 +206,9 @@ function ImportsPageInner() {
                       .then(applyPreview)
                       .catch((caught: unknown) => {
                         setError(
-                          caught instanceof ApiError ? caught.message : 'Não foi possível abrir a prévia.',
+                          caught instanceof ApiError
+                            ? caught.message
+                            : 'Não foi possível abrir a prévia.',
                         );
                       });
                   }}
@@ -195,9 +221,18 @@ function ImportsPageInner() {
         </div>
       ) : null}
 
-      {!preview ? (
+      {!preview && accounts.data?.length === 0 ? (
+        <EmptyState title="Crie uma conta para importar">
+          <p>O extrato precisa cair em uma conta. Crie a primeira e volte aqui.</p>
+          <div className="mt-4">
+            <ButtonLink href="/accounts">Ir para contas</ButtonLink>
+          </div>
+        </EmptyState>
+      ) : null}
+
+      {!preview && (accounts.data?.length ?? 0) > 0 ? (
         <form
-          className="mt-6 grid gap-4 rounded-lg bg-surface p-6 md:grid-cols-3"
+          className="mt-6 grid gap-4 rounded-lg bg-surface p-6 sm:grid-cols-2 lg:grid-cols-3"
           onSubmit={(event) => {
             event.preventDefault();
             upload.mutate();
@@ -234,9 +269,11 @@ function ImportsPageInner() {
             </Button>
           </div>
         </form>
-      ) : (
+      ) : null}
+
+      {preview ? (
         <div className="mt-6 space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-surface p-4">
+          <div className="sticky bottom-20 z-10 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-surface p-4 lg:static lg:bottom-auto">
             <div>
               <p className="font-medium text-ink">{preview.fileName}</p>
               <p className="text-sm text-ink-soft">
@@ -259,7 +296,9 @@ function ImportsPageInner() {
                 onClick={() => {
                   confirm.mutate();
                 }}
-                disabled={confirm.isPending || selected.length === 0 || missingCategory || needsAccount}
+                disabled={
+                  confirm.isPending || selected.length === 0 || missingCategory || needsAccount
+                }
               >
                 {confirm.isPending
                   ? 'Confirmando…'
@@ -292,7 +331,68 @@ function ImportsPageInner() {
             </div>
           ) : null}
 
-          <div className="overflow-x-auto rounded-lg bg-surface">
+          <ul className="space-y-3 md:hidden">
+            {preview.rows.map((row) => {
+              const draft = drafts.find((item) => item.lineId === row.lineId);
+              const suggested = row.suggestedCategoryId
+                ? categoryById.get(row.suggestedCategoryId)
+                : undefined;
+              const options = (categories.data ?? []).filter(
+                (category) => category.type === row.type,
+              );
+              return (
+                <li key={row.lineId} className="rounded-lg bg-surface p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <label className="flex min-h-11 min-w-0 items-start gap-3 text-ink">
+                      <input
+                        type="checkbox"
+                        className="mt-1 size-4"
+                        checked={draft?.include ?? false}
+                        onChange={(event) => {
+                          updateDraft(row.lineId, { include: event.target.checked });
+                        }}
+                      />
+                      <span>
+                        <span className="block font-medium">{row.description}</span>
+                        <span className="mt-1 block text-sm text-ink-soft">
+                          {formatDate(row.date)}
+                        </span>
+                      </span>
+                    </label>
+                    <p
+                      className={`shrink-0 text-right font-bold tabular-nums ${
+                        row.type === 'INCOME' ? 'text-income' : 'text-expense'
+                      }`}
+                    >
+                      {row.type === 'INCOME' ? '+' : '−'}
+                      {formatMoney(row.amount)}
+                    </p>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {row.isDuplicate ? (
+                      <StatusBadge tone="pending">possível duplicata</StatusBadge>
+                    ) : null}
+                    {row.confidence === 'high' && suggested ? (
+                      <StatusBadge tone="brand">conhecida</StatusBadge>
+                    ) : null}
+                  </div>
+                  <div className="mt-3">
+                    <ImportCategoryField
+                      row={row}
+                      draft={draft}
+                      options={options}
+                      suggested={suggested}
+                      onChange={(categoryId) => {
+                        updateDraft(row.lineId, { categoryId });
+                      }}
+                    />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+
+          <div className="hidden overflow-x-auto rounded-lg bg-surface md:block">
             <table className="min-w-full text-left text-sm">
               <thead className="text-ink-soft">
                 <tr className="border-b border-hairline">
@@ -309,12 +409,15 @@ function ImportsPageInner() {
                   const suggested = row.suggestedCategoryId
                     ? categoryById.get(row.suggestedCategoryId)
                     : undefined;
-                  const options = (categories.data ?? []).filter((category) => category.type === row.type);
+                  const options = (categories.data ?? []).filter(
+                    (category) => category.type === row.type,
+                  );
                   return (
                     <tr key={row.lineId} className="border-b border-hairline last:border-b-0">
                       <td className="px-4 py-3 align-top">
                         <input
                           type="checkbox"
+                          className="size-4"
                           checked={draft?.include ?? false}
                           onChange={(event) => {
                             updateDraft(row.lineId, { include: event.target.checked });
@@ -322,7 +425,9 @@ function ImportsPageInner() {
                           aria-label={`Incluir ${row.description}`}
                         />
                         {row.isDuplicate ? (
-                          <p className="mt-2 text-xs text-pending">possível duplicata</p>
+                          <div className="mt-2">
+                            <StatusBadge tone="pending">possível duplicata</StatusBadge>
+                          </div>
                         ) : null}
                       </td>
                       <td className="px-4 py-3 align-top whitespace-nowrap text-ink-soft">
@@ -340,33 +445,15 @@ function ImportsPageInner() {
                         {formatMoney(row.amount)}
                       </td>
                       <td className="min-w-56 px-4 py-3 align-top">
-                        <Select
-                          value={draft?.categoryId ?? ''}
-                          onChange={(event) => {
-                            updateDraft(row.lineId, { categoryId: event.target.value });
+                        <ImportCategoryField
+                          row={row}
+                          draft={draft}
+                          options={options}
+                          suggested={suggested}
+                          onChange={(categoryId) => {
+                            updateDraft(row.lineId, { categoryId });
                           }}
-                        >
-                          <option value="">Selecione</option>
-                          {options.map((category) => (
-                            <option key={category.id} value={category.id}>
-                              {category.name}
-                            </option>
-                          ))}
-                        </Select>
-                        {row.confidence === 'high' && suggested ? (
-                          <p className="mt-1 text-xs text-brand">conhecida</p>
-                        ) : null}
-                        {row.confidence === 'low' && suggested && draft?.categoryId !== suggested.id ? (
-                          <button
-                            type="button"
-                            className="mt-1 text-xs text-pending hover:underline"
-                            onClick={() => {
-                              updateDraft(row.lineId, { categoryId: suggested.id });
-                            }}
-                          >
-                            Aplicar sugestão: {suggested.name}
-                          </button>
-                        ) : null}
+                        />
                       </td>
                     </tr>
                   );
@@ -375,7 +462,53 @@ function ImportsPageInner() {
             </table>
           </div>
         </div>
-      )}
+      ) : null}
     </section>
+  );
+}
+
+function ImportCategoryField({
+  row,
+  draft,
+  options,
+  suggested,
+  onChange,
+}: {
+  row: ImportPreviewRow;
+  draft: DraftRow | undefined;
+  options: Category[];
+  suggested: Category | undefined;
+  onChange: (categoryId: string) => void;
+}) {
+  return (
+    <>
+      <Select
+        value={draft?.categoryId ?? ''}
+        onChange={(event) => {
+          onChange(event.target.value);
+        }}
+      >
+        <option value="">Selecione</option>
+        {options.map((category) => (
+          <option key={category.id} value={category.id}>
+            {category.name}
+          </option>
+        ))}
+      </Select>
+      {row.confidence === 'high' && suggested ? (
+        <p className="mt-1 text-sm text-brand">conhecida</p>
+      ) : null}
+      {row.confidence === 'low' && suggested && draft?.categoryId !== suggested.id ? (
+        <button
+          type="button"
+          className="mt-1 text-sm text-pending hover:underline"
+          onClick={() => {
+            onChange(suggested.id);
+          }}
+        >
+          Aplicar sugestão: {suggested.name}
+        </button>
+      ) : null}
+    </>
   );
 }

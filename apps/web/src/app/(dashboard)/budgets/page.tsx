@@ -4,7 +4,16 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createBudgetSchema, updateBudgetSchema } from '@orcadom/types';
 import { useState } from 'react';
 import { EntityAudit } from '@/components/entity-audit';
-import { BudgetProgressBar, Button, CategoryChip, Notice, controlClass } from '@/components/ui';
+import {
+  BudgetProgressBar,
+  Button,
+  ButtonLink,
+  CategoryChip,
+  EmptyState,
+  Notice,
+  PageHeader,
+  controlClass,
+} from '@/components/ui';
 import { ApiError, api } from '@/lib/api';
 import { currentMonth, humanize } from '@/lib/format';
 import type { BudgetList, BudgetProgress, Category } from '@/lib/models';
@@ -63,7 +72,9 @@ export default function BudgetsPage() {
       await invalidate();
     },
     onError: (caught: unknown) => {
-      setError(caught instanceof ApiError ? caught.message : 'Não foi possível salvar o orçamento.');
+      setError(
+        caught instanceof ApiError ? caught.message : 'Não foi possível salvar o orçamento.',
+      );
     },
   });
 
@@ -74,20 +85,18 @@ export default function BudgetsPage() {
       await invalidate();
     },
     onError: (caught: unknown) => {
-      setError(caught instanceof ApiError ? caught.message : 'Não foi possível encerrar o orçamento.');
+      setError(
+        caught instanceof ApiError ? caught.message : 'Não foi possível encerrar o orçamento.',
+      );
     },
   });
 
   return (
     <section>
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="font-display text-[28px] font-semibold">Orçamentos</h1>
-          <p className="mt-2 text-sm text-ink-soft">
-            Limite mensal por categoria de despesa. Alterar o valor vale a partir deste mês e não
-            muda o histórico.
-          </p>
-        </div>
+      <PageHeader
+        title="Orçamentos"
+        description="Limite mensal por categoria de despesa. Alterar o valor vale a partir deste mês e não muda o histórico."
+      >
         <label className="text-sm text-ink-soft">
           Mês
           <input
@@ -99,7 +108,7 @@ export default function BudgetsPage() {
             className={`${controlClass} mt-1`}
           />
         </label>
-      </div>
+      </PageHeader>
 
       {error ? (
         <div className="mt-4">
@@ -110,9 +119,12 @@ export default function BudgetsPage() {
         <p className="mt-6 text-ink-soft">Carregando orçamentos…</p>
       ) : null}
       {categories.data?.length === 0 ? (
-        <p className="mt-6 rounded-lg bg-surface p-6 text-ink-soft">
-          Crie uma categoria de despesa para definir um limite.
-        </p>
+        <EmptyState title="Nenhuma categoria de despesa">
+          <p>Crie uma categoria de despesa para definir um limite.</p>
+          <div className="mt-4">
+            <ButtonLink href="/categories">Ir para categorias</ButtonLink>
+          </div>
+        </EmptyState>
       ) : null}
 
       <ul className="mt-6 space-y-4">
@@ -179,30 +191,31 @@ function BudgetRow({
         <p className="mt-4 text-sm text-ink-soft">Nenhum limite definido para este mês.</p>
       )}
       {editable ? (
-      <form
-        className="mt-4 flex flex-wrap items-end gap-3"
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (Number.isFinite(parsed) && parsed > 0) onSave(parsed);
-        }}
-      >
-        <label className="min-w-40 flex-1 text-sm text-ink-soft">
-          Limite mensal
-          <input
-            type="number"
-            min="0.01"
-            step="0.01"
-            value={amount}
-            onChange={(event) => {
-              setAmount(event.target.value);
-            }}
-            className={`${controlClass} mt-1 tabular-nums`}
-          />
-        </label>
-        <Button type="submit" disabled={pending || !(parsed > 0)}>
-          {budget ? 'Atualizar' : 'Definir limite'}
-        </Button>
-      </form>
+        <form
+          className="mt-4 flex flex-wrap items-end gap-3"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (Number.isFinite(parsed) && parsed > 0) onSave(parsed);
+          }}
+        >
+          <label className="min-w-40 flex-1 text-sm text-ink-soft">
+            Limite mensal
+            <input
+              type="number"
+              inputMode="decimal"
+              min="0.01"
+              step="0.01"
+              value={amount}
+              onChange={(event) => {
+                setAmount(event.target.value);
+              }}
+              className={`${controlClass} mt-1 tabular-nums`}
+            />
+          </label>
+          <Button type="submit" disabled={pending || !(parsed > 0)}>
+            {budget ? 'Atualizar' : 'Definir limite'}
+          </Button>
+        </form>
       ) : (
         <p className="mt-4 text-sm text-ink-soft">
           O histórico não é editável. Volte ao mês atual para mudar o limite.

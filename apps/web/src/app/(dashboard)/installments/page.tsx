@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { Button, Modal, Notice, ProgressBar } from '@/components/ui';
+import { Button, EmptyState, Modal, Notice, PageHeader, ProgressBar } from '@/components/ui';
 import { ApiError, api } from '@/lib/api';
 import { formatDate, formatMoney } from '@/lib/format';
 import type { InstallmentPlanSummary } from '@/lib/models';
@@ -36,20 +36,19 @@ export default function InstallmentsPage() {
     onError: (caught: unknown) => {
       setPending(null);
       setError(
-        caught instanceof ApiError ? caught.message : 'Não foi possível cancelar as parcelas futuras.',
+        caught instanceof ApiError
+          ? caught.message
+          : 'Não foi possível cancelar as parcelas futuras.',
       );
     },
   });
 
   return (
     <section>
-      <div>
-        <h1 className="font-display text-[28px] font-semibold">Parcelas</h1>
-        <p className="mt-2 text-sm text-ink-soft">
-          Compras parceladas. Cancelar remove só o que ainda não venceu — parcelas já debitadas
-          ficam no extrato.
-        </p>
-      </div>
+      <PageHeader
+        title="Parcelas"
+        description="Compras parceladas. Cancelar remove só o que ainda não venceu — parcelas já debitadas ficam no extrato."
+      />
       {error ? (
         <div className="mt-4">
           <Notice>{error}</Notice>
@@ -57,9 +56,9 @@ export default function InstallmentsPage() {
       ) : null}
       {plans.isLoading ? <p className="mt-6 text-ink-soft">Carregando planos…</p> : null}
       {plans.data?.length === 0 ? (
-        <p className="mt-6 rounded-lg bg-surface p-6 text-ink-soft">
+        <EmptyState>
           Nenhum parcelamento ainda. No lançamento de despesa, marque “É parcelado?”.
-        </p>
+        </EmptyState>
       ) : null}
       <ul className="mt-6 space-y-4">
         {(plans.data ?? []).map((plan) => {
@@ -68,10 +67,11 @@ export default function InstallmentsPage() {
             <li key={plan.id} className="rounded-lg bg-surface p-6">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <h2 className="font-display text-[21px] font-medium">{plan.description}</h2>
+                  <h2 className="font-display text-h2 font-medium">{plan.description}</h2>
                   <p className="mt-1 text-sm text-ink-soft">
                     {plan.accountName}
-                    {plan.categoryName ? ` · ${plan.categoryName}` : ''} · {formatDate(plan.purchaseDate)}
+                    {plan.categoryName ? ` · ${plan.categoryName}` : ''} ·{' '}
+                    {formatDate(plan.purchaseDate)}
                   </p>
                 </div>
                 {plan.scheduledCount > 0 ? (
@@ -88,7 +88,7 @@ export default function InstallmentsPage() {
               <div className="mt-4">
                 <ProgressBar
                   ratio={ratio}
-                  toneClass="bg-brand"
+                  tone="brand"
                   label={`${String(plan.postedCount)} de ${String(plan.installmentsCount)} parcelas pagas`}
                 />
                 <p className="mt-2 text-sm text-ink">

@@ -36,7 +36,9 @@ export function AuditEntry({ item }: { item: AuditLogEntry }) {
     <div>
       <p className="text-sm text-ink">
         {item.headline}
-        <span className="ml-2 text-ink-soft">{formatDateTime(item.createdAt)}</span>
+        <span className="mt-1 block text-ink-soft sm:mt-0 sm:ml-2 sm:inline">
+          {formatDateTime(item.createdAt)}
+        </span>
       </p>
       {item.changes.length > 0 ? (
         <ul className="mt-1 space-y-0.5 text-sm text-ink-soft">

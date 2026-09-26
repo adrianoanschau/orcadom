@@ -17,9 +17,9 @@ export default function RegisterPage() {
   });
 
   return (
-    <section className="w-full max-w-md rounded-lg bg-surface p-8">
+    <section className="w-full max-w-md rounded-lg bg-surface p-6 sm:p-8">
       <p className="text-sm font-medium text-brand">Orcadom</p>
-      <h1 className="mt-2 font-display text-[28px] font-semibold">Criar conta</h1>
+      <h1 className="mt-2 font-display text-h1 font-semibold">Criar conta</h1>
       <form
         className="mt-6 space-y-4"
         onSubmit={(event) => {

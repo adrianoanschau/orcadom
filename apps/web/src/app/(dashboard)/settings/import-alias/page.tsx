@@ -5,7 +5,16 @@ import { useState } from 'react';
 import { ApiError, api } from '@/lib/api';
 import { formatDate } from '@/lib/format';
 import type { Account, BankAccountMapping, EmailImportLog, ImportAlias } from '@/lib/models';
-import { Button, Field, Notice, Select, controlClass } from '@/components/ui';
+import {
+  Button,
+  Field,
+  Notice,
+  PageHeader,
+  Select,
+  StatusBadge,
+  controlClass,
+  type StatusTone,
+} from '@/components/ui';
 
 const statusLabel: Record<EmailImportLog['status'], string> = {
   PROCESSED: 'Processado',
@@ -13,6 +22,14 @@ const statusLabel: Record<EmailImportLog['status'], string> = {
   UNRECOGNIZED_TOKEN: 'Token não reconhecido',
   UNMAPPED_ACCOUNT: 'Conta não mapeada',
   ERROR: 'Erro',
+};
+
+const statusTone: Record<EmailImportLog['status'], StatusTone> = {
+  PROCESSED: 'brand',
+  SKIPPED_DUPLICATE: 'pending',
+  UNRECOGNIZED_TOKEN: 'pending',
+  UNMAPPED_ACCOUNT: 'pending',
+  ERROR: 'pending',
 };
 
 export default function ImportAliasPage() {
@@ -51,7 +68,9 @@ export default function ImportAliasPage() {
       await queryClient.invalidateQueries({ queryKey: ['bank-account-mappings'] });
     },
     onError: (caught: unknown) => {
-      setError(caught instanceof ApiError ? caught.message : 'Não foi possível salvar o mapeamento.');
+      setError(
+        caught instanceof ApiError ? caught.message : 'Não foi possível salvar o mapeamento.',
+      );
     },
   });
 
@@ -61,7 +80,9 @@ export default function ImportAliasPage() {
       await queryClient.invalidateQueries({ queryKey: ['bank-account-mappings'] });
     },
     onError: (caught: unknown) => {
-      setError(caught instanceof ApiError ? caught.message : 'Não foi possível excluir o mapeamento.');
+      setError(
+        caught instanceof ApiError ? caught.message : 'Não foi possível excluir o mapeamento.',
+      );
     },
   });
 
@@ -76,28 +97,31 @@ export default function ImportAliasPage() {
 
   return (
     <section className="space-y-8">
-      <div>
-        <h1 className="font-display text-[28px] font-semibold">Importação por email</h1>
-        <p className="mt-2 text-sm text-ink-soft">
-          Encaminhe o OFX do banco para o endereço exclusivo deste espaço. Qualquer membro pode
-          encaminhar; a confirmação da prévia continua humana.
-        </p>
-      </div>
+      <PageHeader
+        title="Importação por email"
+        description="Encaminhe o OFX do banco para o endereço exclusivo deste espaço. Qualquer membro pode encaminhar; a confirmação da prévia continua humana."
+      />
 
       {error ? <Notice>{error}</Notice> : null}
 
       <div className="rounded-lg bg-surface p-6">
-        <h2 className="font-display text-[21px] font-medium">Endereço de encaminhamento</h2>
-        {alias.isLoading ? <p className="mt-3 text-sm text-ink-soft">Carregando endereço…</p> : null}
+        <h2 className="font-display text-h2 font-medium">Endereço de encaminhamento</h2>
+        {alias.isLoading ? (
+          <p className="mt-3 text-sm text-ink-soft">Carregando endereço…</p>
+        ) : null}
         {alias.data ? (
           <>
             <p className="mt-3 break-all font-medium text-ink">{alias.data.address}</p>
             <div className="mt-4 flex flex-wrap gap-2">
-              <Button onClick={() => void copyAddress()}>{copied ? 'Copiado' : 'Copiar endereço'}</Button>
+              <Button onClick={() => void copyAddress()}>
+                {copied ? 'Copiado' : 'Copiar endereço'}
+              </Button>
             </div>
             <ol className="mt-4 list-decimal space-y-1 pl-5 text-sm text-ink-soft">
               <li>No banco ou no Gmail, encaminhe o email do extrato para o endereço acima.</li>
-              <li>O `+código` precisa permanecer no destinatário — a maioria dos provedores preserva.</li>
+              <li>
+                O `+código` precisa permanecer no destinatário — a maioria dos provedores preserva.
+              </li>
               <li>Quando o OFX chegar, o Orcadom avisa aqui para você revisar a prévia.</li>
             </ol>
           </>
@@ -105,13 +129,13 @@ export default function ImportAliasPage() {
       </div>
 
       <div className="rounded-lg bg-surface p-6">
-        <h2 className="font-display text-[21px] font-medium">Mapeamento BANKID / ACCTID</h2>
+        <h2 className="font-display text-h2 font-medium">Mapeamento BANKID / ACCTID</h2>
         <p className="mt-2 text-sm text-ink-soft">
           Na primeira vez o extrato chega sem conta. Depois de vincular, os próximos emails do mesmo
           banco caem direto na conta certa.
         </p>
         <form
-          className="mt-4 grid gap-4 md:grid-cols-4"
+          className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
           onSubmit={(event) => {
             event.preventDefault();
             createMapping.mutate();
@@ -153,7 +177,11 @@ export default function ImportAliasPage() {
             </Select>
           </Field>
           <div className="flex items-end">
-            <Button type="submit" className="w-full" disabled={createMapping.isPending || !bankId || !acctId || !accountId}>
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={createMapping.isPending || !bankId || !acctId || !accountId}
+            >
               {createMapping.isPending ? 'Salvando…' : 'Vincular'}
             </Button>
           </div>
@@ -164,7 +192,10 @@ export default function ImportAliasPage() {
             <li className="py-3 text-sm text-ink-soft">Nenhum banco mapeado ainda.</li>
           ) : (
             mappings.data?.map((mapping) => (
-              <li key={mapping.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+              <li
+                key={mapping.id}
+                className="flex flex-wrap items-center justify-between gap-3 py-3"
+              >
                 <p className="text-sm text-ink">
                   {mapping.bankId} / {mapping.acctId}
                   <span className="text-ink-soft"> → {mapping.accountName}</span>
@@ -184,7 +215,7 @@ export default function ImportAliasPage() {
       </div>
 
       <div className="rounded-lg bg-surface p-6">
-        <h2 className="font-display text-[21px] font-medium">Histórico de emails</h2>
+        <h2 className="font-display text-h2 font-medium">Histórico de emails</h2>
         <p className="mt-2 text-sm text-ink-soft">
           Token não reconhecido e falhas ficam registrados aqui para revisão, sem sumir em silêncio.
         </p>
@@ -194,10 +225,13 @@ export default function ImportAliasPage() {
           ) : (
             logs.data?.map((log) => (
               <li key={log.id} className="py-3 text-sm">
-                <p className="text-ink">
-                  {statusLabel[log.status]}
+                <p className="flex flex-wrap items-center gap-2 text-ink">
+                  <StatusBadge tone={statusTone[log.status]}>{statusLabel[log.status]}</StatusBadge>
                   {log.importBatchId ? (
-                    <a className="ml-2 text-brand" href={`/imports?batchId=${log.importBatchId}`}>
+                    <a
+                      className="text-sm text-brand"
+                      href={`/imports?batchId=${log.importBatchId}`}
+                    >
                       abrir prévia
                     </a>
                   ) : null}

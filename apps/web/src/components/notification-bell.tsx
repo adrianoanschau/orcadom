@@ -58,14 +58,14 @@ export function NotificationBell() {
         aria-expanded={open}
         aria-controls={menuId}
         aria-haspopup="true"
-        className="relative rounded-pill p-2 text-ink-soft hover:bg-surface-sunken"
+        className="relative inline-flex size-11 items-center justify-center rounded-pill text-ink-soft hover:bg-surface-sunken"
         onClick={() => {
           setOpen((current) => !current);
         }}
       >
         <BellIcon />
         {unread > 0 ? (
-          <span className="absolute -top-0.5 -right-0.5 min-w-4 rounded-pill bg-expense px-1 text-center text-[11px] font-medium text-white">
+          <span className="absolute top-1 right-1 min-w-4 rounded-pill bg-brand px-1 text-center text-xs font-medium text-white">
             {unread > 9 ? '9+' : String(unread)}
           </span>
         ) : null}
@@ -74,10 +74,10 @@ export function NotificationBell() {
         <div
           id={menuId}
           role="menu"
-          className="absolute right-0 z-20 mt-2 w-[min(22rem,calc(100vw-2rem))] rounded-lg border border-hairline bg-surface p-3 shadow-sm"
+          className="absolute right-0 z-30 mt-2 w-[min(22rem,calc(100vw-2rem))] rounded-lg border border-hairline bg-surface p-3"
         >
           <div className="flex items-center justify-between gap-2">
-            <p className="font-display text-[18px] font-medium">Notificações</p>
+            <p className="font-display text-h2 font-medium">Notificações</p>
             {unread > 0 ? (
               <Button
                 variant="ghost"
@@ -109,7 +109,9 @@ export function NotificationBell() {
                     >
                       <p className="font-medium text-ink">{item.title}</p>
                       <p className="text-sm text-ink-soft">{item.message}</p>
-                      <p className="mt-1 text-xs text-ink-faint">{formatRelativeTime(item.createdAt)}</p>
+                      <p className="mt-1 text-xs text-ink-faint">
+                        {formatRelativeTime(item.createdAt)}
+                      </p>
                     </Link>
                   </li>
                 );

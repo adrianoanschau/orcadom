@@ -17,11 +17,11 @@ pode quebrar), em vez de ser incrementado de forma arbitrária.
 
 Formato `MAJOR.MINOR.PATCH` (ex: `1.4.2`):
 
-| Posição | Incrementa quando | Exemplo no contexto do Orcadom |
-|---|---|---|
+| Posição | Incrementa quando                                                                                                                                                                                                                | Exemplo no contexto do Orcadom                                                                                           |
+| ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | `MAJOR` | Mudança que quebra compatibilidade — exige ação manual de quem está atualizando (migration não-automática, contrato de API removido/alterado de forma incompatível, mudança que um cliente externo da API precisaria se adaptar) | Remover um endpoint antigo, mudar o formato de um DTO de forma incompatível com o que o frontend/app mobile atual espera |
-| `MINOR` | Nova funcionalidade, compatível com o que já existia | Qualquer uma das features do roadmap (Metas de Economia, Relatórios, Open Finance...) |
-| `PATCH` | Correção de bug ou ajuste interno, sem mudança de comportamento visível nem nova funcionalidade | Corrigir cálculo errado de saldo, ajustar performance de uma query, atualizar dependência sem efeito colateral |
+| `MINOR` | Nova funcionalidade, compatível com o que já existia                                                                                                                                                                             | Qualquer uma das features do roadmap (Metas de Economia, Relatórios, Open Finance...)                                    |
+| `PATCH` | Correção de bug ou ajuste interno, sem mudança de comportamento visível nem nova funcionalidade                                                                                                                                  | Corrigir cálculo errado de saldo, ajustar performance de uma query, atualizar dependência sem efeito colateral           |
 
 ### 2.1 — A regra especial da versão `0.x.y`
 
@@ -59,25 +59,26 @@ Retroativo (o que já foi documentado até aqui) e prospectivo (o roadmap de
 durante a implementação, mas a régua de incremento (feature = `MINOR`)
 não muda:
 
-| Versão | Conteúdo |
-|---|---|
-| `0.1.0` | MVP (`00` a `06`): auth, contas, categorias, transações, dashboard |
-| `0.2.0` | Importação de Extratos + Memória de Categorização (`07`) |
-| `0.3.0` | Integração com Email via n8n (`08`) |
-| `0.4.0` | Orçamentos por Categoria (`09`) |
-| `0.5.0` | Notificações (`10`) |
-| `0.6.0` | Parcelamento de Compras (`11`) |
-| `0.7.0` | Transações Recorrentes (`12`) |
-| `0.8.0` | Multiusuário/Família (`13`) |
-| `0.9.0` | Auditoria e Rastreabilidade (`14`) |
-| `0.10.0` | Metas de Economia |
-| `0.11.0` | Exportar Relatórios |
-| `0.12.0` | App Mobile como PWA |
-| `0.13.0` | Permissão Granular por Conta |
-| — | Observabilidade, Backup, CI/CD, Staging, Testes E2E, Rate Limiting — ver seção 4.1 |
-| `0.14.0` | Integração Open Finance |
-| `0.15.0` | Insights Automáticos |
-| **`1.0.0`** | **Marco de conclusão do roadmap — release estável** |
+| Versão      | Conteúdo                                                                           |
+| ----------- | ---------------------------------------------------------------------------------- |
+| `0.1.0`     | MVP (`00` a `06`): auth, contas, categorias, transações, dashboard                 |
+| `0.2.0`     | Importação de Extratos + Memória de Categorização (`07`)                           |
+| `0.3.0`     | Integração com Email via n8n (`08`)                                                |
+| `0.4.0`     | Orçamentos por Categoria (`09`)                                                    |
+| `0.5.0`     | Notificações (`10`)                                                                |
+| `0.6.0`     | Parcelamento de Compras (`11`)                                                     |
+| `0.7.0`     | Transações Recorrentes (`12`)                                                      |
+| `0.8.0`     | Multiusuário/Família (`13`)                                                        |
+| `0.9.0`     | Auditoria e Rastreabilidade (`14`)                                                 |
+| `0.10.0`    | Revisão de Design, UX e Responsividade (`18`)                                      |
+| `0.11.0`    | Metas de Economia                                                                  |
+| `0.12.0`    | Exportar Relatórios                                                                |
+| `0.13.0`    | App Mobile como PWA                                                                |
+| `0.14.0`    | Permissão Granular por Conta                                                       |
+| —           | Observabilidade, Backup, CI/CD, Staging, Testes E2E, Rate Limiting — ver seção 4.1 |
+| `0.15.0`    | Integração Open Finance                                                            |
+| `0.16.0`    | Insights Automáticos                                                               |
+| **`1.0.0`** | **Marco de conclusão do roadmap — release estável**                                |
 
 ### 4.1 — Itens de infraestrutura não incrementam `MINOR`
 

@@ -9,7 +9,18 @@ import { humanize } from '@/lib/format';
 import { accountTypeLabels, type AccountType } from '@/lib/labels';
 import type { Account } from '@/lib/models';
 import { EntityAudit } from '@/components/entity-audit';
-import { AccountCard, Button, Field, Modal, Notice, Select, controlClass } from '@/components/ui';
+import {
+  AccountCard,
+  Button,
+  EmptyState,
+  Field,
+  Modal,
+  Notice,
+  PageHeader,
+  Select,
+  controlClass,
+} from '@/components/ui';
+import { colors } from '@/lib/tokens';
 
 interface AccountForm {
   name: string;
@@ -18,7 +29,7 @@ interface AccountForm {
   color: string;
 }
 
-const emptyForm: AccountForm = { name: '', type: 'WALLET', balance: '', color: '#0d6e63' };
+const emptyForm: AccountForm = { name: '', type: 'WALLET', balance: '', color: colors.brand };
 
 export default function AccountsPage() {
   const queryClient = useQueryClient();
@@ -88,8 +99,7 @@ export default function AccountsPage() {
 
   return (
     <section>
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="font-display text-[28px] font-semibold">Contas</h1>
+      <PageHeader title="Contas">
         <Button
           onClick={() => {
             setEditing(null);
@@ -100,7 +110,7 @@ export default function AccountsPage() {
         >
           Nova conta
         </Button>
-      </div>
+      </PageHeader>
       {error && !open ? (
         <div className="mt-4">
           <Notice>{error}</Notice>
@@ -108,9 +118,9 @@ export default function AccountsPage() {
       ) : null}
       {accounts.isLoading ? <p className="mt-6 text-ink-soft">Carregando contas…</p> : null}
       {accounts.data?.length === 0 ? (
-        <p className="mt-6 rounded-lg bg-surface p-6 text-ink-soft">
-          Nenhuma conta ainda. Crie a primeira para lançar movimentos.
-        </p>
+        <EmptyState title="Nenhuma conta ainda">
+          Crie a primeira para lançar movimentos ou importar um extrato.
+        </EmptyState>
       ) : null}
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
         {accounts.data?.map((account) => (
@@ -129,7 +139,7 @@ export default function AccountsPage() {
                   name: account.name,
                   type: account.type,
                   balance: account.balance,
-                  color: account.color ?? '#0d6e63',
+                  color: account.color ?? colors.brand,
                 });
                 setError(null);
                 setOpen(true);
@@ -183,6 +193,7 @@ export default function AccountsPage() {
                   type="number"
                   min="0"
                   step="0.01"
+                  inputMode="decimal"
                   className={`${controlClass} tabular-nums`}
                   {...form.register('balance')}
                 />

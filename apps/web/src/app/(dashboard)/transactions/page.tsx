@@ -2,7 +2,6 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createInstallmentPlanSchema, createTransactionSchema } from '@orcadom/types';
-import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -13,10 +12,14 @@ import type { Account, Category, Transaction, TransactionPage } from '@/lib/mode
 import { EntityAudit } from '@/components/entity-audit';
 import {
   Button,
+  ButtonLink,
+  EmptyState,
   Field,
   Modal,
   Notice,
+  PageHeader,
   Select,
+  StatusBadge,
   TransactionRow,
   controlClass,
 } from '@/components/ui';
@@ -171,31 +174,25 @@ export default function TransactionsPage() {
 
   return (
     <section>
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="font-display text-[28px] font-semibold">Lançamentos</h1>
-        <div className="flex flex-wrap gap-2">
-          <Link
-            href="/imports"
-            className="inline-flex items-center justify-center rounded-pill border border-hairline bg-surface px-4 py-2 text-sm font-medium text-ink hover:bg-surface-sunken"
-          >
-            Importar extrato
-          </Link>
-          <Button
-            onClick={() => {
-              setEditing(null);
-              setInstallment(false);
-              form.reset({ ...emptyForm, date: todayInput() });
-              setError(null);
-              setOpen(true);
-            }}
-          >
-            Novo lançamento
-          </Button>
-        </div>
-      </div>
+      <PageHeader title="Lançamentos">
+        <ButtonLink href="/imports" variant="secondary">
+          Importar extrato
+        </ButtonLink>
+        <Button
+          onClick={() => {
+            setEditing(null);
+            setInstallment(false);
+            form.reset({ ...emptyForm, date: todayInput() });
+            setError(null);
+            setOpen(true);
+          }}
+        >
+          Novo lançamento
+        </Button>
+      </PageHeader>
 
       <form
-        className="mt-6 grid gap-3 rounded-lg bg-surface p-4 md:grid-cols-5"
+        className="mt-6 grid gap-3 rounded-lg bg-surface p-4 sm:grid-cols-2 lg:grid-cols-5"
         onSubmit={(event) => {
           event.preventDefault();
           setFilters({ ...draft, page: 1 });
@@ -266,10 +263,19 @@ export default function TransactionsPage() {
       {transactions.isLoading ? (
         <p className="mt-6 text-ink-soft">Carregando lançamentos…</p>
       ) : null}
-      {transactions.data?.data.length === 0 ? (
-        <p className="mt-6 rounded-lg bg-surface p-6 text-ink-soft">
-          Nenhum lançamento neste filtro.
-        </p>
+      {accounts.data?.length === 0 ? (
+        <EmptyState title="Crie uma conta primeiro">
+          <p>
+            Os lançamentos entram em uma conta. Depois você pode lançar à mão ou importar um
+            extrato.
+          </p>
+          <div className="mt-4">
+            <ButtonLink href="/accounts">Ir para contas</ButtonLink>
+          </div>
+        </EmptyState>
+      ) : null}
+      {accounts.data?.length !== 0 && transactions.data?.data.length === 0 ? (
+        <EmptyState>Nenhum lançamento neste filtro.</EmptyState>
       ) : null}
       <ul className="mt-4 rounded-lg bg-surface px-4">
         {transactions.data?.data.map((transaction) => (
@@ -280,6 +286,12 @@ export default function TransactionsPage() {
             amount={transaction.amount}
             meta={metaFor(transaction, names, categoryNames)}
           >
+            {transaction.postingStatus === 'SCHEDULED' ? (
+              <StatusBadge tone="pending">Agendada</StatusBadge>
+            ) : null}
+            {transaction.source === 'IMPORTED' ? (
+              <StatusBadge tone="brand">Importado</StatusBadge>
+            ) : null}
             <Button
               variant="secondary"
               onClick={() => {
@@ -359,15 +371,21 @@ export default function TransactionsPage() {
           <Field label="Descrição">
             <input className={controlClass} {...form.register('description')} />
           </Field>
-          <Field label={installment && type === 'EXPENSE' ? 'Valor total' : 'Valor'}>
-            <input
-              type="number"
-              min="0.01"
-              step="0.01"
-              className={`${controlClass} tabular-nums`}
-              {...form.register('amount')}
-            />
-          </Field>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Field label={installment && type === 'EXPENSE' ? 'Valor total' : 'Valor'}>
+              <input
+                type="number"
+                inputMode="decimal"
+                min="0.01"
+                step="0.01"
+                className={`${controlClass} tabular-nums`}
+                {...form.register('amount')}
+              />
+            </Field>
+            <Field label={installment && type === 'EXPENSE' ? 'Data da compra' : 'Data'}>
+              <input type="date" className={controlClass} {...form.register('date')} />
+            </Field>
+          </div>
           <Field label="Tipo">
             <Select {...form.register('type')}>
               {Object.entries(transactionTypeLabels).map(([value, label]) => (
@@ -376,9 +394,6 @@ export default function TransactionsPage() {
                 </option>
               ))}
             </Select>
-          </Field>
-          <Field label={installment && type === 'EXPENSE' ? 'Data da compra' : 'Data'}>
-            <input type="date" className={controlClass} {...form.register('date')} />
           </Field>
           {type === 'EXPENSE' && !editing ? (
             <label className="flex items-center gap-2 text-sm text-ink">
@@ -396,6 +411,7 @@ export default function TransactionsPage() {
             <Field label="Número de parcelas">
               <input
                 type="number"
+                inputMode="numeric"
                 min="2"
                 max="60"
                 step="1"
@@ -519,8 +535,9 @@ function metaFor(
   const account = accounts.get(transaction.accountId ?? '') ?? 'conta';
   const category = categories.get(transaction.categoryId ?? '') ?? 'categoria';
   const installment =
-    transaction.installmentNumber != null ? ` · parcela ${String(transaction.installmentNumber)}` : '';
+    transaction.installmentNumber != null
+      ? ` · parcela ${String(transaction.installmentNumber)}`
+      : '';
   const recurring = transaction.recurringTransactionId ? ' · recorrente' : '';
-  const scheduled = transaction.postingStatus === 'SCHEDULED' ? ' · agendada' : '';
-  return `${date} · ${account} · ${category}${installment}${recurring}${scheduled}`;
+  return `${date} · ${account} · ${category}${installment}${recurring}`;
 }

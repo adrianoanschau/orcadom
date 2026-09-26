@@ -31,7 +31,7 @@ não uma fintech corporativa, a direção escolhida foi diferente:
 | `surface-sunken` | `#E4E9E4` | Campos de formulário, áreas rebaixadas |
 | `ink`            | `#1C2420` | Texto primário                         |
 | `ink-soft`       | `#5C645F` | Texto secundário                       |
-| `ink-faint`      | `#93998F` | Texto terciário, placeholders          |
+| `ink-faint`      | `#6B7169` | Texto terciário, placeholders          |
 | `hairline`       | `#D7DED6` | Bordas, divisores                      |
 | `brand`          | `#0D6E63` | Ações primárias, links, marca          |
 | `brand-hover`    | `#0A574F` | Estado hover do `brand`                |
@@ -39,7 +39,7 @@ não uma fintech corporativa, a direção escolhida foi diferente:
 | `income`         | `#2F7D5A` | Valores de receita (sempre)            |
 | `expense`        | `#C4462F` | Valores de despesa (sempre)            |
 | `transfer`       | `#3B6E91` | Transferências entre contas (sempre)   |
-| `pending`        | `#B8873A` | Lançamentos pendentes/a confirmar      |
+| `pending`        | `#8A6424` | Lançamentos pendentes/a confirmar      |
 
 ### Variáveis CSS
 
@@ -50,7 +50,7 @@ não uma fintech corporativa, a direção escolhida foi diferente:
   --surface-sunken: #e4e9e4;
   --ink: #1c2420;
   --ink-soft: #5c645f;
-  --ink-faint: #93998f;
+  --ink-faint: #6b7169;
   --hairline: #d7ded6;
   --brand: #0d6e63;
   --brand-hover: #0a574f;
@@ -58,7 +58,7 @@ não uma fintech corporativa, a direção escolhida foi diferente:
   --income: #2f7d5a;
   --expense: #c4462f;
   --transfer: #3b6e91;
-  --pending: #b8873a;
+  --pending: #8a6424;
 
   --r-sm: 8px;
   --r-md: 14px;
@@ -76,7 +76,11 @@ não uma fintech corporativa, a direção escolhida foi diferente:
 }
 ```
 
-### Extensão do Tailwind (`apps/web/tailwind.config.ts`)
+### Tokens no Tailwind
+
+Em `apps/web` (Tailwind v4) os tokens vivem em `@theme` de
+`apps/web/src/app/globals.css`. O bloco abaixo é o mapa equivalente
+(classes `bg-brand`, `text-income`, `rounded-lg`, etc.).
 
 ```ts
 import type { Config } from 'tailwindcss';
@@ -92,7 +96,7 @@ export default {
         ink: {
           DEFAULT: '#1C2420',
           soft: '#5C645F',
-          faint: '#93998F',
+          faint: '#6B7169',
         },
         hairline: '#D7DED6',
         brand: {
@@ -103,7 +107,7 @@ export default {
         income: '#2F7D5A',
         expense: '#C4462F',
         transfer: '#3B6E91',
-        pending: '#B8873A',
+        pending: '#8A6424',
       },
       borderRadius: {
         sm: '8px',
@@ -161,26 +165,74 @@ Raio de borda cresce conforme o destaque do elemento:
 
 ## Componentes definidos
 
-Todos com exemplo visual no HTML de referência:
+Todos com exemplo visual no HTML de referência. Implementação em
+`apps/web/src/components/ui.tsx`.
 
 - **Botão** — primário (preenchido, pílula), secundário (contorno),
-  ghost (texto).
+  ghost (texto). Área de toque mínima de 44px (`min-h-11`).
 - **Campo de formulário** — label + input sobre `surface-sunken`.
 - **Chip de categoria** — ponto colorido + nome da categoria.
 - **Cartão de conta** — tipo, nome do banco/carteira, saldo em destaque
   com a linha tracejada de assinatura.
 - **Linha de transação** — ícone circular colorido por tipo, descrição,
-  categoria, valor alinhado à direita com cor semântica.
-- **Cartão de resumo (dashboard)** — label + valor, usado nos 3 cards de
+  categoria, valor alinhado à direita com cor semântica. Em telas
+  estreitas, as ações empilham abaixo da linha.
+- **Cartão de resumo (dashboard)** — label + valor, usado nos cards de
   receita/despesa/saldo do mês.
+- **Badge de status** — `StatusBadge` com tons `neutral`, `brand`,
+  `income`, `expense`, `transfer`, `pending`. Usado para orçamento
+  (No ritmo / Atenção / Estourado), importação (duplicata, conhecida,
+  conta não mapeada), recorrência (Ativa / Pausada), papel no espaço e
+  histórico de email. Não criar badges ad-hoc por feature.
+- **Barra de progresso** — `ProgressBar` com tons `brand`, `income`,
+  `expense`, `pending`. `BudgetProgressBar` é composição (barra + badge).
+  Parcelamento usa o mesmo `ProgressBar` com tom `brand`.
+- **Modal** — abaixo de `md`, folha de tela cheia; a partir de `md`,
+  diálogo centralizado. Sempre com botão de fechar.
+
+## Responsividade
+
+Breakpoints alinhados ao Tailwind, sem escala própria:
+
+| Prefixo | Largura  | Uso                             |
+| ------- | -------- | ------------------------------- |
+| (base)  | < 640px  | Celular — layout padrão         |
+| `sm`    | ≥ 640px  | Celular grande / tablet retrato |
+| `md`    | ≥ 768px  | Tablet                          |
+| `lg`    | ≥ 1024px | Desktop — sidebar completa      |
+| `xl`    | ≥ 1280px | Desktop largo                   |
+
+Padrões obrigatórios (decididos na revisão de `18-revisao-design-ux.md`):
+
+- **Navegação:** mobile usa barra inferior fixa (Painel, Lançamentos,
+  Importar, Mais). Desktop `lg+` usa sidebar agrupada (Dia a dia,
+  Organização, Compromissos, Espaço). Cabeçalho mobile: marca, seletor
+  de espaço, sino — sem os 11 links de antes.
+- **Tabelas densas:** prévia de importação vira **cartão empilhado**
+  abaixo de `md` e permanece tabela a partir de `md`. Lançamentos,
+  parcelas, auditoria e histórico de email já são listas/cartões — não
+  introduzir tabela nesses fluxos.
+- **Grids de cards:** uma coluna abaixo de 640px; duas a partir de `sm`.
+- **Formulários:** campos empilham abaixo de `md`. Pares (valor + data,
+  frequência + dia) só ficam lado a lado a partir de `md`. Campos de
+  valor usam `inputMode="decimal"`; contagens usam `inputMode="numeric"`.
+- **Modais:** tela cheia abaixo de `md`; diálogo centralizado no restante.
+
+## Contraste WCAG AA
+
+Texto branco sobre `brand`, `income`, `expense` e `transfer` passa
+(≥ 4,5:1). `pending` foi escurecido de `#B8873A` (~3,2:1 sobre branco)
+para `#8A6424` (~5,4:1). `ink-faint` foi escurecido de `#93998F` (~2,9:1)
+para `#6B7169` (~5,0:1), porque timestamps e texto terciário não são
+placeholder. Badge de notificação usa `brand` + branco — `expense` não
+pode ser reaproveitado como “alerta genérico”.
 
 ## Próximos passos de implementação
 
-- [ ] Criar `packages/ui` (ou seção equivalente em `apps/web`) com os
-      componentes React que implementam este design system (`Button`,
-      `Input`, `CategoryChip`, `AccountCard`, `TransactionRow`,
-      `StatCard`).
-- [ ] Aplicar a extensão do Tailwind acima em `apps/web/tailwind.config.ts`.
-- [ ] Importar as fontes Fraunces e Manrope no layout raiz do Next.js.
-- [ ] Validar contraste de cor (WCAG AA) nas combinações de texto sobre
-      `brand`, `income`, `expense` e `transfer` antes de finalizar.
+- [x] Componentes React do design system em `apps/web/src/components/ui.tsx`
+      (`Button`, `Field`, `CategoryChip`, `AccountCard`, `TransactionRow`,
+      `StatCard`, `StatusBadge`, `ProgressBar`).
+- [x] Tokens no `@theme` de `apps/web/src/app/globals.css` (Tailwind v4).
+- [x] Fontes Fraunces e Manrope no layout raiz do Next.js.
+- [x] Contraste WCAG AA nas combinações de texto sobre `brand`, `income`,
+      `expense`, `transfer` e `pending`.

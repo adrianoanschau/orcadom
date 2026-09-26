@@ -27,7 +27,7 @@ export default function AcceptInvitePage() {
 
   return (
     <section className="mx-auto max-w-lg space-y-4">
-      <h1 className="font-display text-[28px] font-semibold">Convite para um espaço</h1>
+      <h1 className="font-display text-h1 font-semibold">Convite para um espaço</h1>
       <p className="text-sm text-ink-soft">
         Ao aceitar, você passa a ver as mesmas contas, categorias e lançamentos desta família.
       </p>
