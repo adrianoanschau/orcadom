@@ -10,6 +10,7 @@ const protectedPrefixes = [
   '/recurring',
   '/imports',
   '/settings',
+  '/profile',
   '/invite',
 ];
 

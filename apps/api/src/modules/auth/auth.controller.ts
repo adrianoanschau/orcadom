@@ -1,9 +1,11 @@
-import { Controller, HttpCode, HttpStatus, Post, Req, Res, Body } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, HttpCode, HttpStatus, Patch, Post, Req, Res } from '@nestjs/common';
+import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
+import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Public } from '../../common/decorators/public.decorator.js';
+import { SkipHousehold } from '../../common/decorators/skip-household.decorator.js';
 import { AuthService } from './auth.service.js';
-import { LoginBody, RegisterBody } from './auth.dto.js';
+import { LoginBody, RegisterBody, UpdateProfileBody } from './auth.dto.js';
 
 type CookieResponse = Pick<Response, 'cookie' | 'clearCookie'>;
 interface CookieRequest {
@@ -40,5 +42,19 @@ export class AuthController {
   @Post('logout')
   logout(@Req() request: CookieRequest, @Res({ passthrough: true }) response: CookieResponse) {
     return this.auth.logout(request.cookies?.refreshToken, response);
+  }
+
+  @SkipHousehold()
+  @ApiCookieAuth('accessToken')
+  @Get('me')
+  me(@CurrentUser() userId: string) {
+    return this.auth.me(userId);
+  }
+
+  @SkipHousehold()
+  @ApiCookieAuth('accessToken')
+  @Patch('me')
+  updateMe(@CurrentUser() userId: string, @Body() body: UpdateProfileBody) {
+    return this.auth.updateProfile(userId, body);
   }
 }

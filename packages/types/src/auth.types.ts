@@ -21,6 +21,21 @@ export const loginSchema = z.object({
   rememberMe: z.boolean().default(false),
 });
 
+export const updateProfileSchema = z
+  .object({
+    name: z.string().trim().min(1).max(80).optional(),
+    currentPassword: z.string().min(1).max(72).optional(),
+    newPassword: z.string().min(8).max(72).optional(),
+  })
+  .refine((data) => Boolean(data.name) || Boolean(data.newPassword), {
+    message: 'Informe um nome ou uma nova senha.',
+  })
+  .refine((data) => !data.newPassword || Boolean(data.currentPassword), {
+    path: ['currentPassword'],
+    message: 'Informe a senha atual para definir uma nova.',
+  });
+
 export type RegisterDto = z.infer<typeof registerSchema>;
 export type RegisterFormDto = z.infer<typeof registerFormSchema>;
 export type LoginDto = z.infer<typeof loginSchema>;
+export type UpdateProfileDto = z.infer<typeof updateProfileSchema>;

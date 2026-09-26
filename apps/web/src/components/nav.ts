@@ -50,5 +50,7 @@ export function isNavActive(pathname: string, href: string) {
 }
 
 export function isMoreActive(pathname: string) {
+  if (pathname === '/profile' || pathname.startsWith('/profile/')) return true;
+  if (pathname === '/settings' || pathname.startsWith('/settings/')) return true;
   return moreNav.some((group) => group.items.some((item) => isNavActive(pathname, item.href)));
 }

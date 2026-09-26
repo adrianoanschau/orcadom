@@ -1,5 +1,12 @@
 import type { AccountType, TransactionType } from './labels';
 
+export interface PublicUser {
+  id: string;
+  name: string;
+  email: string;
+  createdAt: string;
+}
+
 export interface Account {
   id: string;
   name: string;

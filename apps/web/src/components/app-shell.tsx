@@ -1,15 +1,14 @@
 'use client';
 
-import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
-import { api, setActiveHouseholdId } from '@/lib/api';
 import { useHousehold } from './household-provider';
 import { CloseIcon, HomeIcon, ImportIcon, LedgerIcon, MoreIcon } from './icons';
 import { isMoreActive, isNavActive, moreNav, primaryNav } from './nav';
 import { NotificationBell } from './notification-bell';
-import { Button, Select } from './ui';
+import { Select } from './ui';
+import { UserMenu } from './user-menu';
 
 const tabIcons = {
   '/dashboard': HomeIcon,
@@ -29,7 +28,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="min-h-screen lg:flex">
       <DesktopSidebar />
       <div className="flex min-h-screen min-w-0 flex-1 flex-col lg:pl-64">
-        <MobileHeader />
+        <AppHeader />
         <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 pb-28 lg:px-8 lg:py-8 lg:pb-8">
           {children}
         </main>
@@ -94,25 +93,27 @@ function DesktopSidebar() {
           </div>
         ))}
       </nav>
-      <div className="flex items-center justify-between gap-2 border-t border-hairline px-3 py-3">
-        <NotificationBell />
-        <LogoutButton />
+      <div className="border-t border-hairline">
+        <UserMenu />
       </div>
     </aside>
   );
 }
 
-function MobileHeader() {
+function AppHeader() {
   return (
-    <header className="sticky top-0 z-20 border-b border-hairline bg-surface pt-[env(safe-area-inset-top)] lg:hidden">
-      <div className="flex items-center gap-3 px-4 py-3">
+    <header className="sticky top-0 z-20 border-b border-hairline bg-surface pt-[env(safe-area-inset-top)]">
+      <div className="flex items-center gap-3 px-4 py-3 lg:px-8">
         <Link
           href="/dashboard"
-          className="min-w-0 flex-1 font-display text-h2 font-medium text-brand"
+          className="min-w-0 flex-1 font-display text-h2 font-medium text-brand lg:hidden"
         >
           Orcadom
         </Link>
-        <HouseholdSwitcher compact />
+        <div className="hidden min-w-0 flex-1 lg:block" />
+        <div className="lg:hidden">
+          <HouseholdSwitcher compact />
+        </div>
         <NotificationBell />
       </div>
     </header>
@@ -220,7 +221,10 @@ function MoreSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
         </div>
       ))}
       <div className="mt-6">
-        <LogoutButton />
+        <p className="text-xs font-medium tracking-wide text-ink-faint uppercase">Conta</p>
+        <div className="mt-2">
+          <UserMenu variant="sheet" onNavigate={onClose} />
+        </div>
       </div>
     </dialog>
   );
@@ -269,22 +273,4 @@ function HouseholdSwitcher({ compact = false }: { compact?: boolean }) {
   }
 
   return null;
-}
-
-function LogoutButton() {
-  const queryClient = useQueryClient();
-  return (
-    <Button
-      variant="ghost"
-      onClick={() => {
-        void api('/auth/logout', { method: 'POST' }).finally(() => {
-          setActiveHouseholdId(null);
-          queryClient.clear();
-          window.location.assign('/login');
-        });
-      }}
-    >
-      Sair
-    </Button>
-  );
 }

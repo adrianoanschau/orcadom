@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import type { LoginDto, RegisterDto } from '@orcadom/types';
+import type { LoginDto, RegisterDto, UpdateProfileDto } from '@orcadom/types';
 import bcrypt from 'bcryptjs';
 import type { Response } from 'express';
 import { PrismaService } from '../../common/prisma.service.js';
@@ -94,6 +94,36 @@ export class AuthService {
       }
       throw new UnauthorizedException();
     }
+  }
+
+  async me(userId: string) {
+    const user = await this.prisma.client.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new UnauthorizedException();
+    }
+    return this.toPublicUser(user);
+  }
+
+  async updateProfile(userId: string, dto: UpdateProfileDto) {
+    const user = await this.prisma.client.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new UnauthorizedException();
+    }
+    if (dto.newPassword) {
+      const valid = await bcrypt.compare(dto.currentPassword ?? '', user.passwordHash);
+      if (!valid) {
+        throw new UnauthorizedException('Senha atual inválida.');
+      }
+    }
+
+    const updated = await this.prisma.client.user.update({
+      where: { id: userId },
+      data: {
+        ...(dto.name ? { name: dto.name } : {}),
+        ...(dto.newPassword ? { passwordHash: await bcrypt.hash(dto.newPassword, 10) } : {}),
+      },
+    });
+    return this.toPublicUser(updated);
   }
 
   async logout(refreshToken: string | undefined, response: CookieResponse): Promise<void> {
@@ -232,7 +262,12 @@ export class AuthService {
     };
   }
 
-  private toPublicUser(user: { id: string; name: string; email: string }) {
-    return { id: user.id, name: user.name, email: user.email };
+  private toPublicUser(user: { id: string; name: string; email: string; createdAt: Date }) {
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      createdAt: user.createdAt.toISOString(),
+    };
   }
 }

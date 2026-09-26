@@ -8,9 +8,11 @@ export {
   loginSchema,
   registerFormSchema,
   registerSchema,
+  updateProfileSchema,
   type LoginDto,
   type RegisterDto,
   type RegisterFormDto,
+  type UpdateProfileDto,
 } from './auth.types.js';
 export {
   createHouseholdInviteSchema,
