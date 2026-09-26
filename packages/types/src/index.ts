@@ -4,7 +4,14 @@ export {
   type CreateAccountDto,
   type UpdateAccountDto,
 } from './account.types.js';
-export { loginSchema, registerSchema, type LoginDto, type RegisterDto } from './auth.types.js';
+export {
+  loginSchema,
+  registerFormSchema,
+  registerSchema,
+  type LoginDto,
+  type RegisterDto,
+  type RegisterFormDto,
+} from './auth.types.js';
 export {
   createHouseholdInviteSchema,
   createHouseholdSchema,

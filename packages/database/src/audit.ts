@@ -16,7 +16,7 @@ export const AUDITED_MODELS = [
 export type AuditedModel = (typeof AUDITED_MODELS)[number];
 
 const WRITE_OPS = new Set(['create', 'update', 'delete']);
-const SENSITIVE_FIELDS = new Set(['passwordHash', 'token']);
+const SENSITIVE_FIELDS = new Set(['passwordHash', 'token', 'tokenHash']);
 
 const FIELD_LABELS: Record<string, string> = {
   description: 'descrição',

@@ -118,13 +118,30 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  memberships     HouseholdMember[]
-  transactions    Transaction[]
-  emailImportLogs EmailImportLog[]
-  notifications   Notification[]
-  auditLogs       AuditLog[]
+  memberships      HouseholdMember[]
+  transactions     Transaction[]
+  emailImportLogs  EmailImportLog[]
+  notifications    Notification[]
+  auditLogs        AuditLog[]
+  refreshSessions  RefreshSession[]
 
   @@map("users")
+}
+
+model RefreshSession {
+  id        String    @id @default(uuid())
+  tokenHash String    @unique
+  remember  Boolean   @default(false)
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+  @@map("refresh_sessions")
 }
 
 model Household {

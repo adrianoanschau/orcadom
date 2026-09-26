@@ -18,65 +18,82 @@ produção enquanto todas as features de negócio são construídas primeiro.
 **Objetivo:** revisar, de forma holística, tudo que foi construído desde
 o MVP — consistência visual, arquitetura de navegação e usabilidade dos
 fluxos críticos — antes de continuar adicionando superfície nova de
-produto.
+produto. Detalhado em [`18-revisao-design-ux.md`](./18-revisao-design-ux.md).
 
 **Por que primeiro:** o design system (`06`) foi definido no início, mas
 cada feature seguinte (`07` a `14`) introduziu telas e componentes novos
-de forma incremental — badge de status de importação, indicador
-`IMPORTED`/`MANUAL`, ícone de parcelamento, seletor de household, feed de
-auditoria — sem uma passada de revisão que garanta que tudo isso ainda
-conversa entre si como um sistema coeso, não como uma colagem de partes
-adicionadas ao longo do tempo. Assim como as features de infraestrutura
-existem para não deixar acumular dívida técnica, esta existe para não
-deixar acumular **dívida de design** — e faz mais sentido pagá-la agora,
-antes de Metas de Economia, Relatórios e PWA adicionarem ainda mais telas
-em cima de uma base não revisada.
+de forma incremental, sem uma passada de revisão que garanta que tudo
+isso ainda conversa entre si como um sistema coeso. Assim como as
+features de infraestrutura existem para não deixar acumular dívida
+técnica, esta existe para não deixar acumular **dívida de design** — e faz
+mais sentido pagá-la agora, antes de mais telas entrarem em cima de uma
+base não revisada.
 
 **Escopo aproximado:**
-- Auditoria de consistência visual: conferir se todas as telas já
-  construídas realmente usam os tokens do `06-design-system.md` (cor,
-  tipografia, espaçamento, raio) — e não variações ad-hoc introduzidas
-  feature a feature sob pressão de prazo.
-- Revisão da arquitetura de informação e navegação: com tantas seções
-  novas desde o MVP (importação, orçamentos, parcelamento, recorrência,
-  notificações, household, auditoria), avaliar se a navegação principal
-  ainda faz sentido ou se algumas seções deveriam ser reagrupadas (ex: sob
-  "Configurações" vs. navegação primária).
-- Revisão de usabilidade dos fluxos mais críticos: primeiro acesso
-  (onboarding), criar a primeira transação, revisar uma importação
-  pendente, definir um orçamento.
-- Consolidação de componentes que hoje existem de forma dispersa em
-  componentes reais e documentados do design system (ex: badge de status,
-  barra de progresso — hoje reaproveitada informalmente entre orçamento e
-  parcelamento).
-- Validação de contraste de cor (WCAG AA), pendência já registrada desde
-  `06-design-system.md` e nunca formalmente verificada.
+- Auditoria de consistência visual e de tokens do design system.
+- Revisão de arquitetura de informação e navegação.
+- Revisão de usabilidade dos fluxos mais críticos.
+- Revisão de responsividade (breakpoints, navegação mobile, tabelas
+  densas).
+- Consolidação de componentes dispersos em componentes reais do design
+  system.
 
 ---
 
-## 2. Metas de Economia
+## 2. Onboarding para Novos Usuários
+
+**Objetivo:** orientar quem acabou de criar conta pelos primeiros passos
+reais de uso — criar a primeira conta financeira, lançar a primeira
+transação, e opcionalmente configurar orçamento ou importação por email —
+em vez de deixar a pessoa sozinha diante de um dashboard vazio.
+
+**Por que logo depois da revisão de design:** construir um roteiro guiado
+**antes** da revisão de IA/navegação (item 1) arriscaria guiar o usuário
+por uma interface prestes a mudar de estrutura — o onboarding aponta para
+telas e fluxos específicos, então precisa de uma base já estável.
+Colocá-lo aqui, antes de Metas, Relatórios e PWA, também evita ter que
+voltar e estender o roteiro a cada nova feature de produto que entrar
+depois — melhor consolidar o "essencial" do onboarding primeiro, e tratar
+cada feature nova como adição pontual ao roteiro, não como retrabalho
+dele.
+
+**Escopo aproximado:**
+- Sequência guiada (checklist ou wizard) cobrindo os passos essenciais:
+  criar a primeira conta, usar/criar uma categoria, lançar a primeira
+  transação — com passos opcionais de aprofundamento (configurar alias de
+  importação por email, definir o primeiro orçamento).
+- Estado de progresso persistido por usuário, para não repetir a cada
+  login e permitir retomar de onde parou.
+- Possibilidade de pular a qualquer momento, sem bloquear o uso do app —
+  onboarding orienta, não impede.
+- Tratamento diferenciado para quem cria um household novo (`13`) vs. quem
+  é convidado para um household já existente — o segundo caso não precisa
+  passar pelos mesmos passos de configuração inicial.
+
+---
+
+## 3. Metas de Economia
 
 **Objetivo:** permitir que o usuário defina uma meta de valor a guardar
 até uma data (ex: "R$ 5.000 até dezembro"), com acompanhamento de
-progresso.
+progresso. Detalhado em [`19-metas-economia.md`](./19-metas-economia.md).
 
 **Por que agora:** é o complemento natural de Orçamento (`09`) — enquanto
 orçamento é "não gastar mais que X", meta é "guardar pelo menos Y". Reusa
 boa parte do raciocínio de progresso e visualização já validado ali — e
-já se beneficia diretamente da revisão de design do item 1, em vez de
-herdar inconsistências que a revisão ainda não tinha corrigido.
+já se beneficia diretamente da revisão de design (item 1) e do onboarding
+(item 2), em vez de herdar inconsistências que ainda não tinham sido
+corrigidas.
 
 **Escopo aproximado:**
-- Model `SavingsGoal` (valor alvo, prazo, conta ou categoria de
-  destino).
-- Cálculo de progresso (quanto já foi guardado vs. quanto falta e em
-  quanto tempo).
+- Model `SavingsGoal` (valor alvo, prazo, conta de destino).
+- Cálculo de progresso a partir de transferências para a conta vinculada.
 - Tela de acompanhamento, reaproveitando componentes visuais de barra de
   progresso já existentes (orçamento, parcelamento).
 
 ---
 
-## 3. Exportar Relatórios
+## 4. Exportar Relatórios
 
 **Objetivo:** gerar extrato/relatório consolidado em PDF ou Excel, por
 período e por conta/categoria.
@@ -96,7 +113,7 @@ além do próprio domínio já maduro.
 
 ---
 
-## 4. App Mobile como PWA
+## 5. App Mobile como PWA
 
 **Objetivo:** tornar o Next.js já existente instalável e utilizável como
 app mobile, sem construir um app nativo separado.
@@ -118,7 +135,7 @@ revisar em cima de telas ainda desalinhadas.
 
 ---
 
-## 5. Permissão Granular por Conta
+## 6. Permissão Granular por Conta
 
 **Objetivo:** permitir que, dentro de um household, uma conta específica
 seja restrita a um subconjunto de membros (ex: cartão pessoal não visível
@@ -137,7 +154,7 @@ necessidade real (ou não) dessa granularidade puder ser confirmada.
 
 ---
 
-## 6. Observabilidade
+## 7. Observabilidade
 
 **Objetivo:** logs estruturados, métricas e rastreamento de erro em
 produção — visibilidade sobre o que a aplicação está fazendo sem depender
@@ -156,7 +173,7 @@ empilhando mais features automatizadas.
 
 ---
 
-## 7. Backup Automatizado do Postgres
+## 8. Backup Automatizado do Postgres
 
 **Objetivo:** rotina de backup recorrente do banco, com teste periódico de
 restauração.
@@ -174,7 +191,7 @@ rastreabilidade que acabou de ser construído.
 
 ---
 
-## 8. CI/CD
+## 9. CI/CD
 
 **Objetivo:** pipeline automatizado de build, teste e deploy, para os dois
 apps do monorepo.
@@ -182,25 +199,28 @@ apps do monorepo.
 **Por que agora:** o volume de mudanças de schema já é significativo
 (principalmente a migração de `13-multiusuario.md`) — migration
 automatizada e testada em pipeline deixa de ser opcional a partir daqui.
+Parte da automação de versionamento (`16`, `17`) já foi implementada antes
+deste item formalmente chegar no roadmap — este item consolida o restante
+da pipeline (build, teste, deploy) em torno dela.
 
 **Escopo aproximado:**
 - Pipeline rodando lint, build e testes a cada PR (aproveitando o cache
   do Turborepo já configurado).
-- Deploy automatizado para staging (item 9) a cada merge, e para produção
-  via aprovação manual ou tag.
+- Deploy automatizado para staging (item 10) a cada merge, e para
+  produção via aprovação manual ou tag.
 - Execução de migration do Prisma como etapa controlada do pipeline, não
   manual.
 
 ---
 
-## 9. Ambiente de Staging Formal
+## 10. Ambiente de Staging Formal
 
 **Objetivo:** ambiente separado de produção, com dados representativos,
 para validar mudanças antes do deploy real.
 
 **Por que agora:** a própria feature de Multiusuário (`13`) já recomendou
 rodar o backfill em staging antes de produção — essa recomendação hoje não
-tem um ambiente formal que a garanta. Depende do CI/CD (item 8) para o
+tem um ambiente formal que a garanta. Depende do CI/CD (item 9) para o
 deploy automatizado ser útil na prática.
 
 **Escopo aproximado:**
@@ -211,7 +231,7 @@ deploy automatizado ser útil na prática.
 
 ---
 
-## 10. Cobertura de Testes E2E
+## 11. Cobertura de Testes E2E
 
 **Objetivo:** suíte de testes de regressão cobrindo os fluxos críticos de
 todas as features já construídas, não só os testes pontuais já registrados
@@ -220,7 +240,7 @@ feature a feature.
 **Por que agora:** com 14 features interagindo entre si (orçamento lê
 transação, notificação lê orçamento, auditoria observa tudo), o risco de
 uma nova feature quebrar uma anterior sem ninguém perceber já é real.
-Faz sentido consolidar isso depois que CI/CD (item 8) já existe, para os
+Faz sentido consolidar isso depois que CI/CD (item 9) já existe, para os
 testes rodarem automaticamente a cada mudança.
 
 **Escopo aproximado:**
@@ -231,7 +251,7 @@ testes rodarem automaticamente a cada mudança.
 
 ---
 
-## 11. Rate Limiting
+## 12. Rate Limiting
 
 **Objetivo:** limitar volume de requisições em endpoints sensíveis, além
 do login (já coberto na Fase 4 do MVP original).
@@ -239,7 +259,7 @@ do login (já coberto na Fase 4 do MVP original).
 **Por que agora:** os endpoints `/automation/*` (email e notificações) são
 autenticados por chave estática, não por sessão de usuário — merecem
 revisão de rate limiting própria, e só faz sentido revisar isso depois que
-observabilidade (item 6) já existe, para conseguir enxergar o efeito da
+observabilidade (item 7) já existe, para conseguir enxergar o efeito da
 mudança.
 
 **Escopo aproximado:**
@@ -249,7 +269,7 @@ mudança.
 
 ---
 
-## 12. Integração Open Finance
+## 13. Integração Open Finance
 
 **Objetivo:** conexão direta com bancos participantes do Open Finance
 Brasil, eliminando a necessidade de OFX/CSV/email para instituições que
@@ -274,7 +294,7 @@ antes do detalhamento técnico):**
 
 ---
 
-## 13. Insights Automáticos
+## 14. Insights Automáticos
 
 **Objetivo:** gerar observações automáticas sobre o comportamento
 financeiro do usuário (ex: "você gastou 23% a mais em Mercado este mês"),
@@ -282,7 +302,7 @@ sem esforço manual de análise.
 
 **Por que por último:** depende de meses de dado categorizado já fluindo
 (import + memória de categorização) para gerar comparações que façam
-sentido — e se beneficia de Open Finance (item 12) trazendo dado mais
+sentido — e se beneficia de Open Finance (item 13) trazendo dado mais
 completo e menos dependente de o usuário lembrar de encaminhar extrato.
 É a feature que mais se apoia em tudo que veio antes, então fica por
 último por natureza, não por baixa prioridade.
@@ -301,6 +321,9 @@ completo e menos dependente de o usuário lembrar de encaminhar extrato.
 Revisão de Design de Interface e UX ─── primeiro: paga dívida de design
         │                                antes de expandir superfície de produto
         ▼
+Onboarding para Novos Usuários ──────── depende da IA/navegação já revisada
+        │
+        ▼
 Metas de Economia ──────────────┐
 Exportar Relatórios ────────────┤ (produto — pouca dependência de infra)
 App Mobile (PWA) ────────────────┤
@@ -318,5 +341,5 @@ Integração Open Finance ── depende de toda a infraestrutura acima
 Insights Automáticos ────── depende de Open Finance (dado mais completo)
 ```
 
-Quando terminarmos de detalhar e implementar os 13 itens acima, a
+Quando terminarmos de detalhar e implementar os 14 itens acima, a
 aplicação chega à **versão 1.0**.

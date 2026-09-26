@@ -13,7 +13,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const form = useForm<LoginDto>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: '', password: '' },
+    defaultValues: { email: '', password: '', rememberMe: false },
   });
 
   return (
@@ -51,6 +51,20 @@ export default function LoginPage() {
             {...form.register('password')}
           />
         </Field>
+        <label className="flex min-h-11 items-start gap-2 text-sm text-ink">
+          <input
+            type="checkbox"
+            className="mt-1 size-4 shrink-0 accent-brand"
+            {...form.register('rememberMe')}
+          />
+          <span>
+            Lembrar login neste dispositivo
+            <span className="mt-0.5 block text-ink-soft">
+              Mantém a sessão por 30 dias. Sem marcar, ela vale até fechar o navegador
+              (no máximo 12 horas).
+            </span>
+          </span>
+        </label>
         <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
           {form.formState.isSubmitting ? 'Entrando…' : 'Entrar'}
         </Button>

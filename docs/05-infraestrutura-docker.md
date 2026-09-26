@@ -54,7 +54,8 @@ DATABASE_URL="postgresql://orcadom:orcadom_dev_password@localhost:5432/orcadom_d
 JWT_ACCESS_SECRET=troque_este_valor_em_producao
 JWT_REFRESH_SECRET=troque_este_outro_valor_em_producao
 JWT_ACCESS_EXPIRATION=15m
-JWT_REFRESH_EXPIRATION=7d
+JWT_REFRESH_EXPIRATION=12h
+JWT_REFRESH_REMEMBER_EXPIRATION=30d
 
 # Frontend
 NEXT_PUBLIC_API_URL=http://localhost:3001

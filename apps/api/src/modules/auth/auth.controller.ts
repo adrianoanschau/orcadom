@@ -38,7 +38,7 @@ export class AuthController {
   @Public()
   @HttpCode(HttpStatus.NO_CONTENT)
   @Post('logout')
-  logout(@Res({ passthrough: true }) response: CookieResponse): void {
-    this.auth.logout(response);
+  logout(@Req() request: CookieRequest, @Res({ passthrough: true }) response: CookieResponse) {
+    return this.auth.logout(request.cookies?.refreshToken, response);
   }
 }

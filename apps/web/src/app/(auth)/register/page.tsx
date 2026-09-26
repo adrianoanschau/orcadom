@@ -1,7 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { registerSchema, type RegisterDto } from '@orcadom/types';
+import { registerFormSchema, type RegisterFormDto } from '@orcadom/types';
 import Link from 'next/link';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -11,9 +11,9 @@ import { Button, Field, Notice, controlClass } from '@/components/ui';
 
 export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
-  const form = useForm<RegisterDto>({
-    resolver: zodResolver(registerSchema),
-    defaultValues: { name: '', email: '', password: '' },
+  const form = useForm<RegisterFormDto>({
+    resolver: zodResolver(registerFormSchema),
+    defaultValues: { name: '', email: '', password: '', confirmPassword: '' },
   });
 
   return (
@@ -23,7 +23,7 @@ export default function RegisterPage() {
       <form
         className="mt-6 space-y-4"
         onSubmit={(event) => {
-          void form.handleSubmit(async (values) => {
+          void form.handleSubmit(async ({ confirmPassword: _confirm, ...values }) => {
             setError(null);
             try {
               await api('/auth/register', { method: 'POST', body: JSON.stringify(values) });
@@ -46,12 +46,27 @@ export default function RegisterPage() {
             {...form.register('email')}
           />
         </Field>
-        <Field label="Senha" error={humanize(form.formState.errors.password?.message ?? '')}>
+        <Field
+          label="Senha"
+          error={humanize(form.formState.errors.password?.message ?? '')}
+        >
           <input
             type="password"
             autoComplete="new-password"
             className={controlClass}
             {...form.register('password')}
+          />
+          <span className="mt-1 block text-xs text-ink-soft">Mínimo de 8 caracteres.</span>
+        </Field>
+        <Field
+          label="Confirmar senha"
+          error={humanize(form.formState.errors.confirmPassword?.message ?? '')}
+        >
+          <input
+            type="password"
+            autoComplete="new-password"
+            className={controlClass}
+            {...form.register('confirmPassword')}
           />
         </Field>
         <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>

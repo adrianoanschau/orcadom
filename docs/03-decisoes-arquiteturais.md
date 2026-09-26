@@ -75,19 +75,34 @@ validação do back, e tipo TypeScript em ambos os lados.
 
 ## Estratégia de Autenticação
 
-**JWT com Access Token + Refresh Token, via cookies `httpOnly`.**
+**JWT com Access Token + Refresh Token rotacionado, via cookies `httpOnly`.**
+
+### Tempos de sessão
+
+| Token           | Sem "lembrar login"                         | Com "lembrar login"      |
+| --------------- | ------------------------------------------- | ------------------------ |
+| `accessToken`   | 15 minutos (`JWT_ACCESS_EXPIRATION`)        | 15 minutos               |
+| `refreshToken`  | 12 horas (`JWT_REFRESH_EXPIRATION`)         | 30 dias (`JWT_REFRESH_REMEMBER_EXPIRATION`) |
+| Persistência    | Cookie de sessão (some ao fechar o navegador) | Cookie persistente       |
+
+O cadastro entra com sessão curta (sem lembrar). O login envia `rememberMe`
+quando a pessoa marca a opção na tela.
 
 ### Fluxo
 
-1. Login bem-sucedido → API gera dois tokens:
-   - `accessToken`: curta duração (~15 minutos).
-   - `refreshToken`: duração maior (~7 dias).
+1. Login ou cadastro bem-sucedido → API gera dois tokens e grava a sessão
+   de refresh no banco (`refresh_sessions`), só com o **hash** do token:
+   - `accessToken`: curta duração (~15 minutos), validado pelo
+     `JwtStrategy`.
+   - `refreshToken`: duração conforme a tabela acima, com `jti` apontando
+     para a linha da sessão.
 2. Ambos são setados como cookies `httpOnly`, `secure`, `sameSite=lax` —
    nunca em `localStorage`.
-3. Rotas protegidas do Nest validam o `accessToken` via `JwtStrategy`
-   (Passport).
-4. Quando o `accessToken` expira, o front chama `POST /auth/refresh`
-   (usando o `refreshToken` do cookie) para obter um novo `accessToken`.
+3. Quando o `accessToken` expira, o front chama `POST /auth/refresh`. A
+   API **rotaciona** o refresh: revoga o token usado e emite um par novo.
+   Reuso de um refresh já rotacionado invalida todas as sessões daquela
+   conta (sinal de token roubado).
+4. `POST /auth/logout` revoga a sessão atual no banco e limpa os cookies.
 
 ### Por que não `localStorage`
 
@@ -104,8 +119,8 @@ acesso nativo aos cookies da requisição. Isso permite:
 
 - Validar a sessão **antes** de renderizar uma página protegida, direto no
   servidor (sem "flash" de conteúdo não autorizado).
-- Um `middleware.ts` fazendo o guard de rota para todo o grupo
-  `(dashboard)`, redirecionando para `/login` se não houver sessão válida.
+- O `proxy.ts` fazendo o guard de rota para as páginas autenticadas,
+  redirecionando para `/login` se não houver cookie de sessão.
 
 ## Regra de segurança transversal
 
