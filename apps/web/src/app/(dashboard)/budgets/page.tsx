@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createBudgetSchema, updateBudgetSchema } from '@orcadom/types';
 import { useState } from 'react';
+import { MonthInput } from '@/components/date-fields';
 import { EntityAudit } from '@/components/entity-audit';
 import {
   BudgetProgressBar,
@@ -99,14 +100,9 @@ export default function BudgetsPage() {
       >
         <label className="text-sm text-ink-soft">
           Mês
-          <input
-            type="month"
-            value={month}
-            onChange={(event) => {
-              setMonth(event.target.value);
-            }}
-            className={`${controlClass} mt-1`}
-          />
+          <span className="mt-1 block min-w-52">
+            <MonthInput value={month} onChange={setMonth} />
+          </span>
         </label>
       </PageHeader>
 

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { DateInput } from '@/components/date-fields';
 import { EntityAudit } from '@/components/entity-audit';
 import {
   Button,
@@ -275,7 +276,13 @@ export default function SavingsGoalDetailPage() {
             />
           </Field>
           <Field label="Prazo (opcional)">
-            <input type="date" {...form.register('targetDate')} className={controlClass} />
+            <DateInput
+              allowEmpty
+              value={form.watch('targetDate')}
+              onChange={(targetDate) => {
+                form.setValue('targetDate', targetDate, { shouldDirty: true, shouldValidate: true });
+              }}
+            />
           </Field>
           <div className="flex justify-end gap-2">
             <Button

@@ -5,6 +5,7 @@ import { createSavingsGoalSchema } from '@orcadom/types';
 import Link from 'next/link';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { DateInput } from '@/components/date-fields';
 import {
   Button,
   ButtonLink,
@@ -236,10 +237,21 @@ export default function SavingsGoalsPage() {
             </p>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Prazo (opcional)">
-                <input type="date" {...form.register('targetDate')} className={controlClass} />
+                <DateInput
+                  allowEmpty
+                  value={form.watch('targetDate')}
+                  onChange={(targetDate) => {
+                    form.setValue('targetDate', targetDate, { shouldDirty: true, shouldValidate: true });
+                  }}
+                />
               </Field>
               <Field label="Contar a partir de">
-                <input type="date" {...form.register('startDate')} className={controlClass} />
+                <DateInput
+                  value={form.watch('startDate')}
+                  onChange={(startDate) => {
+                    form.setValue('startDate', startDate, { shouldDirty: true, shouldValidate: true });
+                  }}
+                />
               </Field>
             </div>
             <div className="flex justify-end gap-2">

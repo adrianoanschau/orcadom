@@ -120,6 +120,7 @@ export class AuthService {
       where: { id: userId },
       data: {
         ...(dto.name ? { name: dto.name } : {}),
+        ...(dto.locale ? { locale: dto.locale } : {}),
         ...(dto.newPassword ? { passwordHash: await bcrypt.hash(dto.newPassword, 10) } : {}),
       },
     });
@@ -262,11 +263,18 @@ export class AuthService {
     };
   }
 
-  private toPublicUser(user: { id: string; name: string; email: string; createdAt: Date }) {
+  private toPublicUser(user: {
+    id: string;
+    name: string;
+    email: string;
+    locale: string;
+    createdAt: Date;
+  }) {
     return {
       id: user.id,
       name: user.name,
       email: user.email,
+      locale: user.locale,
       createdAt: user.createdAt.toISOString(),
     };
   }

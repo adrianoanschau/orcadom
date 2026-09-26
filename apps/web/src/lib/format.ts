@@ -1,24 +1,26 @@
+import { getAppLocale } from './locale';
+
 export function formatMoney(value: string) {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+  return new Intl.NumberFormat(getAppLocale(), { style: 'currency', currency: 'BRL' }).format(
     Number(value),
   );
 }
 
 export function formatDateTime(iso: string) {
-  return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(
+  return new Intl.DateTimeFormat(getAppLocale(), { dateStyle: 'short', timeStyle: 'short' }).format(
     new Date(iso),
   );
 }
 
 export function formatDate(iso: string) {
-  return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'medium', timeZone: 'UTC' }).format(
+  return new Intl.DateTimeFormat(getAppLocale(), { dateStyle: 'medium', timeZone: 'UTC' }).format(
     new Date(iso),
   );
 }
 
 export function formatRelativeTime(iso: string) {
   const deltaSeconds = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
-  const formatter = new Intl.RelativeTimeFormat('pt-BR', { numeric: 'auto' });
+  const formatter = new Intl.RelativeTimeFormat(getAppLocale(), { numeric: 'auto' });
   const abs = Math.abs(deltaSeconds);
   if (abs < 60) return formatter.format(-deltaSeconds, 'second');
   const minutes = Math.round(deltaSeconds / 60);

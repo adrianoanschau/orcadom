@@ -5,7 +5,7 @@ const settings = [
   {
     href: '/profile',
     title: 'Perfil',
-    description: 'Nome, e-mail e senha da sua conta.',
+    description: 'Nome, e-mail, senha e localidade das datas.',
   },
   {
     href: '/settings/import-alias',

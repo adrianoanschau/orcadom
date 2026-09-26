@@ -7,6 +7,7 @@ import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recha
 import { api } from '@/lib/api';
 import { currentMonth, daysUntil, daysUntilLabel, formatMoney } from '@/lib/format';
 import type { BudgetList, DashboardSummary, SavingsGoal } from '@/lib/models';
+import { MonthInput } from '@/components/date-fields';
 import {
   ButtonLink,
   BudgetProgressBar,
@@ -14,7 +15,6 @@ import {
   PageHeader,
   ProgressBar,
   StatCard,
-  controlClass,
 } from '@/components/ui';
 
 export default function DashboardPage() {
@@ -44,14 +44,9 @@ export default function DashboardPage() {
       <PageHeader title="Painel" description="Receitas, despesas e saldo do mês." display>
         <label className="text-sm text-ink-soft">
           Mês
-          <input
-            type="month"
-            value={month}
-            onChange={(event) => {
-              setMonth(event.target.value);
-            }}
-            className={`${controlClass} mt-1`}
-          />
+          <span className="mt-1 block min-w-52">
+            <MonthInput value={month} onChange={setMonth} />
+          </span>
         </label>
       </PageHeader>
 

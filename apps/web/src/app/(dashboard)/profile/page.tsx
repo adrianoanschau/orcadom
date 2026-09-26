@@ -2,14 +2,17 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { LocalePreference } from '@orcadom/types';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { Avatar } from '@/components/avatar';
+import { useLocale } from '@/components/locale-provider';
+import { Button, Field, Notice, PageHeader, Select, controlClass } from '@/components/ui';
 import { ApiError, api } from '@/lib/api';
 import { formatDate } from '@/lib/format';
+import { localeOptions, parseLocalePreference } from '@/lib/locale';
 import type { PublicUser } from '@/lib/models';
-import { Avatar } from '@/components/avatar';
-import { Button, Field, Notice, PageHeader, controlClass } from '@/components/ui';
 
 const nameSchema = z.object({
   name: z.string().trim().min(1).max(80),
@@ -31,8 +34,10 @@ type PasswordForm = z.infer<typeof passwordSchema>;
 
 export default function ProfilePage() {
   const queryClient = useQueryClient();
+  const { preference, setPreference } = useLocale();
   const [nameMessage, setNameMessage] = useState<string | null>(null);
   const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
+  const [localeMessage, setLocaleMessage] = useState<string | null>(null);
   const me = useQuery({
     queryKey: ['me'],
     queryFn: () => api<PublicUser>('/auth/me'),
@@ -86,6 +91,22 @@ export default function ProfilePage() {
     },
   });
 
+  const saveLocale = useMutation({
+    mutationFn: (locale: LocalePreference) =>
+      api<PublicUser>('/auth/me', { method: 'PATCH', body: JSON.stringify({ locale }) }),
+    onSuccess: async (user) => {
+      const next = parseLocalePreference(user.locale);
+      setPreference(next);
+      setLocaleMessage('Localidade atualizada.');
+      await queryClient.invalidateQueries({ queryKey: ['me'] });
+    },
+    onError: (caught: unknown) => {
+      setLocaleMessage(
+        caught instanceof ApiError ? caught.message : 'Não foi possível salvar a localidade.',
+      );
+    },
+  });
+
   const user = me.data;
 
   return (
@@ -126,6 +147,37 @@ export default function ProfilePage() {
             {saveName.isPending ? 'Salvando…' : 'Salvar nome'}
           </Button>
         </form>
+      </div>
+
+      <div className="rounded-lg bg-surface p-6">
+        <h2 className="font-display text-h2 font-medium">Localidade</h2>
+        <p className="mt-2 text-sm text-ink-soft">
+          Define o idioma das datas e dos calendários. O restante do site continua em português.
+        </p>
+        <div className="mt-4 space-y-3">
+          {localeMessage ? <Notice>{localeMessage}</Notice> : null}
+          <Field label="Formato de datas">
+            <Select
+              value={preference}
+              disabled={saveLocale.isPending}
+              onChange={(event) => {
+                const next = parseLocalePreference(event.target.value);
+                setPreference(next);
+                setLocaleMessage(null);
+                saveLocale.mutate(next);
+              }}
+            >
+              {localeOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <p className="text-xs text-ink-soft">
+            {localeOptions.find((option) => option.value === preference)?.hint}
+          </p>
+        </div>
       </div>
 
       <div className="rounded-lg bg-surface p-6">

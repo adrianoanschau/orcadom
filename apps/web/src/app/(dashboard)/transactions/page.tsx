@@ -9,6 +9,7 @@ import { ApiError, api } from '@/lib/api';
 import { dateToNoonIso, formatDate, humanize, todayInput } from '@/lib/format';
 import { transactionTypeLabels, type TransactionType } from '@/lib/labels';
 import type { Account, Category, Transaction, TransactionPage } from '@/lib/models';
+import { DateInput } from '@/components/date-fields';
 import { EntityAudit } from '@/components/entity-audit';
 import {
   Button,
@@ -231,22 +232,20 @@ export default function TransactionsPage() {
           </Select>
         </Field>
         <Field label="De">
-          <input
-            type="date"
-            className={controlClass}
+          <DateInput
+            allowEmpty
             value={draft.from}
-            onChange={(event) => {
-              setDraft({ ...draft, from: event.target.value });
+            onChange={(from) => {
+              setDraft({ ...draft, from });
             }}
           />
         </Field>
         <Field label="Até">
-          <input
-            type="date"
-            className={controlClass}
+          <DateInput
+            allowEmpty
             value={draft.to}
-            onChange={(event) => {
-              setDraft({ ...draft, to: event.target.value });
+            onChange={(to) => {
+              setDraft({ ...draft, to });
             }}
           />
         </Field>
@@ -385,7 +384,12 @@ export default function TransactionsPage() {
               />
             </Field>
             <Field label={installment && type === 'EXPENSE' ? 'Data da compra' : 'Data'}>
-              <input type="date" className={controlClass} {...form.register('date')} />
+              <DateInput
+                value={form.watch('date')}
+                onChange={(date) => {
+                  form.setValue('date', date, { shouldDirty: true, shouldValidate: true });
+                }}
+              />
             </Field>
           </div>
           <Field label="Tipo">

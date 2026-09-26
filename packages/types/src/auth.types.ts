@@ -21,14 +21,17 @@ export const loginSchema = z.object({
   rememberMe: z.boolean().default(false),
 });
 
+export const localePreferenceSchema = z.enum(['pt-BR', 'en-US', 'system']);
+
 export const updateProfileSchema = z
   .object({
     name: z.string().trim().min(1).max(80).optional(),
+    locale: localePreferenceSchema.optional(),
     currentPassword: z.string().min(1).max(72).optional(),
     newPassword: z.string().min(8).max(72).optional(),
   })
-  .refine((data) => Boolean(data.name) || Boolean(data.newPassword), {
-    message: 'Informe um nome ou uma nova senha.',
+  .refine((data) => Boolean(data.name) || Boolean(data.newPassword) || Boolean(data.locale), {
+    message: 'Informe um dado para atualizar.',
   })
   .refine((data) => !data.newPassword || Boolean(data.currentPassword), {
     path: ['currentPassword'],
@@ -39,3 +42,4 @@ export type RegisterDto = z.infer<typeof registerSchema>;
 export type RegisterFormDto = z.infer<typeof registerFormSchema>;
 export type LoginDto = z.infer<typeof loginSchema>;
 export type UpdateProfileDto = z.infer<typeof updateProfileSchema>;
+export type LocalePreference = z.infer<typeof localePreferenceSchema>;

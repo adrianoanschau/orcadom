@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createRecurringTransactionSchema, updateRecurringTransactionSchema } from '@orcadom/types';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { DateInput } from '@/components/date-fields';
 import {
   Button,
   EmptyState,
@@ -334,11 +335,22 @@ export default function RecurringPage() {
           <div className="grid gap-4 md:grid-cols-2">
             {editing ? null : (
               <Field label="Início">
-                <input type="date" className={controlClass} {...form.register('startDate')} />
+                <DateInput
+                  value={form.watch('startDate')}
+                  onChange={(startDate) => {
+                    form.setValue('startDate', startDate, { shouldDirty: true, shouldValidate: true });
+                  }}
+                />
               </Field>
             )}
             <Field label="Fim (opcional)">
-              <input type="date" className={controlClass} {...form.register('endDate')} />
+              <DateInput
+                allowEmpty
+                value={form.watch('endDate')}
+                onChange={(endDate) => {
+                  form.setValue('endDate', endDate, { shouldDirty: true, shouldValidate: true });
+                }}
+              />
             </Field>
           </div>
           <Field label="Conta">
