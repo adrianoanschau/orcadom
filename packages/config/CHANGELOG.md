@@ -1,5 +1,11 @@
 # @orcadom/config
 
+## 0.11.0
+
+### Minor Changes
+
+- fb8abd7: Metas de economia vinculadas a uma conta, com progresso automático pelas transferências.
+
 ## 0.10.0
 
 ### Minor Changes
