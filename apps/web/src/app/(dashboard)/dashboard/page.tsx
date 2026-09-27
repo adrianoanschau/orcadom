@@ -8,6 +8,7 @@ import { api } from '@/lib/api';
 import { currentMonth, daysUntil, daysUntilLabel, formatMoney } from '@/lib/format';
 import type { BudgetList, DashboardSummary, SavingsGoal } from '@/lib/models';
 import { MonthInput } from '@/components/date-fields';
+import { OnboardingChecklist } from '@/components/onboarding-checklist';
 import {
   ButtonLink,
   BudgetProgressBar,
@@ -49,6 +50,10 @@ export default function DashboardPage() {
           </span>
         </label>
       </PageHeader>
+
+      <div className="mt-6">
+        <OnboardingChecklist />
+      </div>
 
       {summary.isLoading ? <p className="mt-6 text-ink-soft">Carregando resumo…</p> : null}
       {summary.isError ? (

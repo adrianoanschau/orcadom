@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createSavingsGoalSchema } from '@orcadom/types';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { DateInput } from '@/components/date-fields';
 import {
@@ -21,6 +21,7 @@ import {
 } from '@/components/ui';
 import { ApiError, api } from '@/lib/api';
 import { dateToNoonIso, daysUntilLabel, formatDate, formatMoney, humanize, todayInput } from '@/lib/format';
+import { useOpenFromQuery } from '@/lib/use-open-from-query';
 import { savingsGoalStatusLabels } from '@/lib/labels';
 import type { Account, SavingsGoal } from '@/lib/models';
 
@@ -54,6 +55,13 @@ export default function SavingsGoalsPage() {
   const active = (goals.data ?? []).filter((goal) => goal.status === 'ACTIVE');
   const completed = (goals.data ?? []).filter((goal) => goal.status === 'COMPLETED');
   const abandoned = (goals.data ?? []).filter((goal) => goal.status === 'ABANDONED');
+
+  const openCreate = useCallback(() => {
+    form.reset({ ...emptyForm, startDate: todayInput(), accountId: accounts.data?.[0]?.id ?? '' });
+    setError(null);
+    setOpen(true);
+  }, [accounts.data, form]);
+  useOpenFromQuery(openCreate);
 
   function closeForm() {
     setOpen(false);
@@ -98,15 +106,7 @@ export default function SavingsGoalsPage() {
         title="Metas de economia"
         description="Quanto guardar, em qual conta. O progresso soma as transferências para essa conta a partir da data de início."
       >
-        <Button
-          onClick={() => {
-            form.reset({ ...emptyForm, startDate: todayInput(), accountId: accounts.data?.[0]?.id ?? '' });
-            setError(null);
-            setOpen(true);
-          }}
-        >
-          Nova meta
-        </Button>
+        <Button onClick={openCreate}>Nova meta</Button>
       </PageHeader>
 
       {error && !open ? (
@@ -120,16 +120,7 @@ export default function SavingsGoalsPage() {
         <EmptyState title="Nenhuma meta ainda">
           <p>Defina um valor a guardar e vincule a uma conta. Transferências para essa conta passam a contar sozinhas.</p>
           <div className="mt-4">
-            <Button
-              onClick={() => {
-                form.reset({
-                  ...emptyForm,
-                  startDate: todayInput(),
-                  accountId: accounts.data?.[0]?.id ?? '',
-                });
-                setOpen(true);
-              }}
-            >
+            <Button onClick={openCreate}>
               Criar primeira meta
             </Button>
           </div>

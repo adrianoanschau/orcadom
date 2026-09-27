@@ -3,9 +3,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createInstallmentPlanSchema, createTransactionSchema } from '@orcadom/types';
 import { useSearchParams } from 'next/navigation';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { ApiError, api } from '@/lib/api';
+import { useOpenFromQuery } from '@/lib/use-open-from-query';
 import { dateToNoonIso, formatDate, humanize, todayInput } from '@/lib/format';
 import { transactionTypeLabels, type TransactionType } from '@/lib/labels';
 import type { Account, Category, Transaction, TransactionPage } from '@/lib/models';
@@ -91,6 +92,15 @@ export default function TransactionsPage() {
     (categories.data ?? []).map((category) => [category.id, category.name]),
   );
   const visibleCategories = (categories.data ?? []).filter((category) => category.type === type);
+
+  const openCreate = useCallback(() => {
+    setEditing(null);
+    setInstallment(false);
+    form.reset({ ...emptyForm, date: todayInput() });
+    setError(null);
+    setOpen(true);
+  }, [form]);
+  useOpenFromQuery(openCreate);
 
   function closeForm() {
     setOpen(false);
@@ -181,17 +191,7 @@ export default function TransactionsPage() {
         <ButtonLink href="/imports" variant="secondary">
           Importar extrato
         </ButtonLink>
-        <Button
-          onClick={() => {
-            setEditing(null);
-            setInstallment(false);
-            form.reset({ ...emptyForm, date: todayInput() });
-            setError(null);
-            setOpen(true);
-          }}
-        >
-          Novo lançamento
-        </Button>
+        <Button onClick={openCreate}>Novo lançamento</Button>
       </PageHeader>
 
       <form

@@ -151,23 +151,23 @@ depois do primeiro acesso, o checklist da seção 7.2 assume esse papel).
 
 ### Fase 1 — Modelagem e cálculo
 
-- [ ] Migration com `UserOnboardingState`.
-- [ ] Função `getOnboardingSteps()`, testada para household novo (tudo
+- [x] Migration com `UserOnboardingState`.
+- [x] Função `getOnboardingSteps()`, testada para household novo (tudo
       pendente), household com dados parciais, e household de membro
       convidado (passos essenciais já concluídos por outra pessoa).
 
 ### Fase 2 — API
 
-- [ ] `GET /onboarding/status`, `PATCH /onboarding/dismiss`,
+- [x] `GET /onboarding/status`, `PATCH /onboarding/dismiss`,
       `PATCH /onboarding/resume`.
 
 ### Fase 3 — Frontend
 
-- [ ] Modal de boas-vindas (exibido uma vez).
-- [ ] Card de checklist no dashboard, com estado essencial/aprofundamento
+- [x] Modal de boas-vindas (exibido uma vez).
+- [x] Card de checklist no dashboard, com estado essencial/aprofundamento
       e ação de dispensar.
-- [ ] Roteiro diferenciado por tipo de usuário (seção 5).
-- [ ] Opção em `/settings` para trazer o checklist de volta depois de
+- [x] Roteiro diferenciado por tipo de usuário (seção 5).
+- [x] Opção em `/settings` para trazer o checklist de volta depois de
       dispensado.
 
 ## 9. Riscos e pontos de atenção

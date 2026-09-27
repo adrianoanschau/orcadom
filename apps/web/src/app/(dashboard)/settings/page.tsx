@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { OnboardingSettings } from '@/components/onboarding-settings';
 import { PageHeader } from '@/components/ui';
 
 const settings = [
@@ -31,6 +32,7 @@ export default function SettingsPage() {
         title="Configurações"
         description="Ajustes da sua conta e do espaço em que você está."
       />
+      <OnboardingSettings />
       <ul className="divide-y divide-hairline overflow-hidden rounded-lg bg-surface">
         {settings.map((item) => (
           <li key={item.href}>

@@ -291,6 +291,22 @@ export type AuditSource =
   | 'CRON_RECURRING'
   | 'SYSTEM';
 
+export interface OnboardingStepFlags {
+  hasAccount: boolean;
+  hasTransaction: boolean;
+  hasBudget: boolean;
+  hasSavingsGoal: boolean;
+  hasImportAlias: boolean;
+  hasInvitedMember: boolean;
+}
+
+export interface OnboardingStatus {
+  dismissedAt: string | null;
+  viewerIsInvited: boolean;
+  showWelcome: boolean;
+  steps: OnboardingStepFlags;
+}
+
 export interface AuditLogEntry {
   id: string;
   entityType: string;

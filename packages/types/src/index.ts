@@ -93,3 +93,9 @@ export {
   type UpdateSavingsGoalDto,
 } from './savings-goal.types.js';
 export { createTransactionSchema, type CreateTransactionDto } from './transaction.types.js';
+export {
+  onboardingStepFlags,
+  type OnboardingStatus,
+  type OnboardingStepFlag,
+  type OnboardingStepFlags,
+} from './onboarding.types.js';

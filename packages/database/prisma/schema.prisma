@@ -125,8 +125,20 @@ model User {
   notifications    Notification[]
   auditLogs        AuditLog[]
   refreshSessions  RefreshSession[]
+  onboardingState  UserOnboardingState?
 
   @@map("users")
+}
+
+model UserOnboardingState {
+  id          String    @id @default(uuid())
+  dismissedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_onboarding_states")
 }
 
 model RefreshSession {

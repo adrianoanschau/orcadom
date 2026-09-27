@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createAccountSchema, updateAccountSchema } from '@orcadom/types';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { ApiError, api } from '@/lib/api';
 import { humanize } from '@/lib/format';
@@ -20,6 +20,7 @@ import {
   Select,
   controlClass,
 } from '@/components/ui';
+import { useOpenFromQuery } from '@/lib/use-open-from-query';
 import { colors } from '@/lib/tokens';
 
 interface AccountForm {
@@ -39,6 +40,14 @@ export default function AccountsPage() {
   const [pendingDelete, setPendingDelete] = useState<Account | null>(null);
   const [error, setError] = useState<string | null>(null);
   const form = useForm<AccountForm>({ defaultValues: emptyForm });
+
+  const openCreate = useCallback(() => {
+    setEditing(null);
+    form.reset(emptyForm);
+    setError(null);
+    setOpen(true);
+  }, [form]);
+  useOpenFromQuery(openCreate);
 
   function closeForm() {
     setOpen(false);
@@ -100,16 +109,7 @@ export default function AccountsPage() {
   return (
     <section>
       <PageHeader title="Contas">
-        <Button
-          onClick={() => {
-            setEditing(null);
-            form.reset(emptyForm);
-            setError(null);
-            setOpen(true);
-          }}
-        >
-          Nova conta
-        </Button>
+        <Button onClick={openCreate}>Nova conta</Button>
       </PageHeader>
       {error && !open ? (
         <div className="mt-4">
