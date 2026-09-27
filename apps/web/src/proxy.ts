@@ -6,6 +6,7 @@ const protectedPrefixes = [
   '/categories',
   '/transactions',
   '/budgets',
+  '/savings-goals',
   '/installments',
   '/recurring',
   '/imports',

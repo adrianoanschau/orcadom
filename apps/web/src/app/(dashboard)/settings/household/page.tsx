@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
+import { invalidateOnboarding } from '@/hooks/useOnboardingStatus';
 import { ApiError, api } from '@/lib/api';
 import { formatDate } from '@/lib/format';
 import type { HouseholdInvite, HouseholdMembersResponse } from '@/lib/models';
@@ -52,6 +53,7 @@ export default function HouseholdSettingsPage() {
       setEmail('');
       setError(null);
       await queryClient.invalidateQueries({ queryKey: ['household-members', household?.id] });
+      await invalidateOnboarding(queryClient);
     },
     onError: (caught: unknown) => {
       setError(caught instanceof ApiError ? caught.message : 'Não foi possível convidar.');

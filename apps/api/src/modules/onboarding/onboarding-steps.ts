@@ -5,8 +5,7 @@ export interface OnboardingCountClient {
   transaction: { count: (args: { where: { householdId: string } }) => Promise<number> };
   budget: { count: (args: { where: { householdId: string } }) => Promise<number> };
   savingsGoal: { count: (args: { where: { householdId: string } }) => Promise<number> };
-  bankAccountMapping: { count: (args: { where: { householdId: string } }) => Promise<number> };
-  emailImportLog: { count: (args: { where: { householdId: string } }) => Promise<number> };
+  householdImportAlias: { count: (args: { where: { householdId: string } }) => Promise<number> };
   householdMember: { count: (args: { where: { householdId: string } }) => Promise<number> };
 }
 
@@ -15,24 +14,21 @@ export async function getOnboardingSteps(
   householdId: string,
 ): Promise<OnboardingStepFlags> {
   const where = { householdId };
-  const [accounts, transactions, budgets, savingsGoals, mappings, emailLogs, members] =
-    await Promise.all([
-      client.account.count({ where }),
-      client.transaction.count({ where }),
-      client.budget.count({ where }),
-      client.savingsGoal.count({ where }),
-      client.bankAccountMapping.count({ where }),
-      client.emailImportLog.count({ where }),
-      client.householdMember.count({ where }),
-    ]);
+  const [accounts, transactions, budgets, savingsGoals, aliases, members] = await Promise.all([
+    client.account.count({ where }),
+    client.transaction.count({ where }),
+    client.budget.count({ where }),
+    client.savingsGoal.count({ where }),
+    client.householdImportAlias.count({ where }),
+    client.householdMember.count({ where }),
+  ]);
 
   return {
     hasAccount: accounts > 0,
     hasTransaction: transactions > 0,
     hasBudget: budgets > 0,
     hasSavingsGoal: savingsGoals > 0,
-    // Alias is created with the household, so "configured" means a mapping or a used inbox.
-    hasImportAlias: mappings > 0 || emailLogs > 0,
+    hasImportAlias: aliases > 0,
     hasInvitedMember: members > 1,
   };
 }
@@ -42,16 +38,10 @@ export function isViewerInvited(firstMemberUserId: string | null | undefined, us
 }
 
 export function shouldShowWelcome(input: {
-  hasOnboardingState: boolean;
-  viewerIsInvited: boolean;
+  dismissedAt: Date | null | undefined;
   steps: OnboardingStepFlags;
 }): boolean {
-  return (
-    !input.hasOnboardingState &&
-    !input.viewerIsInvited &&
-    !input.steps.hasAccount &&
-    !input.steps.hasTransaction
-  );
+  return !input.dismissedAt && !input.steps.hasAccount && !input.steps.hasTransaction;
 }
 
 export function assembleOnboardingStatus(input: {
@@ -59,17 +49,12 @@ export function assembleOnboardingStatus(input: {
   dismissedAt: Date | null | undefined;
   firstMemberUserId: string | null | undefined;
   userId: string;
-  hasOnboardingState: boolean;
 }): OnboardingStatus {
   const viewerIsInvited = isViewerInvited(input.firstMemberUserId, input.userId);
   return {
     dismissedAt: input.dismissedAt?.toISOString() ?? null,
     viewerIsInvited,
-    showWelcome: shouldShowWelcome({
-      hasOnboardingState: input.hasOnboardingState,
-      viewerIsInvited,
-      steps: input.steps,
-    }),
+    showWelcome: shouldShowWelcome({ dismissedAt: input.dismissedAt, steps: input.steps }),
     steps: input.steps,
   };
 }
@@ -88,16 +73,10 @@ export function visibleEssentialFlags(
   steps: OnboardingStepFlags,
   viewerIsInvited: boolean,
 ): EssentialFlag[] {
-  const flags: EssentialFlag[] = ['hasAccount', 'hasTransaction'];
-  if (!viewerIsInvited) return flags;
-  return flags.filter((flag) => !steps[flag]);
+  if (viewerIsInvited && steps.hasAccount && steps.hasTransaction) return [];
+  return ['hasAccount', 'hasTransaction'];
 }
 
-export function visibleDeepeningFlags(
-  steps: OnboardingStepFlags,
-  viewerIsInvited: boolean,
-): DeepeningFlag[] {
-  const flags: DeepeningFlag[] = ['hasBudget', 'hasSavingsGoal', 'hasImportAlias', 'hasInvitedMember'];
-  if (!viewerIsInvited) return flags;
-  return flags.filter((flag) => !steps[flag]);
+export function visibleDeepeningFlags(): DeepeningFlag[] {
+  return ['hasBudget', 'hasSavingsGoal', 'hasImportAlias', 'hasInvitedMember'];
 }

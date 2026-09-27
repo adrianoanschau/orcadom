@@ -17,13 +17,13 @@ const essentialCatalog: {
     id: 'account',
     flag: 'hasAccount',
     title: 'Criar a primeira conta financeira',
-    href: '/accounts?new=1',
+    href: '/accounts/new',
   },
   {
     id: 'transaction',
     flag: 'hasTransaction',
     title: 'Lançar a primeira transação',
-    href: '/transactions?new=1',
+    href: '/transactions/new',
   },
 ];
 
@@ -41,7 +41,7 @@ const deepeningCatalog: {
     id: 'savingsGoal',
     flag: 'hasSavingsGoal',
     title: 'Criar a primeira meta de economia',
-    href: '/savings-goals?new=1',
+    href: '/savings-goals/new',
   },
   {
     id: 'importAlias',
@@ -58,35 +58,37 @@ const deepeningCatalog: {
 ];
 
 const orientationCatalog: OnboardingItem[] = [
-  { id: 'explore', title: 'Explorar o painel', href: '/dashboard' },
-  { id: 'activity', title: 'Ver o histórico de atividade do espaço', href: '/settings/activity' },
+  { id: 'explore', title: 'Explore o painel da família', href: '/dashboard' },
+  { id: 'activity', title: 'Veja quem fez o quê', href: '/settings/activity' },
 ];
 
 export function checklistFromStatus(status: OnboardingStatus): {
   essentials: OnboardingItem[];
   deepening: OnboardingItem[];
   orientation: OnboardingItem[];
+  skipEssentials: boolean;
 } {
-  const essentials = essentialCatalog
-    .filter((item) => !status.viewerIsInvited || !status.steps[item.flag])
-    .map((item) => ({
-      id: item.id,
-      title: item.title,
-      href: item.href,
-      completed: status.steps[item.flag],
-    }));
-  const deepening = deepeningCatalog
-    .filter((item) => !status.viewerIsInvited || !status.steps[item.flag])
-    .map((item) => ({
-      id: item.id,
-      title: item.title,
-      href: item.href,
-      completed: status.steps[item.flag],
-    }));
+  const skipEssentials =
+    status.viewerIsInvited && status.steps.hasAccount && status.steps.hasTransaction;
+  const essentials = skipEssentials
+    ? []
+    : essentialCatalog.map((item) => ({
+        id: item.id,
+        title: item.title,
+        href: item.href,
+        completed: status.steps[item.flag],
+      }));
+  const deepening = deepeningCatalog.map((item) => ({
+    id: item.id,
+    title: item.title,
+    href: item.href,
+    completed: status.steps[item.flag],
+  }));
   return {
     essentials,
     deepening,
-    orientation: status.viewerIsInvited ? orientationCatalog : [],
+    orientation: skipEssentials ? orientationCatalog : [],
+    skipEssentials,
   };
 }
 

@@ -1,18 +1,21 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import type { OnboardingStatus } from '@/lib/models';
-import { useOnboardingStatus } from './onboarding-checklist';
+import { onboardingQueryKey, useOnboardingStatus } from '@/hooks/useOnboardingStatus';
 import { Button } from './ui';
 
 export function OnboardingSettings() {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const onboarding = useOnboardingStatus();
   const resume = useMutation({
     mutationFn: () => api<OnboardingStatus>('/onboarding/resume', { method: 'PATCH' }),
     onSuccess: (next) => {
-      queryClient.setQueryData(['onboarding'], next);
+      queryClient.setQueryData(onboardingQueryKey, next);
+      router.push('/dashboard');
     },
   });
 

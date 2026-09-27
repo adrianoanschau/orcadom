@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { invalidateOnboarding } from '@/hooks/useOnboardingStatus';
 import { ApiError, api } from '@/lib/api';
 import { formatDate } from '@/lib/format';
 import type { Account, BankAccountMapping, EmailImportLog, ImportAlias } from '@/lib/models';
@@ -66,6 +67,7 @@ export default function ImportAliasPage() {
       setAccountId('');
       setError(null);
       await queryClient.invalidateQueries({ queryKey: ['bank-account-mappings'] });
+      await invalidateOnboarding(queryClient);
     },
     onError: (caught: unknown) => {
       setError(

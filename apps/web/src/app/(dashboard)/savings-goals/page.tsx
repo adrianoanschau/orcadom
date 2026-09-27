@@ -21,6 +21,7 @@ import {
 } from '@/components/ui';
 import { ApiError, api } from '@/lib/api';
 import { dateToNoonIso, daysUntilLabel, formatDate, formatMoney, humanize, todayInput } from '@/lib/format';
+import { invalidateOnboarding } from '@/hooks/useOnboardingStatus';
 import { useOpenFromQuery } from '@/lib/use-open-from-query';
 import { savingsGoalStatusLabels } from '@/lib/labels';
 import type { Account, SavingsGoal } from '@/lib/models';
@@ -74,6 +75,7 @@ export default function SavingsGoalsPage() {
       queryClient.invalidateQueries({ queryKey: ['savings-goals'] }),
       queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
       queryClient.invalidateQueries({ queryKey: ['audit-logs'] }),
+      invalidateOnboarding(queryClient),
     ]);
   }
 

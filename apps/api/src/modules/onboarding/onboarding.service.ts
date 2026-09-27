@@ -23,7 +23,6 @@ export class OnboardingService {
       dismissedAt: state?.dismissedAt,
       firstMemberUserId: firstMember?.userId,
       userId,
-      hasOnboardingState: Boolean(state),
     });
   }
 

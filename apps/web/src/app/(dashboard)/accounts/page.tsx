@@ -20,6 +20,7 @@ import {
   Select,
   controlClass,
 } from '@/components/ui';
+import { invalidateOnboarding } from '@/hooks/useOnboardingStatus';
 import { useOpenFromQuery } from '@/lib/use-open-from-query';
 import { colors } from '@/lib/tokens';
 
@@ -86,6 +87,7 @@ export default function AccountsPage() {
       await queryClient.invalidateQueries({ queryKey: ['accounts'] });
       await queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       await queryClient.invalidateQueries({ queryKey: ['audit-logs'] });
+      await invalidateOnboarding(queryClient);
       closeForm();
     },
     onError: (caught: unknown) => {
@@ -98,6 +100,7 @@ export default function AccountsPage() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['accounts'] });
       await queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      await invalidateOnboarding(queryClient);
       setPendingDelete(null);
     },
     onError: (caught: unknown) => {

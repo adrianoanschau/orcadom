@@ -15,6 +15,7 @@ import {
   PageHeader,
   controlClass,
 } from '@/components/ui';
+import { invalidateOnboarding } from '@/hooks/useOnboardingStatus';
 import { ApiError, api } from '@/lib/api';
 import { currentMonth, humanize } from '@/lib/format';
 import type { BudgetList, BudgetProgress, Category } from '@/lib/models';
@@ -39,6 +40,7 @@ export default function BudgetsPage() {
       queryClient.invalidateQueries({ queryKey: ['budgets'] }),
       queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
       queryClient.invalidateQueries({ queryKey: ['audit-logs'] }),
+      invalidateOnboarding(queryClient),
     ]);
   }
 

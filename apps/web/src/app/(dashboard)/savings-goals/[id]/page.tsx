@@ -19,6 +19,7 @@ import {
   StatusBadge,
   controlClass,
 } from '@/components/ui';
+import { invalidateOnboarding } from '@/hooks/useOnboardingStatus';
 import { ApiError, api } from '@/lib/api';
 import {
   dateToNoonIso,
@@ -55,6 +56,7 @@ export default function SavingsGoalDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['savings-goals'] }),
       queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
       queryClient.invalidateQueries({ queryKey: ['audit-logs'] }),
+      invalidateOnboarding(queryClient),
     ]);
   }
 

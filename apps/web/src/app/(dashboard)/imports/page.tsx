@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useMemo, useState } from 'react';
+import { invalidateOnboarding } from '@/hooks/useOnboardingStatus';
 import { ApiError, api } from '@/lib/api';
 import { formatDate, formatMoney } from '@/lib/format';
 import type {
@@ -128,6 +129,7 @@ function ImportsPageInner() {
       await queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       await queryClient.invalidateQueries({ queryKey: ['imports'] });
       await queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      await invalidateOnboarding(queryClient);
       router.push(`/transactions?accountId=${result.accountId}`);
     },
     onError: (caught: unknown) => {

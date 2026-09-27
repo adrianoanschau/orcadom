@@ -25,8 +25,7 @@ function mockClient(counts: Partial<Record<keyof OnboardingCountClient, number>>
     transaction: { count: countOf('transaction') },
     budget: { count: countOf('budget') },
     savingsGoal: { count: countOf('savingsGoal') },
-    bankAccountMapping: { count: countOf('bankAccountMapping') },
-    emailImportLog: { count: countOf('emailImportLog') },
+    householdImportAlias: { count: countOf('householdImportAlias') },
     householdMember: { count: countOf('householdMember') },
   };
 }
@@ -59,6 +58,7 @@ describe('getOnboardingSteps', () => {
         account: 2,
         transaction: 10,
         budget: 1,
+        householdImportAlias: 1,
         householdMember: 2,
       }),
       'hh-shared',
@@ -69,42 +69,44 @@ describe('getOnboardingSteps', () => {
       hasTransaction: true,
       hasBudget: true,
       hasSavingsGoal: false,
-      hasImportAlias: false,
+      hasImportAlias: true,
       hasInvitedMember: true,
     });
     expect(visibleEssentialFlags(steps, true)).toEqual([]);
-    expect(visibleDeepeningFlags(steps, true)).toEqual(['hasSavingsGoal', 'hasImportAlias']);
-  });
-
-  it('alias de importação só conta depois de mapeamento ou email usado', async () => {
-    await expect(
-      getOnboardingSteps(mockClient({ householdMember: 1, emailImportLog: 1 }), 'hh-mail'),
-    ).resolves.toMatchObject({ hasImportAlias: true });
-    await expect(
-      getOnboardingSteps(mockClient({ householdMember: 1, bankAccountMapping: 1 }), 'hh-map'),
-    ).resolves.toMatchObject({ hasImportAlias: true });
+    expect(visibleDeepeningFlags()).toEqual([
+      'hasBudget',
+      'hasSavingsGoal',
+      'hasImportAlias',
+      'hasInvitedMember',
+    ]);
   });
 });
 
 describe('assembleOnboardingStatus', () => {
-  it('mostra o modal de boas-vindas só no primeiro acesso de quem criou o espaço vazio', () => {
+  it('mostra o modal só enquanto o espaço está vazio e o checklist não foi dispensado', () => {
     const creator = assembleOnboardingStatus({
       steps: empty,
       dismissedAt: null,
       firstMemberUserId: 'owner',
       userId: 'owner',
-      hasOnboardingState: false,
     });
     expect(creator.showWelcome).toBe(true);
     expect(creator.viewerIsInvited).toBe(false);
     expect(essentialCompletedCount(creator.steps)).toBe(0);
+
+    const afterAccount = assembleOnboardingStatus({
+      steps: { ...empty, hasAccount: true },
+      dismissedAt: null,
+      firstMemberUserId: 'owner',
+      userId: 'owner',
+    });
+    expect(afterAccount.showWelcome).toBe(false);
 
     const invited = assembleOnboardingStatus({
       steps: { ...empty, hasAccount: true, hasTransaction: true },
       dismissedAt: null,
       firstMemberUserId: 'owner',
       userId: 'guest',
-      hasOnboardingState: false,
     });
     expect(invited.showWelcome).toBe(false);
     expect(invited.viewerIsInvited).toBe(true);
@@ -117,7 +119,6 @@ describe('assembleOnboardingStatus', () => {
       dismissedAt: new Date('2026-09-27T12:00:00.000Z'),
       firstMemberUserId: 'owner',
       userId: 'owner',
-      hasOnboardingState: true,
     });
     expect(dismissed.dismissedAt).toBe('2026-09-27T12:00:00.000Z');
     expect(dismissed.showWelcome).toBe(false);

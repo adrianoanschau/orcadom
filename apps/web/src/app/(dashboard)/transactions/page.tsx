@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { useCallback, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { ApiError, api } from '@/lib/api';
+import { invalidateOnboarding } from '@/hooks/useOnboardingStatus';
 import { useOpenFromQuery } from '@/lib/use-open-from-query';
 import { dateToNoonIso, formatDate, humanize, todayInput } from '@/lib/format';
 import { transactionTypeLabels, type TransactionType } from '@/lib/labels';
@@ -153,6 +154,7 @@ export default function TransactionsPage() {
       await queryClient.invalidateQueries({ queryKey: ['budgets'] });
       await queryClient.invalidateQueries({ queryKey: ['savings-goals'] });
       await queryClient.invalidateQueries({ queryKey: ['audit-logs'] });
+      await invalidateOnboarding(queryClient);
       closeForm();
     },
     onError: (caught: unknown) => {
@@ -170,6 +172,7 @@ export default function TransactionsPage() {
       await queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       await queryClient.invalidateQueries({ queryKey: ['installment-plans'] });
       await queryClient.invalidateQueries({ queryKey: ['savings-goals'] });
+      await invalidateOnboarding(queryClient);
       setPendingDelete(null);
     },
     onError: (caught: unknown) => {

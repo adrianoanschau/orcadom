@@ -1,21 +1,15 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { api } from '@/lib/api';
 import { checklistFromStatus, essentialProgress } from '@/lib/onboarding';
 import type { OnboardingStatus } from '@/lib/models';
+import { onboardingQueryKey, useOnboardingStatus } from '@/hooks/useOnboardingStatus';
 import { CheckIcon, ChevronIcon } from './icons';
 import { Button, Modal, ProgressBar } from './ui';
-
-export function useOnboardingStatus() {
-  return useQuery({
-    queryKey: ['onboarding'],
-    queryFn: () => api<OnboardingStatus>('/onboarding/status'),
-  });
-}
 
 export function OnboardingChecklist() {
   const queryClient = useQueryClient();
@@ -23,27 +17,18 @@ export function OnboardingChecklist() {
   const status = onboarding.data;
 
   const dismiss = useMutation({
-    mutationFn: () =>
-      api<OnboardingStatus>('/onboarding/dismiss', { method: 'PATCH' }),
+    mutationFn: () => api<OnboardingStatus>('/onboarding/dismiss', { method: 'PATCH' }),
     onSuccess: (next) => {
-      queryClient.setQueryData(['onboarding'], next);
+      queryClient.setQueryData(onboardingQueryKey, next);
     },
   });
 
-  const acknowledge = useMutation({
-    mutationFn: () => api<OnboardingStatus>('/onboarding/resume', { method: 'PATCH' }),
-    onSuccess: (next) => {
-      queryClient.setQueryData(['onboarding'], next);
-    },
-  });
+  if (!onboarding.isSuccess || !status || status.dismissedAt) return null;
 
-  if (!status || status.dismissedAt) return null;
-
-  const { essentials, deepening, orientation } = checklistFromStatus(status);
+  const { essentials, deepening, orientation, skipEssentials } = checklistFromStatus(status);
   const progress = essentialProgress(essentials);
-  const essentialsDone = progress.total > 0 && progress.done === progress.total;
-  const hasBody = essentials.length + deepening.length + orientation.length > 0;
-  if (!hasBody) return null;
+  const essentialsDone = status.steps.hasAccount && status.steps.hasTransaction;
+  const showDeepening = essentialsDone && deepening.length > 0;
 
   return (
     <>
@@ -51,15 +36,15 @@ export function OnboardingChecklist() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <h2 className="font-display text-h2 font-medium">
-              {status.viewerIsInvited ? 'Explore este espaço' : 'Primeiros passos'}
+              {skipEssentials ? 'Explore este espaço' : 'Primeiros passos'}
             </h2>
-            {progress.total > 0 ? (
+            {essentials.length > 0 ? (
               <p className="mt-2 text-sm text-ink-soft">
                 {progress.done} de {progress.total} passos essenciais concluídos
               </p>
             ) : (
               <p className="mt-2 text-sm text-ink-soft">
-                Este espaço já tem movimento. Veja o que ainda falta ou o histórico da casa.
+                Este espaço já tem movimento. Explore o painel ou veja o histórico da casa.
               </p>
             )}
           </div>
@@ -75,45 +60,47 @@ export function OnboardingChecklist() {
           </Button>
         </div>
 
-        {progress.total > 0 ? (
+        {essentials.length > 0 ? (
           <div className="mt-4">
             <ProgressBar
-              ratio={progress.done / progress.total}
+              ratio={progress.total === 0 ? 0 : progress.done / progress.total}
               label={`${String(progress.done)} de ${String(progress.total)} passos essenciais`}
             />
           </div>
         ) : null}
 
-        {essentials.length > 0 ? (
-          <ChecklistItems items={essentials} className="mt-4" />
-        ) : null}
-
-        {deepening.length > 0 ? (
-          <DeepeningSection items={deepening} collapsedByDefault={progress.total > 0 && essentialsDone} />
-        ) : null}
+        {essentials.length > 0 ? <ChecklistItems items={essentials} className="mt-4" /> : null}
 
         {orientation.length > 0 ? (
-          <div className="mt-5">
-            <p className="text-sm font-medium text-ink">Orientação</p>
-            <ChecklistItems items={orientation} className="mt-2" />
+          <div className="mt-4">
+            <ChecklistItems items={orientation} />
           </div>
         ) : null}
+
+        {showDeepening ? <DeepeningSection items={deepening} defaultOpen /> : null}
       </section>
 
       <WelcomeModal
         open={status.showWelcome}
-        onClose={() => {
-          acknowledge.mutate();
-        }}
+        onCreatePath="/accounts/new"
       />
     </>
   );
 }
 
-function WelcomeModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+function WelcomeModal({ open, onCreatePath }: { open: boolean; onCreatePath: string }) {
   const router = useRouter();
+  const [closed, setClosed] = useState(false);
+  const visible = open && !closed;
+
   return (
-    <Modal open={open} title="Bem-vindo ao Orcadom" onClose={onClose}>
+    <Modal
+      open={visible}
+      title="Bem-vindo ao Orcadom"
+      onClose={() => {
+        setClosed(true);
+      }}
+    >
       <p className="text-sm text-ink-soft">
         Este é o espaço da casa para contas, lançamentos e o mês. Nada fica bloqueado — você pode
         explorar agora ou seguir o checklist no painel.
@@ -122,8 +109,8 @@ function WelcomeModal({ open, onClose }: { open: boolean; onClose: () => void })
       <div className="mt-5 flex justify-end">
         <Button
           onClick={() => {
-            onClose();
-            router.push('/accounts?new=1');
+            setClosed(true);
+            router.push(onCreatePath);
           }}
         >
           Criar minha primeira conta
@@ -135,12 +122,12 @@ function WelcomeModal({ open, onClose }: { open: boolean; onClose: () => void })
 
 function DeepeningSection({
   items,
-  collapsedByDefault,
+  defaultOpen,
 }: {
   items: { id: string; title: string; href: string; completed?: boolean }[];
-  collapsedByDefault: boolean;
+  defaultOpen: boolean;
 }) {
-  const [open, setOpen] = useState(!collapsedByDefault);
+  const [open, setOpen] = useState(defaultOpen);
   return (
     <div className="mt-5">
       <button
