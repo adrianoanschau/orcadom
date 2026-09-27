@@ -5,11 +5,18 @@ export {
   type UpdateAccountDto,
 } from './account.types.js';
 export {
+  changePasswordSchema,
+  dateFormatPreferenceSchema,
   localePreferenceSchema,
+  loginRemember,
   loginSchema,
   registerFormSchema,
   registerSchema,
+  toDateFormatPreference,
+  toLocalePreference,
   updateProfileSchema,
+  type ChangePasswordDto,
+  type DateFormatPreference,
   type LocalePreference,
   type LoginDto,
   type RegisterDto,

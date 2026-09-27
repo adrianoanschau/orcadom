@@ -13,7 +13,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const form = useForm<LoginDto>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: '', password: '', rememberMe: false },
+    defaultValues: { email: '', password: '', remember: false },
   });
 
   return (
@@ -55,7 +55,7 @@ export default function LoginPage() {
           <input
             type="checkbox"
             className="mt-1 size-4 shrink-0 accent-brand"
-            {...form.register('rememberMe')}
+            {...form.register('remember')}
           />
           <span>
             Lembrar login neste dispositivo

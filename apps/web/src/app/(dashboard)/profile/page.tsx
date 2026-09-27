@@ -2,7 +2,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { LocalePreference } from '@orcadom/types';
+import { toDateFormatPreference, type LocalePreference } from '@orcadom/types';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -40,7 +40,7 @@ export default function ProfilePage() {
   const [localeMessage, setLocaleMessage] = useState<string | null>(null);
   const me = useQuery({
     queryKey: ['me'],
-    queryFn: () => api<PublicUser>('/auth/me'),
+    queryFn: () => api<PublicUser>('/profile'),
   });
 
   const nameForm = useForm<NameForm>({
@@ -58,7 +58,7 @@ export default function ProfilePage() {
 
   const saveName = useMutation({
     mutationFn: (values: NameForm) =>
-      api<PublicUser>('/auth/me', { method: 'PATCH', body: JSON.stringify(values) }),
+      api<PublicUser>('/profile', { method: 'PATCH', body: JSON.stringify(values) }),
     onSuccess: async (user) => {
       setNameMessage('Nome atualizado.');
       await queryClient.invalidateQueries({ queryKey: ['me'] });
@@ -73,7 +73,7 @@ export default function ProfilePage() {
 
   const savePassword = useMutation({
     mutationFn: (values: PasswordForm) =>
-      api<PublicUser>('/auth/me', {
+      api<PublicUser>('/profile/password', {
         method: 'PATCH',
         body: JSON.stringify({
           currentPassword: values.currentPassword,
@@ -93,7 +93,10 @@ export default function ProfilePage() {
 
   const saveLocale = useMutation({
     mutationFn: (locale: LocalePreference) =>
-      api<PublicUser>('/auth/me', { method: 'PATCH', body: JSON.stringify({ locale }) }),
+      api<PublicUser>('/profile', {
+        method: 'PATCH',
+        body: JSON.stringify({ dateFormatPreference: toDateFormatPreference(locale) }),
+      }),
     onSuccess: async (user) => {
       const next = parseLocalePreference(user.locale);
       setPreference(next);

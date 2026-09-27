@@ -39,3 +39,27 @@ export function refreshTtlFor(
 export function cookieMaxAge(ttl: string, persistent: boolean): number | undefined {
   return persistent ? durationMs(ttl) : undefined;
 }
+
+export function isConsumedRefreshToken(token: {
+  revokedAt: Date | null;
+  replacedByTokenHash: string | null;
+}): boolean {
+  return Boolean(token.revokedAt ?? token.replacedByTokenHash);
+}
+
+export function clientSessionMeta(request: {
+  ip?: string;
+  headers?: Record<string, string | string[] | undefined>;
+  socket?: { remoteAddress?: string };
+}): { userAgent: string | null; ipAddress: string | null } {
+  const forwarded = headerValue(request.headers?.['x-forwarded-for']);
+  return {
+    userAgent: headerValue(request.headers?.['user-agent']),
+    ipAddress: request.ip ?? forwarded?.split(',')[0]?.trim() ?? request.socket?.remoteAddress ?? null,
+  };
+}
+
+function headerValue(value: string | string[] | undefined): string | null {
+  if (Array.isArray(value)) return value[0] ?? null;
+  return value ?? null;
+}

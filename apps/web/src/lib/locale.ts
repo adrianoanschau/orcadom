@@ -1,4 +1,9 @@
-import { localePreferenceSchema, type LocalePreference } from '@orcadom/types';
+import {
+  localePreferenceSchema,
+  toLocalePreference,
+  type DateFormatPreference,
+  type LocalePreference,
+} from '@orcadom/types';
 
 export const LOCALE_STORAGE_KEY = 'orcadom.locale';
 export const DEFAULT_LOCALE_PREFERENCE: LocalePreference = 'pt-BR';
@@ -34,6 +39,15 @@ export function setAppLocale(locale: string): void {
 export function parseLocalePreference(value: string | null | undefined): LocalePreference {
   const parsed = localePreferenceSchema.safeParse(value);
   return parsed.success ? parsed.data : DEFAULT_LOCALE_PREFERENCE;
+}
+
+export function parseDateFormatPreference(
+  value: DateFormatPreference | LocalePreference | null | undefined,
+): LocalePreference {
+  if (value === 'PT_BR' || value === 'EN_US' || value === 'SYSTEM') {
+    return toLocalePreference(value);
+  }
+  return parseLocalePreference(value);
 }
 
 export function readStoredLocale(): LocalePreference {

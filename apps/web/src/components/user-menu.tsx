@@ -25,7 +25,7 @@ export function UserMenu({
   const pathname = usePathname();
   const me = useQuery({
     queryKey: ['me'],
-    queryFn: () => api<PublicUser>('/auth/me'),
+    queryFn: () => api<PublicUser>('/profile'),
   });
   const user = me.data;
   const name = user?.name ?? 'Conta';

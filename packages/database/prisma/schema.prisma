@@ -110,22 +110,28 @@ enum AuditSource {
   SYSTEM
 }
 
-model User {
-  id           String   @id @default(uuid())
-  name         String
-  email        String   @unique
-  passwordHash String
-  locale       String   @default("pt-BR")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+enum DateFormatPreference {
+  PT_BR
+  EN_US
+  SYSTEM
+}
 
-  memberships      HouseholdMember[]
-  transactions     Transaction[]
-  emailImportLogs  EmailImportLog[]
-  notifications    Notification[]
-  auditLogs        AuditLog[]
-  refreshSessions  RefreshSession[]
-  onboardingState  UserOnboardingState?
+model User {
+  id                   String                @id @default(uuid())
+  name                 String
+  email                String                @unique
+  passwordHash         String
+  dateFormatPreference DateFormatPreference  @default(SYSTEM)
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+
+  memberships     HouseholdMember[]
+  transactions    Transaction[]
+  emailImportLogs EmailImportLog[]
+  notifications   Notification[]
+  auditLogs       AuditLog[]
+  refreshTokens   RefreshToken[]
+  onboardingState UserOnboardingState?
 
   @@map("users")
 }
@@ -141,20 +147,24 @@ model UserOnboardingState {
   @@map("user_onboarding_states")
 }
 
-model RefreshSession {
-  id        String    @id @default(uuid())
-  tokenHash String    @unique
-  remember  Boolean   @default(false)
-  expiresAt DateTime
-  revokedAt DateTime?
-  createdAt DateTime  @default(now())
+model RefreshToken {
+  id                  String    @id @default(uuid())
+  tokenHash           String    @unique
+  remember            Boolean   @default(false)
+  expiresAt           DateTime
+  revokedAt           DateTime?
+  replacedByTokenHash String?
+  userAgent           String?
+  ipAddress           String?
+  createdAt           DateTime  @default(now())
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
   @@index([userId, revokedAt])
   @@index([expiresAt])
-  @@map("refresh_sessions")
+  @@map("refresh_tokens")
 }
 
 model Household {

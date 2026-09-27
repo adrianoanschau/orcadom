@@ -24,6 +24,7 @@ export function setActiveHouseholdId(id: string | null): void {
 
 function needsHouseholdHeader(path: string): boolean {
   if (path.startsWith('/auth/')) return false;
+  if (path === '/profile' || path.startsWith('/profile/')) return false;
   if (path === '/households' || path.startsWith('/households?')) return false;
   if (path.startsWith('/households/invites/')) return false;
   if (path.startsWith('/notifications')) return false;

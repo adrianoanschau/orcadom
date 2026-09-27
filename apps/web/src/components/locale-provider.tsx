@@ -7,7 +7,7 @@ import type { LocalePreference } from '@orcadom/types';
 import { api } from '@/lib/api';
 import {
   DEFAULT_LOCALE_PREFERENCE,
-  parseLocalePreference,
+  parseDateFormatPreference,
   readStoredLocale,
   resolveLocale,
   setAppLocale,
@@ -29,7 +29,7 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
   const [preference, setPreferenceState] = useState<LocalePreference>(DEFAULT_LOCALE_PREFERENCE);
   const me = useQuery({
     queryKey: ['me'],
-    queryFn: () => api<PublicUser>('/auth/me'),
+    queryFn: () => api<PublicUser>('/profile'),
     enabled: !isAuthPage,
     retry: false,
   });
@@ -39,12 +39,12 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (me.data?.locale) {
-      const next = parseLocalePreference(me.data.locale);
+    if (me.data?.dateFormatPreference) {
+      const next = parseDateFormatPreference(me.data.dateFormatPreference);
       setPreferenceState(next);
       storeLocale(next);
     }
-  }, [me.data?.locale]);
+  }, [me.data?.dateFormatPreference]);
 
   const locale = resolveLocale(preference);
 

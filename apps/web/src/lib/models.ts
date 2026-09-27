@@ -4,6 +4,7 @@ export interface PublicUser {
   id: string;
   name: string;
   email: string;
+  dateFormatPreference: 'PT_BR' | 'EN_US' | 'SYSTEM';
   locale: string;
   createdAt: string;
 }

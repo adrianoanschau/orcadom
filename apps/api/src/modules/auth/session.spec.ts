@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  clientSessionMeta,
   cookieMaxAge,
   durationMs,
   hashRefreshToken,
+  isConsumedRefreshToken,
   normalizeEmail,
   refreshTtlFor,
 } from './session.js';
@@ -43,5 +45,27 @@ describe('política de sessão', () => {
   it('só persiste cookie quando lembrar está ativo', () => {
     expect(cookieMaxAge('12h', false)).toBeUndefined();
     expect(cookieMaxAge('30d', true)).toBe(30 * 86_400_000);
+  });
+});
+
+describe('isConsumedRefreshToken', () => {
+  it('trata rotação e revogação como reuso', () => {
+    expect(isConsumedRefreshToken({ revokedAt: null, replacedByTokenHash: null })).toBe(false);
+    expect(
+      isConsumedRefreshToken({ revokedAt: new Date(), replacedByTokenHash: null }),
+    ).toBe(true);
+    expect(
+      isConsumedRefreshToken({ revokedAt: null, replacedByTokenHash: 'next-hash' }),
+    ).toBe(true);
+  });
+});
+
+describe('clientSessionMeta', () => {
+  it('lê user-agent e o primeiro IP do forwarded', () => {
+    expect(
+      clientSessionMeta({
+        headers: { 'user-agent': 'OrcadomTest', 'x-forwarded-for': '1.1.1.1, 2.2.2.2' },
+      }),
+    ).toEqual({ userAgent: 'OrcadomTest', ipAddress: '1.1.1.1' });
   });
 });
