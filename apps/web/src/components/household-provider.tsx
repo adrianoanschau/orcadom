@@ -26,10 +26,13 @@ export function HouseholdProvider({ children }: { children: ReactNode }) {
   const household =
     households.find((item) => item.id === selectedId) ?? households[0] ?? null;
 
+  if (household && getActiveHouseholdId() !== household.id) {
+    setActiveHouseholdId(household.id);
+  }
+
   useEffect(() => {
     if (household && household.id !== selectedId) {
       setSelectedId(household.id);
-      setActiveHouseholdId(household.id);
     }
   }, [household, selectedId]);
 
