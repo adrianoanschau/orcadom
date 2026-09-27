@@ -171,26 +171,26 @@ notificações é necessária.
 
 ### Fase 1 — Modelagem e cálculo
 
-- [x] Migration com `SavingsGoal` e `SavingsGoalStatus`.
-- [x] Função `getGoalProgress()`, com testes cobrindo: meta sem nenhuma
+- [ ] Migration com `SavingsGoal` e `SavingsGoalStatus`.
+- [ ] Função `getGoalProgress()`, com testes cobrindo: meta sem nenhuma
       transferência ainda, meta com entradas e saídas, meta que já
       atingiu o alvo.
-- [x] Lógica de conclusão automática (`COMPLETED` + emissão de
+- [ ] Lógica de conclusão automática (`COMPLETED` + emissão de
       `savings-goal.completed`) acoplada ao fluxo de criação de
       `TRANSFER` já existente no módulo `transactions`.
 
 ### Fase 2 — API
 
-- [x] `POST /savings-goals`, `GET /savings-goals`,
+- [ ] `POST /savings-goals`, `GET /savings-goals`,
       `GET /savings-goals/:id` (com histórico).
-- [x] `PATCH /savings-goals/:id`, `PATCH /savings-goals/:id/abandon`,
+- [ ] `PATCH /savings-goals/:id`, `PATCH /savings-goals/:id/abandon`,
       `DELETE /savings-goals/:id`.
 
 ### Fase 3 — Frontend
 
-- [x] Tela `/savings-goals` com lista e barra de progresso reaproveitada.
-- [x] Detalhe da meta com linha do tempo de transferências.
-- [x] Card "Metas de economia" no dashboard.
+- [ ] Tela `/savings-goals` com lista e barra de progresso reaproveitada.
+- [ ] Detalhe da meta com linha do tempo de transferências.
+- [ ] Card "Metas de economia" no dashboard.
 
 ## 8. Riscos e pontos de atenção
 

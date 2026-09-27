@@ -2,8 +2,8 @@
 
 > Documento de processo, não de feature — mas entra no mesmo backlog
 > porque a rotina descrita aqui só faz sentido operar de verdade depois
-> que **CI/CD** (item 7 do [roadmap para a 1.0](./15-roadmap-v1.md)) e
-> **Ambiente de Staging** (item 8) existirem. Até lá, a numeração de
+> que **CI/CD** (item 9 do [roadmap para a 1.0](./15-roadmap-v1.md)) e
+> **Ambiente de Staging** (item 10) existirem. Até lá, a numeração de
 > versão pode ser adotada manualmente, sem toda a automação.
 
 ## 1. Objetivo
@@ -17,11 +17,11 @@ pode quebrar), em vez de ser incrementado de forma arbitrária.
 
 Formato `MAJOR.MINOR.PATCH` (ex: `1.4.2`):
 
-| Posição | Incrementa quando                                                                                                                                                                                                                | Exemplo no contexto do Orcadom                                                                                           |
-| ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Posição | Incrementa quando | Exemplo no contexto do Orcadom |
+|---|---|---|
 | `MAJOR` | Mudança que quebra compatibilidade — exige ação manual de quem está atualizando (migration não-automática, contrato de API removido/alterado de forma incompatível, mudança que um cliente externo da API precisaria se adaptar) | Remover um endpoint antigo, mudar o formato de um DTO de forma incompatível com o que o frontend/app mobile atual espera |
-| `MINOR` | Nova funcionalidade, compatível com o que já existia                                                                                                                                                                             | Qualquer uma das features do roadmap (Metas de Economia, Relatórios, Open Finance...)                                    |
-| `PATCH` | Correção de bug ou ajuste interno, sem mudança de comportamento visível nem nova funcionalidade                                                                                                                                  | Corrigir cálculo errado de saldo, ajustar performance de uma query, atualizar dependência sem efeito colateral           |
+| `MINOR` | Nova funcionalidade, compatível com o que já existia | Qualquer uma das features do roadmap (Metas de Economia, Relatórios, Open Finance...) |
+| `PATCH` | Correção de bug ou ajuste interno, sem mudança de comportamento visível nem nova funcionalidade | Corrigir cálculo errado de saldo, ajustar performance de uma query, atualizar dependência sem efeito colateral |
 
 ### 2.1 — A regra especial da versão `0.x.y`
 
@@ -36,7 +36,7 @@ schema mais profunda do projeto até aqui, **não precisa** forçar a versão
 seguindo a régua da seção 4.
 
 `1.0.0` é reservado para o marco já definido em `15-roadmap-v1.md`: quando
-os 12 itens do roadmap estiverem completos, o projeto sai do "em
+os 14 itens do roadmap estiverem completos, o projeto sai do "em
 desenvolvimento inicial" e passa a valer a disciplina completa de SemVer
 (seção 2, sem a exceção da 2.1) — a partir daí, sim, uma mudança
 incompatível exige `MAJOR`.
@@ -59,26 +59,27 @@ Retroativo (o que já foi documentado até aqui) e prospectivo (o roadmap de
 durante a implementação, mas a régua de incremento (feature = `MINOR`)
 não muda:
 
-| Versão      | Conteúdo                                                                           |
-| ----------- | ---------------------------------------------------------------------------------- |
-| `0.1.0`     | MVP (`00` a `06`): auth, contas, categorias, transações, dashboard                 |
-| `0.2.0`     | Importação de Extratos + Memória de Categorização (`07`)                           |
-| `0.3.0`     | Integração com Email via n8n (`08`)                                                |
-| `0.4.0`     | Orçamentos por Categoria (`09`)                                                    |
-| `0.5.0`     | Notificações (`10`)                                                                |
-| `0.6.0`     | Parcelamento de Compras (`11`)                                                     |
-| `0.7.0`     | Transações Recorrentes (`12`)                                                      |
-| `0.8.0`     | Multiusuário/Família (`13`)                                                        |
-| `0.9.0`     | Auditoria e Rastreabilidade (`14`)                                                 |
-| `0.10.0`    | Revisão de Design, UX e Responsividade (`18`)                                      |
-| `0.11.0`    | Metas de Economia                                                                  |
-| `0.12.0`    | Exportar Relatórios                                                                |
-| `0.13.0`    | App Mobile como PWA                                                                |
-| `0.14.0`    | Permissão Granular por Conta                                                       |
-| —           | Observabilidade, Backup, CI/CD, Staging, Testes E2E, Rate Limiting — ver seção 4.1 |
-| `0.15.0`    | Integração Open Finance                                                            |
-| `0.16.0`    | Insights Automáticos                                                               |
-| **`1.0.0`** | **Marco de conclusão do roadmap — release estável**                                |
+| Versão | Conteúdo |
+|---|---|
+| `0.1.0` | MVP (`00` a `06`): auth, contas, categorias, transações, dashboard |
+| `0.2.0` | Importação de Extratos + Memória de Categorização (`07`) |
+| `0.3.0` | Integração com Email via n8n (`08`) |
+| `0.4.0` | Orçamentos por Categoria (`09`) |
+| `0.5.0` | Notificações (`10`) |
+| `0.6.0` | Parcelamento de Compras (`11`) |
+| `0.7.0` | Transações Recorrentes (`12`) |
+| `0.8.0` | Multiusuário/Família (`13`) |
+| `0.9.0` | Auditoria e Rastreabilidade (`14`) |
+| `0.10.0` | Revisão de Design de Interface e UX |
+| `0.11.0` | Metas de Economia |
+| `0.12.0` | Onboarding para Novos Usuários |
+| `0.13.0` | Exportar Relatórios |
+| `0.14.0` | App Mobile como PWA |
+| `0.15.0` | Permissão Granular por Conta |
+| — | Observabilidade, Backup, CI/CD, Staging, Testes E2E, Rate Limiting — ver seção 4.1 |
+| `0.16.0` | Integração Open Finance |
+| `0.17.0` | Insights Automáticos |
+| **`1.0.0`** | **Marco de conclusão do roadmap — release estável** |
 
 ### 4.1 — Itens de infraestrutura não incrementam `MINOR`
 
@@ -107,7 +108,7 @@ pnpm changeset
 
 Isso gera um arquivo `.changeset/*.md` versionado junto do código, que
 descreve a mudança — e é obrigatório em todo PR que altera comportamento
-do produto (enforçado no CI, item 7 do roadmap: um PR sem changeset e sem
+do produto (enforçado no CI, item 9 do roadmap: um PR sem changeset e sem
 label `no-changeset` falha o pipeline).
 
 ### 5.2 — Fluxo completo
@@ -140,7 +141,7 @@ Merge do Release PR → CI:
   3. publica a mesma imagem em staging
         │
         ▼
-Validação manual em staging (ambiente do item 8 do roadmap)
+Validação manual em staging (ambiente do item 10 do roadmap)
         │
         ▼
 Promoção da MESMA imagem (não rebuild) de staging para produção
@@ -158,7 +159,7 @@ build era outra".
 - **`CHANGELOG.md`:** gerado automaticamente a partir dos changesets — uma
   entrada por versão, com a descrição que cada changeset registrou.
 - **Branch principal (`main`) é sempre deployável.** Nenhum PR é mergeado
-  em estado quebrado — é o que o CI (item 7) existe para garantir antes
+  em estado quebrado — é o que o CI (item 9) existe para garantir antes
   de qualquer changeset ser processado.
 - **Pré-lançamentos (opcional, a partir de `1.0.0`):** para mudanças de
   maior risco (ex: uma futura integração Open Finance), o fluxo pode
@@ -176,13 +177,13 @@ build era outra".
 - [ ] Criar `CHANGELOG.md` inicial, reconstruído a partir dos documentos
       de feature já existentes (`07` a `14`), como ponto de partida.
 
-### Fase 2 — Automação (junto com CI/CD, item 7 do roadmap)
+### Fase 2 — Automação (junto com CI/CD, item 9 do roadmap)
 
 - [ ] Gate de CI exigindo changeset em todo PR de feature.
 - [ ] Automação do Release PR (ação do GitHub, ex:
       `changesets/action`).
 - [ ] Pipeline de build único + promoção de imagem entre staging e
-      produção (depende do item 8 do roadmap já existir).
+      produção (depende do item 10 do roadmap já existir).
 
 ### Fase 3 — Disciplina pós-1.0
 
@@ -205,6 +206,6 @@ build era outra".
   projeto de instância única/uso pessoal-familiar como o Orcadom é hoje —
   se um dia existir um app mobile nativo com ciclo de deploy
   **independente** do backend (fora do escopo atual, que optou por PWA no
-  item 3 do roadmap justamente para evitar esse problema), a disciplina de
+  item 5 do roadmap justamente para evitar esse problema), a disciplina de
   `MAJOR` para mudança de contrato de API precisaria começar a valer bem
   antes de `1.0.0`.

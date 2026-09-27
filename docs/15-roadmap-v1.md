@@ -13,7 +13,7 @@ produção enquanto todas as features de negócio são construídas primeiro.
 
 ---
 
-## 1. Revisão de Design de Interface e UX
+## 1. Revisão de Design de Interface e UX — ✅ já implementado
 
 **Objetivo:** revisar, de forma holística, tudo que foi construído desde
 o MVP — consistência visual, arquitetura de navegação e usabilidade dos
@@ -40,56 +40,54 @@ base não revisada.
 
 ---
 
-## 2. Onboarding para Novos Usuários
-
-**Objetivo:** orientar quem acabou de criar conta pelos primeiros passos
-reais de uso — criar a primeira conta financeira, lançar a primeira
-transação, e opcionalmente configurar orçamento ou importação por email —
-em vez de deixar a pessoa sozinha diante de um dashboard vazio.
-
-**Por que logo depois da revisão de design:** construir um roteiro guiado
-**antes** da revisão de IA/navegação (item 1) arriscaria guiar o usuário
-por uma interface prestes a mudar de estrutura — o onboarding aponta para
-telas e fluxos específicos, então precisa de uma base já estável.
-Colocá-lo aqui, antes de Metas, Relatórios e PWA, também evita ter que
-voltar e estender o roteiro a cada nova feature de produto que entrar
-depois — melhor consolidar o "essencial" do onboarding primeiro, e tratar
-cada feature nova como adição pontual ao roteiro, não como retrabalho
-dele.
-
-**Escopo aproximado:**
-- Sequência guiada (checklist ou wizard) cobrindo os passos essenciais:
-  criar a primeira conta, usar/criar uma categoria, lançar a primeira
-  transação — com passos opcionais de aprofundamento (configurar alias de
-  importação por email, definir o primeiro orçamento).
-- Estado de progresso persistido por usuário, para não repetir a cada
-  login e permitir retomar de onde parou.
-- Possibilidade de pular a qualquer momento, sem bloquear o uso do app —
-  onboarding orienta, não impede.
-- Tratamento diferenciado para quem cria um household novo (`13`) vs. quem
-  é convidado para um household já existente — o segundo caso não precisa
-  passar pelos mesmos passos de configuração inicial.
-
----
-
-## 3. Metas de Economia
+## 2. Metas de Economia — ✅ já implementado
 
 **Objetivo:** permitir que o usuário defina uma meta de valor a guardar
 até uma data (ex: "R$ 5.000 até dezembro"), com acompanhamento de
 progresso. Detalhado em [`19-metas-economia.md`](./19-metas-economia.md).
 
-**Por que agora:** é o complemento natural de Orçamento (`09`) — enquanto
-orçamento é "não gastar mais que X", meta é "guardar pelo menos Y". Reusa
-boa parte do raciocínio de progresso e visualização já validado ali — e
-já se beneficia diretamente da revisão de design (item 1) e do onboarding
-(item 2), em vez de herdar inconsistências que ainda não tinham sido
-corrigidas.
+**Por que nesta posição:** implementado logo após a revisão de design —
+na prática, antes do onboarding (item 3), invertendo a ordem
+originalmente cogitada. Não há problema nisso: a única dependência real
+de Metas era a base visual já estável (item 1), não o onboarding. O plano
+de onboarding (`20-onboarding.md`) já foi ajustado para incluir Metas como
+um dos passos de aprofundamento do roteiro, exatamente por já existir
+quando o onboarding começou a ser desenhado.
 
 **Escopo aproximado:**
 - Model `SavingsGoal` (valor alvo, prazo, conta de destino).
 - Cálculo de progresso a partir de transferências para a conta vinculada.
 - Tela de acompanhamento, reaproveitando componentes visuais de barra de
   progresso já existentes (orçamento, parcelamento).
+
+---
+
+## 3. Onboarding para Novos Usuários
+
+**Objetivo:** orientar quem acabou de criar conta pelos primeiros passos
+reais de uso — criar a primeira conta financeira, lançar a primeira
+transação, e opcionalmente configurar orçamento, meta de economia ou
+importação por email — em vez de deixar a pessoa sozinha diante de um
+dashboard vazio. Detalhado em [`20-onboarding.md`](./20-onboarding.md).
+
+**Por que nesta posição:** depende da base visual e de navegação já
+estarem estáveis (item 1) — um roteiro guiado aponta para telas
+específicas, então precisa de uma interface que não vá mudar de estrutura
+logo em seguida. Como Metas de Economia (item 2) já estava implementada
+quando chegou a vez de desenhar o onboarding, o roteiro já nasce
+incorporando-a como um dos passos de aprofundamento, em vez de precisar de
+uma revisão posterior para incluí-la.
+
+**Escopo aproximado:**
+- Checklist de progresso (não wizard bloqueante) cobrindo os passos
+  essenciais: criar a primeira conta, lançar a primeira transação.
+- Passos de aprofundamento opcionais: orçamento, meta de economia, alias
+  de importação por email, convite de membro para o household.
+- Estado de dispensa (`dismissed`) persistido por usuário — progresso dos
+  passos em si é calculado a partir dos dados reais já existentes, não de
+  uma tabela paralela de "concluído".
+- Roteiro diferente para quem cria um household novo vs. quem é convidado
+  para um já existente.
 
 ---
 
@@ -321,12 +319,14 @@ completo e menos dependente de o usuário lembrar de encaminhar extrato.
 Revisão de Design de Interface e UX ─── primeiro: paga dívida de design
         │                                antes de expandir superfície de produto
         ▼
-Onboarding para Novos Usuários ──────── depende da IA/navegação já revisada
+Metas de Economia ─────────────────── implementado logo em seguida
         │
         ▼
-Metas de Economia ──────────────┐
-Exportar Relatórios ────────────┤ (produto — pouca dependência de infra)
-App Mobile (PWA) ────────────────┤
+Onboarding para Novos Usuários ──────── depende da IA/navegação já revisada;
+        │                                já incorpora Metas como passo do roteiro
+        ▼
+Exportar Relatórios ────────────┐
+App Mobile (PWA) ────────────────┤ (produto — pouca dependência de infra)
 Permissão Granular por Conta ───┘
 
 Observabilidade ─────┐
