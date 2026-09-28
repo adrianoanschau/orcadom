@@ -1,11 +1,12 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { HouseholdRole, PostingStatus, TransactionType, runWithActor } from '@orcadom/database';
+import { HouseholdRole, PostingStatus, TransactionType } from '@orcadom/database';
 import type {
   CreateRecurringTransactionDto,
   UpdateRecurringTransactionDto,
 } from '@orcadom/types';
 import { accessibleAccountWhere, assertAccountAccessible } from '../../common/account-access.js';
+import { captureJobItemError, runObservedJob } from '../../common/observability/run-observed-job.js';
 import { applyBalance } from '../../common/balance.js';
 import { moneyString, toDecimal } from '../../common/money.js';
 import { PrismaService } from '../../common/prisma.service.js';
@@ -123,7 +124,7 @@ export class RecurringTransactionsService {
 
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT, { timeZone: 'America/Sao_Paulo' })
   async generateDueRecurringOccurrences(): Promise<number> {
-    return runWithActor({ userId: null, householdId: null, source: 'CRON_RECURRING' }, async () => {
+    return runObservedJob('recurring_generate', 'CRON_RECURRING', async () => {
       const horizon = recurrenceHorizon();
       const active = await this.prisma.client.recurringTransaction.findMany({
         where: {
@@ -134,7 +135,11 @@ export class RecurringTransactionsService {
       });
       let created = 0;
       for (const row of active) {
-        created += await this.generateFor(row.id);
+        try {
+          created += await this.generateFor(row.id);
+        } catch (error) {
+          captureJobItemError('recurring_generate', error, row.id);
+        }
       }
       return created;
     });
@@ -189,7 +194,7 @@ export class RecurringTransactionsService {
         }
       } catch (error) {
         if (isUniqueViolation(error)) continue;
-        throw error;
+        captureJobItemError('recurring_generate', error, recurring.id);
       }
     }
     return created;

@@ -1,10 +1,11 @@
 import { HttpException, HttpStatus, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { Prisma, ReportFormat, ReportStatus, runWithActor, TransactionType } from '@orcadom/database';
+import { Prisma, ReportFormat, ReportStatus, TransactionType } from '@orcadom/database';
 import { reportFiltersSchema, type CreateReportDto, type ReportFilters } from '@orcadom/types';
 import { assertAccountAccessible, getAccessibleAccountIds } from '../../common/account-access.js';
 import { moneyString } from '../../common/money.js';
+import { runObservedJob } from '../../common/observability/run-observed-job.js';
 import { PrismaService } from '../../common/prisma.service.js';
 import { buildTransactionListWhere } from '../../common/transaction-filters.js';
 import type { ReportRow } from './report-document.js';
@@ -190,7 +191,7 @@ export class ReportsService {
 
   @Cron(CronExpression.EVERY_HOUR, { timeZone: 'America/Sao_Paulo' })
   async cleanupExpired(): Promise<number> {
-    return runWithActor({ userId: null, householdId: null, source: 'SYSTEM' }, async () => {
+    return runObservedJob('report_cleanup', 'SYSTEM', async () => {
       const expired = await this.prisma.client.reportRequest.findMany({
         where: { expiresAt: { lte: new Date() }, filePath: { not: null } },
         select: { id: true, filePath: true },
@@ -211,7 +212,7 @@ export class ReportsService {
 
   @Cron(CronExpression.EVERY_10_MINUTES, { timeZone: 'America/Sao_Paulo' })
   async resumeStuck(): Promise<number> {
-    return runWithActor({ userId: null, householdId: null, source: 'SYSTEM' }, async () => {
+    return runObservedJob('report_resume', 'SYSTEM', async () => {
       const cutoff = new Date(Date.now() - REPORT_STUCK_MS);
       const stuck = await this.prisma.client.reportRequest.findMany({
         where: {

@@ -152,7 +152,7 @@ necessidade real (ou não) dessa granularidade puder ser confirmada.
 
 ---
 
-## 7. Observabilidade
+## 7. Observabilidade — ✅ já implementado
 
 **Objetivo:** logs estruturados, métricas e rastreamento de erro em
 produção — visibilidade sobre o que a aplicação está fazendo sem depender
@@ -168,6 +168,8 @@ empilhando mais features automatizadas.
 - Métricas básicas (requisições, erros, duração de jobs).
 - Rastreamento de erro (ex: Sentry ou equivalente) capturando exceções não
   tratadas, incluindo as dos jobs agendados.
+
+Detalhado em [`26-observabilidade.md`](./26-observabilidade.md).
 
 ---
 

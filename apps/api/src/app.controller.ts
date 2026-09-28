@@ -1,6 +1,7 @@
-import { Controller, Get } from '@nestjs/common';
-import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import { Controller, Get, Header } from '@nestjs/common';
+import { ApiOkResponse, ApiProduces, ApiTags } from '@nestjs/swagger';
 import { Public } from './common/decorators/public.decorator.js';
+import { metricsRegistry } from './common/observability/metrics.js';
 
 interface ApiInfo {
   name: string;
@@ -28,5 +29,13 @@ export class AppController {
   @ApiOkResponse({ description: 'Informações da API' })
   api(): ApiInfo {
     return info;
+  }
+
+  @Get('metrics')
+  @Header('Content-Type', metricsRegistry.contentType)
+  @ApiProduces(metricsRegistry.contentType)
+  @ApiOkResponse({ description: 'Métricas Prometheus' })
+  metrics(): Promise<string> {
+    return metricsRegistry.metrics();
   }
 }

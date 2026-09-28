@@ -11,6 +11,7 @@ services:
       - '${POSTGRES_PORT:-5432}:5432'
     volumes:
       - orcadom_pgdata:/var/lib/postgresql/data
+      - ./infra/postgres/init-observability.sql:/docker-entrypoint-initdb.d/01-observability.sql:ro
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-orcadom} -d ${POSTGRES_DB:-orcadom_db}']
       interval: 5s
@@ -35,7 +36,7 @@ services:
       N8N_BLOCK_ENV_ACCESS_IN_NODE: 'false'
       N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: 'false'
     ports:
-      - "${N8N_PORT:-5678}:5678"
+      - '${N8N_PORT:-5678}:5678'
     extra_hosts:
       - 'host.docker.internal:host-gateway'
     volumes:
@@ -44,8 +45,126 @@ services:
       postgres:
         condition: service_healthy
 
+  redis:
+    image: redis:7-alpine
+    container_name: orcadom_redis
+    profiles: ['observability']
+    restart: unless-stopped
+
+  glitchtip-createdb:
+    image: postgres:16-alpine
+    container_name: orcadom_glitchtip_createdb
+    profiles: ['observability']
+    restart: 'no'
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:-orcadom_dev_password}
+      POSTGRES_USER: ${POSTGRES_USER:-orcadom}
+    command:
+      - sh
+      - -c
+      - |
+        until pg_isready -h postgres -U "$$POSTGRES_USER"; do sleep 1; done
+        psql -h postgres -U "$$POSTGRES_USER" -d postgres -tc "SELECT 1 FROM pg_database WHERE datname = 'glitchtip'" | grep -q 1 \
+          || psql -h postgres -U "$$POSTGRES_USER" -d postgres -c "CREATE DATABASE glitchtip"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  glitchtip-migrate:
+    image: glitchtip/glitchtip:latest
+    container_name: orcadom_glitchtip_migrate
+    profiles: ['observability']
+    restart: 'no'
+    command: ./manage.py migrate
+    environment: &glitchtip-env
+      DATABASE_URL: postgres://${POSTGRES_USER:-orcadom}:${POSTGRES_PASSWORD:-orcadom_dev_password}@postgres:5432/glitchtip
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: ${GLITCHTIP_SECRET_KEY:-troque_este_valor}
+      PORT: '8000'
+      EMAIL_URL: consolemail://
+      GLITCHTIP_DOMAIN: http://localhost:${GLITCHTIP_PORT:-8000}
+      DEFAULT_FROM_EMAIL: glitchtip@localhost
+      CELERY_WORKER_AUTOSCALE: '1,1'
+    depends_on:
+      glitchtip-createdb:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
+
+  glitchtip:
+    image: glitchtip/glitchtip:latest
+    container_name: orcadom_glitchtip
+    profiles: ['observability']
+    restart: unless-stopped
+    ports:
+      - '${GLITCHTIP_PORT:-8000}:8000'
+    environment: *glitchtip-env
+    volumes:
+      - orcadom_glitchtip_uploads:/code/uploads
+    depends_on:
+      glitchtip-migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
+
+  glitchtip-worker:
+    image: glitchtip/glitchtip:latest
+    container_name: orcadom_glitchtip_worker
+    profiles: ['observability']
+    restart: unless-stopped
+    command: ./bin/run-celery-with-beat.sh
+    environment: *glitchtip-env
+    volumes:
+      - orcadom_glitchtip_uploads:/code/uploads
+    depends_on:
+      glitchtip-migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    container_name: orcadom_prometheus
+    profiles: ['observability']
+    restart: unless-stopped
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+    ports:
+      - '${PROMETHEUS_PORT:-9090}:9090'
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - orcadom_prometheus_data:/prometheus
+
+  grafana:
+    image: grafana/grafana:11.5.2
+    container_name: orcadom_grafana
+    profiles: ['observability']
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+    ports:
+      - '${GRAFANA_PORT:-3001}:3000'
+    volumes:
+      - orcadom_grafana_data:/var/lib/grafana
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+
 volumes:
   orcadom_pgdata:
     name: orcadom_pgdata
   orcadom_n8n_data:
     name: orcadom_n8n_data
+  orcadom_glitchtip_uploads:
+    name: orcadom_glitchtip_uploads
+  orcadom_prometheus_data:
+    name: orcadom_prometheus_data
+  orcadom_grafana_data:
+    name: orcadom_grafana_data

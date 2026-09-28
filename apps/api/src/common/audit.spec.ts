@@ -5,6 +5,7 @@ import {
   formatAuditHeadline,
   runWithActor,
   sanitize,
+  SENSITIVE_FIELDS,
 } from '@orcadom/database';
 
 describe('sanitize', () => {
@@ -14,11 +15,14 @@ describe('sanitize', () => {
       name: 'Nubank',
       passwordHash: 'secret',
       token: 'abc',
+      tokenHash: 'hash',
       amount: { toFixed: (digits: number) => (12.3).toFixed(digits) },
     });
     expect(result).toMatchObject({ id: 'acc-1', name: 'Nubank', amount: '12.30' });
     expect(result).not.toHaveProperty('passwordHash');
     expect(result).not.toHaveProperty('token');
+    expect(result).not.toHaveProperty('tokenHash');
+    expect(SENSITIVE_FIELDS.has('tokenHash')).toBe(true);
   });
 });
 
@@ -61,7 +65,9 @@ describe('formatAuditChanges', () => {
 describe('captureAuditWrite', () => {
   it('captura create mesmo quando a escrita está dentro de uma transação', async () => {
     const logs: Record<string, unknown>[] = [];
-    await runWithActor({ userId: 'user-1', householdId: 'house-1', source: 'USER' }, async () => {
+    await runWithActor(
+      { userId: 'user-1', householdId: 'house-1', source: 'USER', requestId: 'req-1' },
+      async () => {
       await captureAuditWrite({
         model: 'Transaction',
         operation: 'create',
@@ -94,7 +100,9 @@ describe('captureAuditWrite', () => {
 
   it('carrega o before em update e não atribui ator em job de cron', async () => {
     const logs: Record<string, unknown>[] = [];
-    await runWithActor({ userId: null, householdId: 'house-1', source: 'CRON_INSTALLMENT' }, async () => {
+    await runWithActor(
+      { userId: null, householdId: 'house-1', source: 'CRON_INSTALLMENT', requestId: 'req-2' },
+      async () => {
       await captureAuditWrite({
         model: 'Transaction',
         operation: 'update',

@@ -2,74 +2,45 @@
 
 ## Serviços
 
-| Serviço    | Imagem               | Porta padrão | Função                                            |
-| ---------- | -------------------- | ------------ | ------------------------------------------------- |
-| `postgres` | `postgres:16-alpine` | 5432         | Banco de dados principal                          |
+| Serviço      | Imagem                | Porta padrão | Função                                         |
+| ------------ | --------------------- | ------------ | ---------------------------------------------- |
+| `postgres`   | `postgres:16-alpine`  | 5432         | Banco de dados principal                       |
+| `n8n`        | `n8nio/n8n`           | 5678         | Workflows de email (importação e notificações) |
+| `redis`      | `redis:7-alpine`      | (interno)    | Fila do GlitchTip — profile `observability`    |
+| `glitchtip`  | `glitchtip/glitchtip` | 8000         | Rastreamento de erro — profile `observability` |
+| `prometheus` | `prom/prometheus`     | 9090         | Scrape de `/metrics` — profile `observability` |
+| `grafana`    | `grafana/grafana`     | 3001         | Painel das métricas — profile `observability`  |
 
-Nenhum outro serviço é necessário para o MVP. Redis, filas ou serviços de
-cache não têm uso justificado no escopo atual — serão avaliados apenas se
-surgir uma necessidade concreta (ex: cache do dashboard sob alta carga,
-filas para importação de extrato bancário no backlog futuro).
+`pnpm docker:up` sobe só Postgres e n8n. Redis, GlitchTip, Prometheus e
+Grafana entram com `pnpm obs:up` (profile `observability`). Detalhes de
+DSN, portas e primeiro uso estão em [`26-observabilidade.md`](./26-observabilidade.md).
+
+Redis no compose existe **somente** para o GlitchTip. Não há cache de
+aplicação nem fila de importação neste estágio.
 
 ## Arquivo `docker-compose.yml`
 
-```yaml
-services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: orcadom_postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-orcadom}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-orcadom_dev_password}
-      POSTGRES_DB: ${POSTGRES_DB:-orcadom_db}
-    ports:
-      - '${POSTGRES_PORT:-5432}:5432'
-    volumes:
-      - orcadom_pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-orcadom} -d ${POSTGRES_DB:-orcadom_db}']
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
-volumes:
-  orcadom_pgdata:
-    name: orcadom_pgdata
-```
+O arquivo na raiz do repositório é a fonte de verdade. Postgres e n8n
+ficam sempre disponíveis; os serviços de observabilidade usam
+`profiles: [observability]`.
 
 ## Variáveis de ambiente (`.env`)
 
-```env
-# Docker / Postgres
-POSTGRES_USER=orcadom
-POSTGRES_PASSWORD=orcadom_dev_password
-POSTGRES_DB=orcadom_db
-POSTGRES_PORT=5432
-
-# Usada pelo Prisma e pela API
-DATABASE_URL="postgresql://orcadom:orcadom_dev_password@localhost:5432/orcadom_db?schema=public"
-
-# Auth
-JWT_ACCESS_SECRET=troque_este_valor_em_producao
-JWT_REFRESH_SECRET=troque_este_outro_valor_em_producao
-JWT_ACCESS_EXPIRATION=15m
-JWT_REFRESH_EXPIRATION=12h
-JWT_REFRESH_REMEMBER_EXPIRATION=30d
-
-# Frontend
-NEXT_PUBLIC_API_URL=http://localhost:3001
-```
+Copie `.env.example`. Além de Postgres, auth, n8n e VAPID, a
+observabilidade usa `LOG_LEVEL`, `SENTRY_DSN`, `GLITCHTIP_*`,
+`PROMETHEUS_PORT` e `GRAFANA_*`.
 
 ## Comandos úteis
 
-| Comando                           | Efeito                                                   |
-| --------------------------------- | -------------------------------------------------------- |
-| `docker compose up -d`            | Sobe o Postgres em background                            |
-| `docker compose up -d postgres`   | Sobe só o Postgres                                       |
-| `docker compose down`             | Para e remove os containers (mantém o volume)            |
-| `docker compose down -v`          | Para os containers **e apaga o volume** (perde os dados) |
-| `docker compose logs -f postgres` | Acompanha os logs do banco                               |
+| Comando                                        | Efeito                                                     |
+| ---------------------------------------------- | ---------------------------------------------------------- |
+| `pnpm db:up` / `docker compose up -d postgres` | Sobe só o Postgres                                         |
+| `pnpm docker:up`                               | Sobe Postgres e n8n                                        |
+| `pnpm obs:up`                                  | Inclui Redis, GlitchTip, Prometheus e Grafana              |
+| `pnpm obs:down`                                | Para só a stack de observabilidade (mantém Postgres/n8n)   |
+| `docker compose down`                          | Para os containers (mantém os volumes)                     |
+| `docker compose down -v`                       | Para os containers **e apaga os volumes** (perde os dados) |
+| `docker compose logs -f postgres`              | Acompanha os logs do banco                                 |
 
 ## Acessando pelo DBeaver
 
@@ -80,9 +51,13 @@ Com o container no ar, crie uma conexão PostgreSQL:
 - **Database:** valor de `POSTGRES_DB`
 - **Usuário/Senha:** os mesmos definidos no `.env`
 
+O GlitchTip usa um database separado (`glitchtip`) na mesma instância.
+
 ## Nota sobre produção
 
 Este `docker-compose.yml` é para **ambiente local de desenvolvimento**
 apenas. Em produção, a expectativa é usar um Postgres gerenciado (ex: RDS,
 Supabase, Neon, Railway) — o `DATABASE_URL` muda, mas o schema e as
-migrations do Prisma permanecem os mesmos.
+migrations do Prisma permanecem os mesmos. Logs JSON, `/metrics` e o SDK
+Sentry (DSN do GlitchTip ou Sentry SaaS) seguem na API, independentemente
+do compose local.

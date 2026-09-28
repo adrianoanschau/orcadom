@@ -3,6 +3,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { EmailImportStatus, ImportSource, ImportStatus } from '@orcadom/database';
 import type { EmailImportDto, EmailImportLogsQuery } from '@orcadom/types';
 import { createHash } from 'node:crypto';
+import { recordAutomationIngest } from '../../common/observability/metrics.js';
 import { PrismaService } from '../../common/prisma.service.js';
 import { extractImportToken } from '../imports/email-import.util.js';
 import { ImportsService } from '../imports/imports.service.js';
@@ -157,6 +158,7 @@ export class AutomationService {
   }
 
   private toResponse(status: EmailImportStatus, importBatchId: string | null, message?: string) {
+    recordAutomationIngest(status);
     return { status, importBatchId, message: message ?? null };
   }
 }

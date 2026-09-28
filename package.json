@@ -19,7 +19,9 @@
     "db:generate": "turbo run db:generate",
     "db:migrate": "turbo run db:migrate",
     "docker:up": "docker compose up -d",
-    "docker:down": "docker compose down"
+    "docker:down": "docker compose down",
+    "obs:up": "docker compose --profile observability up -d",
+    "obs:down": "docker compose stop grafana prometheus glitchtip glitchtip-worker redis"
   },
   "devDependencies": {
     "@changesets/cli": "^3.0.3",

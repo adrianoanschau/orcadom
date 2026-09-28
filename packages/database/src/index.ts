@@ -60,6 +60,7 @@ export {
   isAuditedModel,
   pickMetadata,
   sanitize,
+  SENSITIVE_FIELDS,
 } from './audit.js';
 
 export {

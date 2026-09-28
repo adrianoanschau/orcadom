@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
+import { ObservabilityModule } from './common/observability/observability.module.js';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ZodValidationPipe } from 'nestjs-zod';
@@ -31,6 +32,7 @@ import { TransactionsModule } from './modules/transactions/transactions.module.j
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ObservabilityModule,
     EventEmitterModule.forRoot(),
     ScheduleModule.forRoot(),
     PrismaModule,
