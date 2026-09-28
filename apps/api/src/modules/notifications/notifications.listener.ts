@@ -5,6 +5,10 @@ import {
   type BudgetThresholdPayload,
 } from '../budgets/budget-events.service.js';
 import {
+  REPORT_READY,
+  type ReportReadyPayload,
+} from '../reports/report-events.service.js';
+import {
   SAVINGS_GOAL_COMPLETED,
   type SavingsGoalCompletedPayload,
 } from '../savings-goals/savings-goal-events.service.js';
@@ -29,6 +33,11 @@ export class NotificationsListener {
   @OnEvent(SAVINGS_GOAL_COMPLETED)
   async onSavingsGoalCompleted(payload: SavingsGoalCompletedPayload): Promise<void> {
     await this.safe('savings-goal.completed', () => this.notifications.notifySavingsGoal(payload));
+  }
+
+  @OnEvent(REPORT_READY)
+  async onReportReady(payload: ReportReadyPayload): Promise<void> {
+    await this.safe('report.ready', () => this.notifications.notifyReportReady(payload));
   }
 
   @OnEvent(EMAIL_IMPORT_READY)

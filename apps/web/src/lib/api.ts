@@ -82,3 +82,58 @@ export async function api<T>(path: string, init: RequestInit = {}, retry = true)
   if (!response.ok) throw new ApiError(readMessage(payload), response.status);
   return payload as T;
 }
+
+export async function apiBlob(
+  path: string,
+  init: RequestInit = {},
+  retry = true,
+): Promise<{ blob: Blob; fileName: string | null }> {
+  const headers = new Headers(init.headers);
+  const householdId = getActiveHouseholdId();
+  if (needsHouseholdHeader(path) && householdId && !headers.has('x-household-id')) {
+    headers.set('x-household-id', householdId);
+  }
+
+  const response = await fetch(`${baseUrl}${path}`, {
+    ...init,
+    headers,
+    credentials: 'include',
+  });
+
+  if (response.status === 401 && retry && !path.startsWith('/auth/')) {
+    const refresh = await fetch(`${baseUrl}/auth/refresh`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+    if (refresh.ok) return apiBlob(path, init, false);
+    await fetch(`${baseUrl}/auth/logout`, { method: 'POST', credentials: 'include' });
+    window.location.assign('/login');
+    return new Promise<{ blob: Blob; fileName: string | null }>(() => undefined);
+  }
+
+  if (!response.ok) {
+    const text = await response.text();
+    let payload: unknown = null;
+    if (text) {
+      try {
+        payload = JSON.parse(text) as unknown;
+      } catch {
+        payload = null;
+      }
+    }
+    throw new ApiError(readMessage(payload), response.status);
+  }
+
+  return {
+    blob: await response.blob(),
+    fileName: fileNameFromDisposition(response.headers.get('content-disposition')),
+  };
+}
+
+function fileNameFromDisposition(header: string | null): string | null {
+  if (!header) return null;
+  const utf = /filename\*=UTF-8''([^;]+)/i.exec(header);
+  if (utf?.[1]) return decodeURIComponent(utf[1]);
+  const quoted = /filename="([^"]+)"/i.exec(header);
+  return quoted?.[1] ?? null;
+}

@@ -177,14 +177,42 @@ export type NotificationType =
   | 'BUDGET_EXCEEDED'
   | 'EMAIL_IMPORT_READY'
   | 'EMAIL_IMPORT_UNMAPPED_ACCOUNT'
-  | 'SAVINGS_GOAL_COMPLETED';
+  | 'SAVINGS_GOAL_COMPLETED'
+  | 'REPORT_READY';
+
+export type ReportFormat = 'PDF' | 'XLSX';
+export type ReportStatus = 'PENDING' | 'PROCESSING' | 'READY' | 'FAILED';
+
+export interface ReportFilters {
+  accountId?: string;
+  categoryId?: string;
+  from?: string;
+  to?: string;
+}
+
+export interface ReportRequest {
+  id: string;
+  format: ReportFormat;
+  status: ReportStatus;
+  filters: ReportFilters;
+  createdAt: string;
+  completedAt: string | null;
+  expiresAt: string | null;
+  downloadUrl: string | null;
+}
 
 export interface AppNotification {
   id: string;
   type: NotificationType;
   title: string;
   message: string;
-  metadata: { importBatchId?: string; categoryId?: string; month?: string; goalId?: string } | null;
+  metadata: {
+    importBatchId?: string;
+    categoryId?: string;
+    month?: string;
+    goalId?: string;
+    reportId?: string;
+  } | null;
   channels: ('IN_APP' | 'EMAIL')[];
   readAt: string | null;
   createdAt: string;

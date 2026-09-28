@@ -132,6 +132,9 @@ function notificationHref(item: AppNotification): string {
   if (item.type === 'SAVINGS_GOAL_COMPLETED') {
     return item.metadata?.goalId ? `/savings-goals/${item.metadata.goalId}` : '/savings-goals';
   }
+  if (item.type === 'REPORT_READY') {
+    return item.metadata?.reportId ? `/transactions?reportId=${item.metadata.reportId}` : '/transactions';
+  }
   return '/budgets';
 }
 

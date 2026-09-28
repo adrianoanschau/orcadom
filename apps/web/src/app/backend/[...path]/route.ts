@@ -23,11 +23,13 @@ async function forward(request: NextRequest, context: { params: Promise<{ path: 
   });
 
   const emptyStatus = upstream.status === 204 || upstream.status === 205 || upstream.status === 304;
-  const response = new NextResponse(emptyStatus ? null : await upstream.text(), {
+  const response = new NextResponse(emptyStatus ? null : await upstream.arrayBuffer(), {
     status: upstream.status,
   });
   const responseType = upstream.headers.get('content-type');
+  const disposition = upstream.headers.get('content-disposition');
   if (responseType && !emptyStatus) response.headers.set('content-type', responseType);
+  if (disposition) response.headers.set('content-disposition', disposition);
   for (const cookieHeader of upstream.headers.getSetCookie()) {
     response.headers.append('set-cookie', cookieHeader);
   }

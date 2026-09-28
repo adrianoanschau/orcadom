@@ -5,6 +5,7 @@ import { applyBalance } from '../../common/balance.js';
 import { CategoryMemoryService } from '../../common/category-memory.service.js';
 import { moneyString, toDecimal } from '../../common/money.js';
 import { PrismaService } from '../../common/prisma.service.js';
+import { buildTransactionListWhere } from '../../common/transaction-filters.js';
 import { BudgetEventsService } from '../budgets/budget-events.service.js';
 import { monthFromDate, type BudgetStatus } from '../budgets/budget-progress.js';
 import { SavingsGoalsService } from '../savings-goals/savings-goals.service.js';
@@ -43,27 +44,7 @@ export class TransactionsService {
   }
 
   async list(householdId: string, query: ListTransactionsQuery) {
-    const where = {
-      householdId,
-      ...(query.categoryId ? { categoryId: query.categoryId } : {}),
-      ...(query.from || query.to
-        ? {
-            date: {
-              ...(query.from ? { gte: new Date(query.from) } : {}),
-              ...(query.to ? { lte: new Date(query.to) } : {}),
-            },
-          }
-        : {}),
-      ...(query.accountId
-        ? {
-            OR: [
-              { accountId: query.accountId },
-              { fromAccountId: query.accountId },
-              { toAccountId: query.accountId },
-            ],
-          }
-        : {}),
-    };
+    const where = buildTransactionListWhere(householdId, query);
     const [total, rows] = await this.prisma.client.$transaction([
       this.prisma.client.transaction.count({ where }),
       this.prisma.client.transaction.findMany({

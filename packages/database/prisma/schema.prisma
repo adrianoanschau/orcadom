@@ -71,6 +71,19 @@ enum NotificationType {
   EMAIL_IMPORT_READY
   EMAIL_IMPORT_UNMAPPED_ACCOUNT
   SAVINGS_GOAL_COMPLETED
+  REPORT_READY
+}
+
+enum ReportFormat {
+  PDF
+  XLSX
+}
+
+enum ReportStatus {
+  PENDING
+  PROCESSING
+  READY
+  FAILED
 }
 
 enum SavingsGoalStatus {
@@ -132,6 +145,7 @@ model User {
   auditLogs       AuditLog[]
   refreshTokens   RefreshToken[]
   onboardingState UserOnboardingState?
+  reportRequests  ReportRequest[]
 
   @@map("users")
 }
@@ -187,6 +201,7 @@ model Household {
   categoryMemories      CategoryMemory[]
   auditLogs             AuditLog[]
   savingsGoals          SavingsGoal[]
+  reportRequests        ReportRequest[]
 
   @@map("households")
 }
@@ -485,6 +500,27 @@ model SavingsGoal {
 
   @@index([householdId, status])
   @@map("savings_goals")
+}
+
+model ReportRequest {
+  id          String       @id @default(uuid())
+  format      ReportFormat
+  status      ReportStatus @default(PENDING)
+  filters     Json
+  filePath    String?
+  expiresAt   DateTime?
+  createdAt   DateTime     @default(now())
+  completedAt DateTime?
+
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  requestedByUserId String
+  requestedBy       User   @relation(fields: [requestedByUserId], references: [id])
+
+  @@index([householdId, requestedByUserId])
+  @@index([expiresAt])
+  @@map("report_requests")
 }
 
 model Budget {

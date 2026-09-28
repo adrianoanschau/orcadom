@@ -101,6 +101,20 @@ export {
 } from './savings-goal.types.js';
 export { createTransactionSchema, type CreateTransactionDto } from './transaction.types.js';
 export {
+  REPORT_PDF_WARN_THRESHOLD,
+  REPORT_SYNC_THRESHOLD,
+  createReportSchema,
+  reportFiltersSchema,
+  reportFormatSchema,
+  reportParamSchema,
+  reportStatusSchema,
+  type CreateReportDto,
+  type ReportFilters,
+  type ReportFormat,
+  type ReportParam,
+  type ReportStatus,
+} from './report.types.js';
+export {
   onboardingStepFlags,
   type OnboardingStatus,
   type OnboardingStepFlag,

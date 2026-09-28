@@ -3,6 +3,7 @@ import {
   budgetNotificationCopy,
   emailImportNotificationCopy,
   formatMonthLabel,
+  reportReadyCopy,
   savingsGoalCompletedCopy,
   wantsEmail,
 } from './notification-policy.js';
@@ -14,6 +15,17 @@ describe('wantsEmail', () => {
     expect(wantsEmail('BUDGET_EXCEEDED')).toBe(true);
     expect(wantsEmail('EMAIL_IMPORT_UNMAPPED_ACCOUNT')).toBe(true);
     expect(wantsEmail('SAVINGS_GOAL_COMPLETED')).toBe(false);
+    expect(wantsEmail('REPORT_READY')).toBe(false);
+  });
+});
+
+describe('reportReadyCopy', () => {
+  it('monta título e mensagem com o formato', () => {
+    expect(reportReadyCopy('XLSX')).toEqual({
+      type: 'REPORT_READY',
+      title: 'Relatório pronto',
+      message: 'Seu extrato em Excel está pronto para download.',
+    });
   });
 });
 

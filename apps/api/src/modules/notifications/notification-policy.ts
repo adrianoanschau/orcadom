@@ -6,7 +6,8 @@ export type NotificationKind =
   | 'BUDGET_EXCEEDED'
   | 'EMAIL_IMPORT_READY'
   | 'EMAIL_IMPORT_UNMAPPED_ACCOUNT'
-  | 'SAVINGS_GOAL_COMPLETED';
+  | 'SAVINGS_GOAL_COMPLETED'
+  | 'REPORT_READY';
 
 export type NotificationChannelKind = 'IN_APP' | 'EMAIL';
 
@@ -16,6 +17,7 @@ export const NOTIFICATION_CHANNEL_POLICY: Record<NotificationKind, NotificationC
   EMAIL_IMPORT_READY: ['IN_APP'],
   EMAIL_IMPORT_UNMAPPED_ACCOUNT: ['IN_APP', 'EMAIL'],
   SAVINGS_GOAL_COMPLETED: ['IN_APP'],
+  REPORT_READY: ['IN_APP'],
 };
 
 export interface EmailImportEventPayload {
@@ -64,6 +66,15 @@ export function savingsGoalCompletedCopy(name: string, targetAmount: string) {
     type: 'SAVINGS_GOAL_COMPLETED' as const,
     title: 'Meta de economia concluída',
     message: `A meta ${name} (${formatted}) foi atingida.`,
+  };
+}
+
+export function reportReadyCopy(format: 'PDF' | 'XLSX') {
+  const label = format === 'PDF' ? 'PDF' : 'Excel';
+  return {
+    type: 'REPORT_READY' as const,
+    title: 'Relatório pronto',
+    message: `Seu extrato em ${label} está pronto para download.`,
   };
 }
 

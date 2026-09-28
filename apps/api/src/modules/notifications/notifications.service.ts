@@ -4,10 +4,12 @@ import { NotificationChannel, Prisma } from '@orcadom/database';
 import type { ListNotificationsQuery } from '@orcadom/types';
 import { PrismaService } from '../../common/prisma.service.js';
 import type { BudgetThresholdPayload } from '../budgets/budget-events.service.js';
+import type { ReportReadyPayload } from '../reports/report-events.service.js';
 import type { SavingsGoalCompletedPayload } from '../savings-goals/savings-goal-events.service.js';
 import {
   budgetNotificationCopy,
   emailImportNotificationCopy,
+  reportReadyCopy,
   savingsGoalCompletedCopy,
   type EmailImportEventPayload,
   type NotificationKind,
@@ -48,6 +50,17 @@ export class NotificationsService {
       title: copy.title,
       message: copy.message,
       metadata: { goalId: payload.goalId },
+    });
+  }
+
+  async notifyReportReady(payload: ReportReadyPayload): Promise<void> {
+    const copy = reportReadyCopy(payload.format);
+    await this.persist({
+      userId: payload.requestedByUserId,
+      type: copy.type,
+      title: copy.title,
+      message: copy.message,
+      metadata: { reportId: payload.reportId },
     });
   }
 

@@ -13,6 +13,7 @@ import { transactionTypeLabels, type TransactionType } from '@/lib/labels';
 import type { Account, Category, Transaction, TransactionPage } from '@/lib/models';
 import { DateInput } from '@/components/date-fields';
 import { EntityAudit } from '@/components/entity-audit';
+import { ExportReportPanel } from '@/components/export-report-panel';
 import {
   Button,
   ButtonLink,
@@ -74,6 +75,8 @@ export default function TransactionsPage() {
   const [open, setOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<Transaction | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
+  const reportId = searchParams.get('reportId');
   const form = useForm<TransactionForm>({ defaultValues: emptyForm });
   const type = form.watch('type');
   const [installment, setInstallment] = useState(false);
@@ -194,6 +197,14 @@ export default function TransactionsPage() {
         <ButtonLink href="/imports" variant="secondary">
           Importar extrato
         </ButtonLink>
+        <Button
+          variant="secondary"
+          onClick={() => {
+            setExportOpen(true);
+          }}
+        >
+          Exportar
+        </Button>
         <Button onClick={openCreate}>Novo lançamento</Button>
       </PageHeader>
 
@@ -258,6 +269,18 @@ export default function TransactionsPage() {
           </Button>
         </div>
       </form>
+
+      <ExportReportPanel
+        filters={filters}
+        total={transactions.data?.total ?? 0}
+        accountName={filters.accountId ? names.get(filters.accountId) : undefined}
+        categoryName={filters.categoryId ? categoryNames.get(filters.categoryId) : undefined}
+        highlightId={reportId}
+        open={exportOpen}
+        onClose={() => {
+          setExportOpen(false);
+        }}
+      />
 
       {error && !open ? (
         <div className="mt-4">

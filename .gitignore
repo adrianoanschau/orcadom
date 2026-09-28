@@ -21,6 +21,10 @@ credentials/*
 packages/database/src/generated
 !packages/database/prisma/migrations
 
+# generated report files
+data/reports/
+**/data/reports/
+
 # logs
 *.log
 npm-debug.log*

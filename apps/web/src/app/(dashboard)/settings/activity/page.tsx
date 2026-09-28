@@ -16,6 +16,7 @@ const entityLabels: Record<string, string> = {
   ImportBatch: 'Importação',
   HouseholdMember: 'Membro',
   SavingsGoal: 'Meta',
+  ReportRequest: 'Relatório',
 };
 
 export default function ActivityPage() {
