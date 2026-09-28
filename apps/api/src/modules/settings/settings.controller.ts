@@ -1,6 +1,9 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
-import { CurrentHousehold } from '../../common/decorators/current-household.decorator.js';
+import {
+  CurrentHousehold,
+  CurrentHouseholdMember,
+} from '../../common/decorators/current-household.decorator.js';
 import { SettingsService } from './settings.service.js';
 
 @ApiTags('settings')
@@ -15,7 +18,10 @@ export class SettingsController {
   }
 
   @Get('email-import-logs')
-  emailImportLogs(@CurrentHousehold() householdId: string) {
-    return this.settings.listEmailImportLogs(householdId);
+  emailImportLogs(
+    @CurrentHousehold() householdId: string,
+    @CurrentHouseholdMember() householdMemberId: string,
+  ) {
+    return this.settings.listEmailImportLogs(householdId, householdMemberId);
   }
 }

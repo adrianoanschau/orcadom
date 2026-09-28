@@ -25,5 +25,10 @@ export const updateAccountSchema = z
     message: 'Informe nome ou cor para atualizar.',
   });
 
+export const restrictAccountSchema = z.object({
+  householdMemberIds: z.array(z.uuid()).min(1),
+});
+
 export type CreateAccountDto = z.infer<typeof createAccountSchema>;
 export type UpdateAccountDto = z.infer<typeof updateAccountSchema>;
+export type RestrictAccountDto = z.infer<typeof restrictAccountSchema>;

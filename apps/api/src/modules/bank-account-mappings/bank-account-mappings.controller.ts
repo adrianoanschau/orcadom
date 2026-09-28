@@ -1,6 +1,9 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post } from '@nestjs/common';
 import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
-import { CurrentHousehold } from '../../common/decorators/current-household.decorator.js';
+import {
+  CurrentHousehold,
+  CurrentHouseholdMember,
+} from '../../common/decorators/current-household.decorator.js';
 import {
   BankAccountMappingParams,
   CreateBankAccountMappingBody,
@@ -15,27 +18,39 @@ export class BankAccountMappingsController {
   constructor(private readonly mappings: BankAccountMappingsService) {}
 
   @Get()
-  list(@CurrentHousehold() householdId: string) {
-    return this.mappings.list(householdId);
+  list(
+    @CurrentHousehold() householdId: string,
+    @CurrentHouseholdMember() householdMemberId: string,
+  ) {
+    return this.mappings.list(householdId, householdMemberId);
   }
 
   @Post()
-  create(@CurrentHousehold() householdId: string, @Body() body: CreateBankAccountMappingBody) {
-    return this.mappings.create(householdId, body);
+  create(
+    @CurrentHousehold() householdId: string,
+    @CurrentHouseholdMember() householdMemberId: string,
+    @Body() body: CreateBankAccountMappingBody,
+  ) {
+    return this.mappings.create(householdId, householdMemberId, body);
   }
 
   @Patch(':id')
   update(
     @CurrentHousehold() householdId: string,
+    @CurrentHouseholdMember() householdMemberId: string,
     @Param() params: BankAccountMappingParams,
     @Body() body: UpdateBankAccountMappingBody,
   ) {
-    return this.mappings.update(householdId, params.id, body);
+    return this.mappings.update(householdId, householdMemberId, params.id, body);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  remove(@CurrentHousehold() householdId: string, @Param() params: BankAccountMappingParams): Promise<void> {
-    return this.mappings.remove(householdId, params.id);
+  remove(
+    @CurrentHousehold() householdId: string,
+    @CurrentHouseholdMember() householdMemberId: string,
+    @Param() params: BankAccountMappingParams,
+  ): Promise<void> {
+    return this.mappings.remove(householdId, householdMemberId, params.id);
   }
 }

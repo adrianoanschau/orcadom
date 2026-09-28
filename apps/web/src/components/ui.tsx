@@ -226,12 +226,14 @@ export function AccountCard({
   type,
   balance,
   color,
+  restricted,
   children,
 }: {
   name: string;
   type: AccountType;
   balance: string;
   color: string | null;
+  restricted?: boolean;
   children?: ReactNode;
 }) {
   return (
@@ -242,6 +244,7 @@ export function AccountCard({
           <span className="size-2.5 rounded-pill" style={{ backgroundColor: color }} aria-hidden />
         ) : null}
         {name}
+        {restricted ? <StatusBadge tone="pending">restrita</StatusBadge> : null}
       </h3>
       <p className="mt-4 text-amount font-bold tabular-nums underline decoration-dashed underline-offset-4">
         {formatMoney(balance)}

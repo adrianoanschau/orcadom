@@ -24,6 +24,7 @@ export interface EmailImportEventPayload {
   householdId: string;
   importBatchId: string;
   fileName: string;
+  accountId?: string | null;
 }
 
 export function wantsEmail(type: NotificationKind): boolean {

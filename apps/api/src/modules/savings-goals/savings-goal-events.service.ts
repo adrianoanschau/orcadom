@@ -6,6 +6,7 @@ export const SAVINGS_GOAL_COMPLETED = 'savings-goal.completed';
 export interface SavingsGoalCompletedPayload {
   householdId: string;
   goalId: string;
+  accountId: string;
   name: string;
   targetAmount: string;
 }

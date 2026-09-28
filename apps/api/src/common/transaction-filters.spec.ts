@@ -27,4 +27,20 @@ describe('buildTransactionListWhere', () => {
       { toAccountId: 'acc-1' },
     ]);
   });
+
+  it('intersecta com as contas acessíveis quando não há filtro de conta', () => {
+    const where = buildTransactionListWhere('hh-1', {}, ['acc-visivel']);
+    expect(where.OR).toEqual([
+      { accountId: { in: ['acc-visivel'] } },
+      { fromAccountId: { in: ['acc-visivel'] } },
+      { toAccountId: { in: ['acc-visivel'] } },
+    ]);
+  });
+
+  it('filtro de conta inacessível não amplia o conjunto', () => {
+    const where = buildTransactionListWhere('hh-1', { accountId: 'acc-secreta' }, ['acc-visivel']);
+    expect(where.id).toEqual({ in: [] });
+    expect(where.OR).toBeUndefined();
+  });
 });
+

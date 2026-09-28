@@ -1,7 +1,9 @@
 export {
   createAccountSchema,
+  restrictAccountSchema,
   updateAccountSchema,
   type CreateAccountDto,
+  type RestrictAccountDto,
   type UpdateAccountDto,
 } from './account.types.js';
 export {

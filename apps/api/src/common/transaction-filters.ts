@@ -1,3 +1,5 @@
+import { transactionTouchesAccessibleAccounts } from './account-access.js';
+
 export interface TransactionListFilters {
   accountId?: string;
   categoryId?: string;
@@ -5,9 +7,17 @@ export interface TransactionListFilters {
   to?: string;
 }
 
-export function buildTransactionListWhere(householdId: string, query: TransactionListFilters) {
+export function buildTransactionListWhere(
+  householdId: string,
+  query: TransactionListFilters,
+  accessibleAccountIds?: string[],
+) {
+  const scoped =
+    query.accountId && accessibleAccountIds && !accessibleAccountIds.includes(query.accountId);
+
   return {
     householdId,
+    ...(scoped ? { id: { in: [] as string[] } } : {}),
     ...(query.categoryId ? { categoryId: query.categoryId } : {}),
     ...(query.from || query.to
       ? {
@@ -17,7 +27,7 @@ export function buildTransactionListWhere(householdId: string, query: Transactio
           },
         }
       : {}),
-    ...(query.accountId
+    ...(!scoped && query.accountId
       ? {
           OR: [
             { accountId: query.accountId },
@@ -25,6 +35,8 @@ export function buildTransactionListWhere(householdId: string, query: Transactio
             { toAccountId: query.accountId },
           ],
         }
-      : {}),
+      : !scoped && accessibleAccountIds
+        ? transactionTouchesAccessibleAccounts(accessibleAccountIds)
+        : {}),
   };
 }

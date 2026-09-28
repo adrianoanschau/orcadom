@@ -15,6 +15,7 @@ export interface Account {
   type: AccountType;
   balance: string;
   color: string | null;
+  isRestricted: boolean;
 }
 
 export interface Category {
@@ -290,11 +291,26 @@ export interface HouseholdMembership {
 }
 
 export interface HouseholdMember {
+  id: string;
   userId: string;
   name: string;
   email: string;
   role: HouseholdRole;
   joinedAt: string;
+}
+
+export interface AccountAccessMember {
+  id: string;
+  userId: string;
+  name: string;
+  email: string;
+  role: HouseholdRole;
+  grantedAt: string;
+}
+
+export interface AccountAccessResponse {
+  isRestricted: boolean;
+  members: AccountAccessMember[];
 }
 
 export interface HouseholdInvite {

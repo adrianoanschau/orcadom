@@ -3,10 +3,16 @@ import type { HouseholdRole } from '@orcadom/types';
 
 export interface RequestHousehold {
   id: string;
+  memberId: string;
   role: HouseholdRole;
 }
 
 export const CurrentHousehold = createParamDecorator((_: unknown, context: ExecutionContext): string => {
   const request = context.switchToHttp().getRequest<{ household: RequestHousehold }>();
   return request.household.id;
+});
+
+export const CurrentHouseholdMember = createParamDecorator((_: unknown, context: ExecutionContext): string => {
+  const request = context.switchToHttp().getRequest<{ household: RequestHousehold }>();
+  return request.household.memberId;
 });

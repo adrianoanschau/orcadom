@@ -125,6 +125,7 @@ export class AutomationService {
       householdId: alias.householdId,
       importBatchId: preview.id,
       fileName: preview.fileName,
+      accountId: mapping?.accountId ?? null,
     });
 
     return this.toResponse(log.status, preview.id);

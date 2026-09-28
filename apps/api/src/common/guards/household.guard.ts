@@ -53,7 +53,7 @@ export class HouseholdGuard implements CanActivate {
       throw new ForbiddenException();
     }
 
-    request.household = { id: householdId, role: membership.role };
+    request.household = { id: householdId, memberId: membership.id, role: membership.role };
     return true;
   }
 }

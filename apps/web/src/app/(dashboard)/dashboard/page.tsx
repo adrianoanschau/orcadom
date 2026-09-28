@@ -65,7 +65,11 @@ export default function DashboardPage() {
           <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard label="Receitas" value={formatMoney(data.income)} tone="income" />
             <StatCard label="Despesas" value={formatMoney(data.expense)} tone="expense" />
-            <StatCard label="Saldo das contas" value={formatMoney(data.balance)} tone="balance" />
+            <StatCard
+              label="Saldo das contas que você pode ver"
+              value={formatMoney(data.balance)}
+              tone="balance"
+            />
             <StatCard
               label="Compromissos futuros"
               value={formatMoney(data.scheduledCommitments)}

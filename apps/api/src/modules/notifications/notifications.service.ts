@@ -6,6 +6,7 @@ import {
   type ListNotificationsQuery,
   type PushSubscriptionDto,
 } from '@orcadom/types';
+import { getAccessibleAccountIds } from '../../common/account-access.js';
 import { PrismaService } from '../../common/prisma.service.js';
 import type { BudgetThresholdPayload } from '../budgets/budget-events.service.js';
 import type { ReportReadyPayload } from '../reports/report-events.service.js';
@@ -51,12 +52,16 @@ export class NotificationsService {
 
   async notifySavingsGoal(payload: SavingsGoalCompletedPayload): Promise<void> {
     const copy = savingsGoalCompletedCopy(payload.name, payload.targetAmount);
-    await this.fanOut(payload.householdId, {
-      type: copy.type,
-      title: copy.title,
-      message: copy.message,
-      metadata: { goalId: payload.goalId },
-    });
+    await this.fanOut(
+      payload.householdId,
+      {
+        type: copy.type,
+        title: copy.title,
+        message: copy.message,
+        metadata: { goalId: payload.goalId },
+      },
+      payload.accountId,
+    );
   }
 
   async notifyReportReady(payload: ReportReadyPayload): Promise<void> {
@@ -72,12 +77,16 @@ export class NotificationsService {
 
   async notifyEmailImport(payload: EmailImportEventPayload, unmapped: boolean): Promise<void> {
     const copy = emailImportNotificationCopy(payload.fileName, unmapped);
-    await this.fanOut(payload.householdId, {
-      type: copy.type,
-      title: copy.title,
-      message: copy.message,
-      metadata: { importBatchId: payload.importBatchId },
-    });
+    await this.fanOut(
+      payload.householdId,
+      {
+        type: copy.type,
+        title: copy.title,
+        message: copy.message,
+        metadata: { importBatchId: payload.importBatchId },
+      },
+      unmapped ? null : payload.accountId,
+    );
   }
 
   private async fanOut(
@@ -88,12 +97,17 @@ export class NotificationsService {
       message: string;
       metadata: Record<string, string>;
     },
+    accountId?: string | null,
   ): Promise<void> {
     const members = await this.prisma.client.householdMember.findMany({
       where: { householdId },
-      select: { userId: true },
+      select: { id: true, userId: true },
     });
     for (const member of members) {
+      if (accountId) {
+        const ids = await getAccessibleAccountIds(this.prisma.client, householdId, member.id);
+        if (!ids.includes(accountId)) continue;
+      }
       await this.persist({ ...input, userId: member.userId });
     }
   }

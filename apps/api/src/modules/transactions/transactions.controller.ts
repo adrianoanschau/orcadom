@@ -11,7 +11,10 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
-import { CurrentHousehold } from '../../common/decorators/current-household.decorator.js';
+import {
+  CurrentHousehold,
+  CurrentHouseholdMember,
+} from '../../common/decorators/current-household.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import {
   CreateTransactionBody,
@@ -30,32 +33,39 @@ export class TransactionsController {
   @Post()
   create(
     @CurrentHousehold() householdId: string,
+    @CurrentHouseholdMember() householdMemberId: string,
     @CurrentUser() userId: string,
     @Body() body: CreateTransactionBody,
   ) {
-    return this.transactions.create(householdId, userId, body);
+    return this.transactions.create(householdId, householdMemberId, userId, body);
   }
 
   @Get()
-  list(@CurrentHousehold() householdId: string, @Query() query: ListTransactionsQueryDto) {
-    return this.transactions.list(householdId, query);
+  list(
+    @CurrentHousehold() householdId: string,
+    @CurrentHouseholdMember() householdMemberId: string,
+    @Query() query: ListTransactionsQueryDto,
+  ) {
+    return this.transactions.list(householdId, householdMemberId, query);
   }
 
   @Patch(':id')
   update(
     @CurrentHousehold() householdId: string,
+    @CurrentHouseholdMember() householdMemberId: string,
     @Param() params: TransactionParams,
     @Body() body: UpdateTransactionBody,
   ) {
-    return this.transactions.update(householdId, params.id, body);
+    return this.transactions.update(householdId, householdMemberId, params.id, body);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(
     @CurrentHousehold() householdId: string,
+    @CurrentHouseholdMember() householdMemberId: string,
     @Param() params: TransactionParams,
   ): Promise<void> {
-    return this.transactions.remove(householdId, params.id);
+    return this.transactions.remove(householdId, householdMemberId, params.id);
   }
 }

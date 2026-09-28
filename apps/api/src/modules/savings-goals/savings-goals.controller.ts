@@ -10,7 +10,10 @@ import {
   Post,
 } from '@nestjs/common';
 import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
-import { CurrentHousehold } from '../../common/decorators/current-household.decorator.js';
+import {
+  CurrentHousehold,
+  CurrentHouseholdMember,
+} from '../../common/decorators/current-household.decorator.js';
 import {
   CreateSavingsGoalBody,
   SavingsGoalParams,
@@ -25,37 +28,57 @@ export class SavingsGoalsController {
   constructor(private readonly goals: SavingsGoalsService) {}
 
   @Post()
-  create(@CurrentHousehold() householdId: string, @Body() body: CreateSavingsGoalBody) {
-    return this.goals.create(householdId, body);
+  create(
+    @CurrentHousehold() householdId: string,
+    @CurrentHouseholdMember() householdMemberId: string,
+    @Body() body: CreateSavingsGoalBody,
+  ) {
+    return this.goals.create(householdId, householdMemberId, body);
   }
 
   @Get()
-  list(@CurrentHousehold() householdId: string) {
-    return this.goals.list(householdId);
+  list(
+    @CurrentHousehold() householdId: string,
+    @CurrentHouseholdMember() householdMemberId: string,
+  ) {
+    return this.goals.list(householdId, householdMemberId);
   }
 
   @Get(':id')
-  get(@CurrentHousehold() householdId: string, @Param() params: SavingsGoalParams) {
-    return this.goals.get(householdId, params.id);
+  get(
+    @CurrentHousehold() householdId: string,
+    @CurrentHouseholdMember() householdMemberId: string,
+    @Param() params: SavingsGoalParams,
+  ) {
+    return this.goals.get(householdId, householdMemberId, params.id);
   }
 
   @Patch(':id/abandon')
-  abandon(@CurrentHousehold() householdId: string, @Param() params: SavingsGoalParams) {
-    return this.goals.abandon(householdId, params.id);
+  abandon(
+    @CurrentHousehold() householdId: string,
+    @CurrentHouseholdMember() householdMemberId: string,
+    @Param() params: SavingsGoalParams,
+  ) {
+    return this.goals.abandon(householdId, householdMemberId, params.id);
   }
 
   @Patch(':id')
   update(
     @CurrentHousehold() householdId: string,
+    @CurrentHouseholdMember() householdMemberId: string,
     @Param() params: SavingsGoalParams,
     @Body() body: UpdateSavingsGoalBody,
   ) {
-    return this.goals.update(householdId, params.id, body);
+    return this.goals.update(householdId, householdMemberId, params.id, body);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  remove(@CurrentHousehold() householdId: string, @Param() params: SavingsGoalParams): Promise<void> {
-    return this.goals.remove(householdId, params.id);
+  remove(
+    @CurrentHousehold() householdId: string,
+    @CurrentHouseholdMember() householdMemberId: string,
+    @Param() params: SavingsGoalParams,
+  ): Promise<void> {
+    return this.goals.remove(householdId, householdMemberId, params.id);
   }
 }

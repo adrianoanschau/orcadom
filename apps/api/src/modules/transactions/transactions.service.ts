@@ -1,6 +1,12 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PostingStatus, TransactionType } from '@orcadom/database';
 import type { CreateTransactionDto, ListTransactionsQuery } from '@orcadom/types';
+import {
+  assertAccountAccessible,
+  getAccessibleAccountIds,
+  redactInaccessibleAccountId,
+  transactionTouchesAccessibleAccounts,
+} from '../../common/account-access.js';
 import { applyBalance } from '../../common/balance.js';
 import { CategoryMemoryService } from '../../common/category-memory.service.js';
 import { moneyString, toDecimal } from '../../common/money.js';
@@ -19,8 +25,13 @@ export class TransactionsService {
     private readonly savingsGoals: SavingsGoalsService,
   ) {}
 
-  async create(householdId: string, userId: string, dto: CreateTransactionDto) {
-    await this.assertReferences(householdId, dto);
+  async create(
+    householdId: string,
+    householdMemberId: string,
+    userId: string,
+    dto: CreateTransactionDto,
+  ) {
+    await this.assertReferences(householdId, householdMemberId, dto);
     const date = new Date(dto.date);
     const previous =
       dto.type === TransactionType.EXPENSE
@@ -40,11 +51,12 @@ export class TransactionsService {
     if (dto.type === TransactionType.TRANSFER) {
       await this.savingsGoals.completeIfReached(householdId, dto.toAccountId);
     }
-    return this.toResponse(created);
+    return this.toResponse(created, new Set(await this.accessibleIds(householdId, householdMemberId)));
   }
 
-  async list(householdId: string, query: ListTransactionsQuery) {
-    const where = buildTransactionListWhere(householdId, query);
+  async list(householdId: string, householdMemberId: string, query: ListTransactionsQuery) {
+    const accessibleIds = await this.accessibleIds(householdId, householdMemberId);
+    const where = buildTransactionListWhere(householdId, query, accessibleIds);
     const [total, rows] = await this.prisma.client.$transaction([
       this.prisma.client.transaction.count({ where }),
       this.prisma.client.transaction.findMany({
@@ -54,17 +66,23 @@ export class TransactionsService {
         take: query.limit,
       }),
     ]);
+    const visible = new Set(accessibleIds);
     return {
-      data: rows.map((row) => this.toResponse(row)),
+      data: rows.map((row) => this.toResponse(row, visible)),
       page: query.page,
       limit: query.limit,
       total,
     };
   }
 
-  async update(householdId: string, id: string, dto: CreateTransactionDto) {
-    const current = await this.findOwned(householdId, id);
-    await this.assertReferences(householdId, dto);
+  async update(
+    householdId: string,
+    householdMemberId: string,
+    id: string,
+    dto: CreateTransactionDto,
+  ) {
+    const current = await this.findOwned(householdId, householdMemberId, id);
+    await this.assertReferences(householdId, householdMemberId, dto);
     const nextDate = new Date(dto.date);
     const previousByKey = await this.snapshotExpenseKeys(householdId, [
       current.type === TransactionType.EXPENSE && current.categoryId
@@ -94,11 +112,11 @@ export class TransactionsService {
     if (dto.type === TransactionType.TRANSFER) {
       await this.savingsGoals.completeIfReached(householdId, dto.toAccountId);
     }
-    return this.toResponse(updated);
+    return this.toResponse(updated, new Set(await this.accessibleIds(householdId, householdMemberId)));
   }
 
-  async remove(householdId: string, id: string): Promise<void> {
-    const current = await this.findOwned(householdId, id);
+  async remove(householdId: string, householdMemberId: string, id: string): Promise<void> {
+    const current = await this.findOwned(householdId, householdMemberId, id);
     await this.prisma.client.$transaction(async (tx) => {
       if (current.postingStatus !== PostingStatus.SCHEDULED) {
         await applyBalance(tx, current, -1);
@@ -135,12 +153,16 @@ export class TransactionsService {
     }
   }
 
-  private async assertReferences(householdId: string, dto: CreateTransactionDto): Promise<void> {
+  private async assertReferences(
+    householdId: string,
+    householdMemberId: string,
+    dto: CreateTransactionDto,
+  ): Promise<void> {
     if (dto.type === 'TRANSFER') {
-      await this.assertAccounts(householdId, [dto.fromAccountId, dto.toAccountId]);
+      await this.assertAccounts(householdId, householdMemberId, [dto.fromAccountId, dto.toAccountId]);
       return;
     }
-    await this.assertAccounts(householdId, [dto.accountId]);
+    await this.assertAccounts(householdId, householdMemberId, [dto.accountId]);
     const category = await this.prisma.client.category.findFirst({
       where: { id: dto.categoryId, householdId },
     });
@@ -152,15 +174,19 @@ export class TransactionsService {
     }
   }
 
-  private async assertAccounts(householdId: string, ids: (string | undefined)[]): Promise<void> {
+  private async assertAccounts(
+    householdId: string,
+    householdMemberId: string,
+    ids: (string | undefined)[],
+  ): Promise<void> {
     const unique = [...new Set(ids.filter((id): id is string => Boolean(id)))];
-    const found = await this.prisma.client.account.findMany({
-      where: { householdId, id: { in: unique } },
-      select: { id: true },
-    });
-    if (found.length !== unique.length) {
-      throw new NotFoundException('Conta não encontrada.');
+    for (const id of unique) {
+      await assertAccountAccessible(this.prisma.client, householdId, householdMemberId, id);
     }
+  }
+
+  private async accessibleIds(householdId: string, householdMemberId: string) {
+    return getAccessibleAccountIds(this.prisma.client, householdId, householdMemberId);
   }
 
   private toData(householdId: string, userId: string, dto: CreateTransactionDto) {
@@ -179,9 +205,10 @@ export class TransactionsService {
     };
   }
 
-  private async findOwned(householdId: string, id: string) {
+  private async findOwned(householdId: string, householdMemberId: string, id: string) {
+    const accessibleIds = await this.accessibleIds(householdId, householdMemberId);
     const transaction = await this.prisma.client.transaction.findFirst({
-      where: { id, householdId },
+      where: { id, householdId, ...transactionTouchesAccessibleAccounts(accessibleIds) },
     });
     if (!transaction) {
       throw new NotFoundException('Lançamento não encontrado.');
@@ -189,35 +216,38 @@ export class TransactionsService {
     return transaction;
   }
 
-  private toResponse(transaction: {
-    id: string;
-    description: string;
-    amount: { toFixed(digits: number): string };
-    type: string;
-    date: Date;
-    accountId: string | null;
-    categoryId: string | null;
-    fromAccountId: string | null;
-    toAccountId: string | null;
-    source?: string;
-    externalId?: string | null;
-    postingStatus?: string;
-    installmentPlanId?: string | null;
-    installmentNumber?: number | null;
-    recurringTransactionId?: string | null;
-    createdAt: Date;
-    updatedAt: Date;
-  }) {
+  private toResponse(
+    transaction: {
+      id: string;
+      description: string;
+      amount: { toFixed(digits: number): string };
+      type: string;
+      date: Date;
+      accountId: string | null;
+      categoryId: string | null;
+      fromAccountId: string | null;
+      toAccountId: string | null;
+      source?: string;
+      externalId?: string | null;
+      postingStatus?: string;
+      installmentPlanId?: string | null;
+      installmentNumber?: number | null;
+      recurringTransactionId?: string | null;
+      createdAt: Date;
+      updatedAt: Date;
+    },
+    accessibleIds: ReadonlySet<string>,
+  ) {
     return {
       id: transaction.id,
       description: transaction.description,
       amount: moneyString(transaction.amount),
       type: transaction.type,
       date: transaction.date.toISOString(),
-      accountId: transaction.accountId,
+      accountId: redactInaccessibleAccountId(transaction.accountId, accessibleIds),
       categoryId: transaction.categoryId,
-      fromAccountId: transaction.fromAccountId,
-      toAccountId: transaction.toAccountId,
+      fromAccountId: redactInaccessibleAccountId(transaction.fromAccountId, accessibleIds),
+      toAccountId: redactInaccessibleAccountId(transaction.toAccountId, accessibleIds),
       source: transaction.source ?? 'MANUAL',
       externalId: transaction.externalId ?? null,
       postingStatus: transaction.postingStatus ?? 'POSTED',

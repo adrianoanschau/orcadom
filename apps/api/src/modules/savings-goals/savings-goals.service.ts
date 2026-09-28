@@ -1,6 +1,12 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { SavingsGoalStatus, TransactionType } from '@orcadom/database';
 import type { CreateSavingsGoalDto, UpdateSavingsGoalDto } from '@orcadom/types';
+import {
+  accessibleAccountWhere,
+  assertAccountAccessible,
+  getAccessibleAccountIds,
+  redactInaccessibleAccountId,
+} from '../../common/account-access.js';
 import { moneyString, toDecimal } from '../../common/money.js';
 import { PrismaService } from '../../common/prisma.service.js';
 import { computeGoalProgress, isGoalReached } from './goal-progress.js';
@@ -13,8 +19,8 @@ export class SavingsGoalsService {
     private readonly events: SavingsGoalEventsService,
   ) {}
 
-  async create(householdId: string, dto: CreateSavingsGoalDto) {
-    await this.assertAccount(householdId, dto.accountId);
+  async create(householdId: string, householdMemberId: string, dto: CreateSavingsGoalDto) {
+    await this.assertAccount(householdId, householdMemberId, dto.accountId);
     const created = await this.prisma.client.savingsGoal.create({
       data: {
         householdId,
@@ -27,12 +33,12 @@ export class SavingsGoalsService {
       include: { account: { select: { name: true } } },
     });
     await this.completeIfReached(householdId, created.accountId);
-    return this.toListItem(await this.findOwned(householdId, created.id));
+    return this.toListItem(await this.findOwned(householdId, householdMemberId, created.id));
   }
 
-  async list(householdId: string) {
+  async list(householdId: string, householdMemberId: string) {
     const goals = await this.prisma.client.savingsGoal.findMany({
-      where: { householdId },
+      where: { householdId, account: accessibleAccountWhere(householdId, householdMemberId) },
       include: { account: { select: { name: true } } },
       orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
     });
@@ -40,17 +46,17 @@ export class SavingsGoalsService {
     return items.sort((left, right) => compareGoals(left, right));
   }
 
-  async get(householdId: string, id: string) {
-    const goal = await this.findOwned(householdId, id);
+  async get(householdId: string, householdMemberId: string, id: string) {
+    const goal = await this.findOwned(householdId, householdMemberId, id);
     const [item, transfers] = await Promise.all([
       this.toListItem(goal),
-      this.listProgressTransfers(goal),
+      this.listProgressTransfers(householdId, householdMemberId, goal),
     ]);
     return { ...item, transfers };
   }
 
-  async update(householdId: string, id: string, dto: UpdateSavingsGoalDto) {
-    const current = await this.findOwned(householdId, id);
+  async update(householdId: string, householdMemberId: string, id: string, dto: UpdateSavingsGoalDto) {
+    const current = await this.findOwned(householdId, householdMemberId, id);
     if (current.status === SavingsGoalStatus.ABANDONED) {
       throw new BadRequestException('Uma meta abandonada não pode ser editada.');
     }
@@ -68,11 +74,11 @@ export class SavingsGoalsService {
     if (current.status === SavingsGoalStatus.ACTIVE) {
       await this.completeIfReached(householdId, current.accountId);
     }
-    return this.toListItem(await this.findOwned(householdId, current.id));
+    return this.toListItem(await this.findOwned(householdId, householdMemberId, current.id));
   }
 
-  async abandon(householdId: string, id: string) {
-    const current = await this.findOwned(householdId, id);
+  async abandon(householdId: string, householdMemberId: string, id: string) {
+    const current = await this.findOwned(householdId, householdMemberId, id);
     if (current.status !== SavingsGoalStatus.ACTIVE) {
       throw new BadRequestException('Só é possível abandonar uma meta ativa.');
     }
@@ -80,11 +86,11 @@ export class SavingsGoalsService {
       where: { id: current.id },
       data: { status: SavingsGoalStatus.ABANDONED },
     });
-    return this.toListItem(await this.findOwned(householdId, current.id));
+    return this.toListItem(await this.findOwned(householdId, householdMemberId, current.id));
   }
 
-  async remove(householdId: string, id: string): Promise<void> {
-    await this.findOwned(householdId, id);
+  async remove(householdId: string, householdMemberId: string, id: string): Promise<void> {
+    await this.findOwned(householdId, householdMemberId, id);
     await this.prisma.client.savingsGoal.delete({ where: { id } });
   }
 
@@ -103,6 +109,7 @@ export class SavingsGoalsService {
       this.events.emitCompleted({
         householdId,
         goalId: goal.id,
+        accountId: goal.accountId,
         name: goal.name,
         targetAmount: moneyString(goal.targetAmount),
       });
@@ -132,7 +139,14 @@ export class SavingsGoalsService {
     return computeGoalProgress(Number(saved.toFixed(2)), Number(moneyString(goal.targetAmount)));
   }
 
-  private async listProgressTransfers(goal: { accountId: string; startDate: Date }) {
+  private async listProgressTransfers(
+    householdId: string,
+    householdMemberId: string,
+    goal: { accountId: string; startDate: Date },
+  ) {
+    const accessible = new Set(
+      await getAccessibleAccountIds(this.prisma.client, householdId, householdMemberId),
+    );
     const rows = await this.prisma.client.transaction.findMany({
       where: {
         type: TransactionType.TRANSFER,
@@ -153,27 +167,25 @@ export class SavingsGoalsService {
         amount: moneyString(row.amount),
         date: row.date.toISOString(),
         direction: incoming ? ('in' as const) : ('out' as const),
-        fromAccountId: row.fromAccountId,
-        toAccountId: row.toAccountId,
-        fromAccountName: row.fromAccount?.name ?? null,
-        toAccountName: row.toAccount?.name ?? null,
+        fromAccountId: redactInaccessibleAccountId(row.fromAccountId, accessible),
+        toAccountId: redactInaccessibleAccountId(row.toAccountId, accessible),
+        fromAccountName: accessible.has(row.fromAccountId ?? '') ? (row.fromAccount?.name ?? null) : null,
+        toAccountName: accessible.has(row.toAccountId ?? '') ? (row.toAccount?.name ?? null) : null,
       };
     });
   }
 
-  private async assertAccount(householdId: string, accountId: string): Promise<void> {
-    const account = await this.prisma.client.account.findFirst({
-      where: { id: accountId, householdId },
-      select: { id: true },
-    });
-    if (!account) {
-      throw new NotFoundException('Conta não encontrada.');
-    }
+  private async assertAccount(
+    householdId: string,
+    householdMemberId: string,
+    accountId: string,
+  ): Promise<void> {
+    await assertAccountAccessible(this.prisma.client, householdId, householdMemberId, accountId);
   }
 
-  private async findOwned(householdId: string, id: string) {
+  private async findOwned(householdId: string, householdMemberId: string, id: string) {
     const goal = await this.prisma.client.savingsGoal.findFirst({
-      where: { id, householdId },
+      where: { id, householdId, account: accessibleAccountWhere(householdId, householdMemberId) },
       include: { account: { select: { name: true } } },
     });
     if (!goal) {

@@ -1,26 +1,39 @@
 import type { OnboardingStatus, OnboardingStepFlags } from '@orcadom/types';
+import { accessibleAccountWhere } from '../../common/account-access.js';
 
 export interface OnboardingCountClient {
-  account: { count: (args: { where: { householdId: string } }) => Promise<number> };
-  transaction: { count: (args: { where: { householdId: string } }) => Promise<number> };
-  budget: { count: (args: { where: { householdId: string } }) => Promise<number> };
-  savingsGoal: { count: (args: { where: { householdId: string } }) => Promise<number> };
-  householdImportAlias: { count: (args: { where: { householdId: string } }) => Promise<number> };
-  householdMember: { count: (args: { where: { householdId: string } }) => Promise<number> };
+  account: { count: (args: { where: Record<string, unknown> }) => Promise<number> };
+  transaction: { count: (args: { where: Record<string, unknown> }) => Promise<number> };
+  budget: { count: (args: { where: Record<string, unknown> }) => Promise<number> };
+  savingsGoal: { count: (args: { where: Record<string, unknown> }) => Promise<number> };
+  householdImportAlias: { count: (args: { where: Record<string, unknown> }) => Promise<number> };
+  householdMember: { count: (args: { where: Record<string, unknown> }) => Promise<number> };
 }
 
 export async function getOnboardingSteps(
   client: OnboardingCountClient,
   householdId: string,
+  householdMemberId: string,
 ): Promise<OnboardingStepFlags> {
-  const where = { householdId };
+  const accountWhere = accessibleAccountWhere(householdId, householdMemberId);
   const [accounts, transactions, budgets, savingsGoals, aliases, members] = await Promise.all([
-    client.account.count({ where }),
-    client.transaction.count({ where }),
-    client.budget.count({ where }),
-    client.savingsGoal.count({ where }),
-    client.householdImportAlias.count({ where }),
-    client.householdMember.count({ where }),
+    client.account.count({ where: accountWhere }),
+    client.transaction.count({
+      where: {
+        householdId,
+        OR: [
+          { account: accountWhere },
+          { fromAccount: accountWhere },
+          { toAccount: accountWhere },
+        ],
+      },
+    }),
+    client.budget.count({ where: { householdId } }),
+    client.savingsGoal.count({
+      where: { householdId, account: accountWhere },
+    }),
+    client.householdImportAlias.count({ where: { householdId } }),
+    client.householdMember.count({ where: { householdId } }),
   ]);
 
   return {

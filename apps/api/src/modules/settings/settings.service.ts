@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { accessibleAccountWhere } from '../../common/account-access.js';
 import { PrismaService } from '../../common/prisma.service.js';
 import { buildImportAddress, defaultMailbox, generateImportToken } from '../imports/email-import.util.js';
 
@@ -17,9 +18,16 @@ export class SettingsService {
     };
   }
 
-  async listEmailImportLogs(householdId: string) {
+  async listEmailImportLogs(householdId: string, householdMemberId: string) {
     const logs = await this.prisma.client.emailImportLog.findMany({
-      where: { householdId },
+      where: {
+        householdId,
+        OR: [
+          { importBatchId: null },
+          { importBatch: { accountId: null } },
+          { importBatch: { account: accessibleAccountWhere(householdId, householdMemberId) } },
+        ],
+      },
       orderBy: { createdAt: 'desc' },
       take: 50,
     });

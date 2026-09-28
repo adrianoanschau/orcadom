@@ -133,11 +133,11 @@ revisar em cima de telas ainda desalinhadas.
 
 ---
 
-## 6. Permissão Granular por Conta
+## 6. Permissão Granular por Conta — ✅ já implementado
 
 **Objetivo:** permitir que, dentro de um household, uma conta específica
 seja restrita a um subconjunto de membros (ex: cartão pessoal não visível
-para o resto da família).
+para o resto da família). Detalhado em [`25-permissao-granular-conta.md`](./25-permissao-granular-conta.md).
 
 **Por que agora:** limitação já registrada como conhecida em
 `13-multiusuario.md` — o modelo `OWNER`/`MEMBER` simples não cobre esse

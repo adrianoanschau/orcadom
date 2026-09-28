@@ -1,14 +1,11 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { createAccountSchema, updateAccountSchema } from '@orcadom/types';
-import { useCallback, useState } from 'react';
+import { createAccountSchema, restrictAccountSchema, updateAccountSchema } from '@orcadom/types';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { ApiError, api } from '@/lib/api';
-import { humanize } from '@/lib/format';
-import { accountTypeLabels, type AccountType } from '@/lib/labels';
-import type { Account } from '@/lib/models';
 import { EntityAudit } from '@/components/entity-audit';
+import { useHousehold } from '@/components/household-provider';
 import {
   AccountCard,
   Button,
@@ -21,8 +18,12 @@ import {
   controlClass,
 } from '@/components/ui';
 import { invalidateOnboarding } from '@/hooks/useOnboardingStatus';
-import { useOpenFromQuery } from '@/lib/use-open-from-query';
+import { ApiError, api } from '@/lib/api';
+import { humanize } from '@/lib/format';
+import { accountTypeLabels, type AccountType } from '@/lib/labels';
+import type { Account, AccountAccessResponse, HouseholdMembersResponse, PublicUser } from '@/lib/models';
 import { colors } from '@/lib/tokens';
+import { useOpenFromQuery } from '@/lib/use-open-from-query';
 
 interface AccountForm {
   name: string;
@@ -35,11 +36,19 @@ const emptyForm: AccountForm = { name: '', type: 'WALLET', balance: '', color: c
 
 export default function AccountsPage() {
   const queryClient = useQueryClient();
+  const { household } = useHousehold();
   const accounts = useQuery({ queryKey: ['accounts'], queryFn: () => api<Account[]>('/accounts') });
+  const members = useQuery({
+    queryKey: ['household-members', household?.id],
+    enabled: Boolean(household?.id),
+    queryFn: () => api<HouseholdMembersResponse>(`/households/${household?.id ?? ''}/members`),
+  });
   const [editing, setEditing] = useState<Account | null>(null);
   const [open, setOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<Account | null>(null);
+  const [restricting, setRestricting] = useState<Account | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const canRestrict = (members.data?.members.length ?? 0) > 1;
   const form = useForm<AccountForm>({ defaultValues: emptyForm });
 
   const openCreate = useCallback(() => {
@@ -114,7 +123,7 @@ export default function AccountsPage() {
       <PageHeader title="Contas">
         <Button onClick={openCreate}>Nova conta</Button>
       </PageHeader>
-      {error && !open ? (
+      {error && !open && !restricting ? (
         <div className="mt-4">
           <Notice>{error}</Notice>
         </div>
@@ -133,6 +142,7 @@ export default function AccountsPage() {
             type={account.type}
             balance={account.balance}
             color={account.color}
+            restricted={account.isRestricted}
           >
             <Button
               variant="secondary"
@@ -150,6 +160,17 @@ export default function AccountsPage() {
             >
               Editar
             </Button>
+            {canRestrict ? (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setError(null);
+                  setRestricting(account);
+                }}
+              >
+                Restringir
+              </Button>
+            ) : null}
             <Button
               variant="ghost"
               onClick={() => {
@@ -251,6 +272,184 @@ export default function AccountsPage() {
           </Button>
         </div>
       </Modal>
+
+      <RestrictAccountModal
+        account={restricting}
+        error={error}
+        onClose={() => {
+          setRestricting(null);
+          setError(null);
+        }}
+        onError={setError}
+      />
     </section>
+  );
+}
+
+function RestrictAccountModal({
+  account,
+  error,
+  onClose,
+  onError,
+}: {
+  account: Account | null;
+  error: string | null;
+  onClose: () => void;
+  onError: (message: string | null) => void;
+}) {
+  const queryClient = useQueryClient();
+  const { household } = useHousehold();
+  const [selected, setSelected] = useState<string[]>([]);
+
+  const me = useQuery({
+    queryKey: ['me'],
+    queryFn: () => api<PublicUser>('/profile'),
+    enabled: Boolean(account),
+  });
+  const members = useQuery({
+    queryKey: ['household-members', household?.id],
+    enabled: Boolean(account && household?.id),
+    queryFn: () => api<HouseholdMembersResponse>(`/households/${household?.id ?? ''}/members`),
+  });
+  const access = useQuery({
+    queryKey: ['account-access', account?.id],
+    enabled: Boolean(account),
+    queryFn: () => api<AccountAccessResponse>(`/accounts/${account?.id ?? ''}/access`),
+  });
+
+  const currentMemberId = useMemo(
+    () => members.data?.members.find((member) => member.userId === me.data?.id)?.id ?? null,
+    [me.data?.id, members.data?.members],
+  );
+
+  useEffect(() => {
+    if (!account || !currentMemberId) return;
+    if (account.isRestricted && access.data) {
+      const ids = access.data.members.map((member) => member.id);
+      setSelected(ids.includes(currentMemberId) ? ids : [...ids, currentMemberId]);
+      return;
+    }
+    if (!account.isRestricted) {
+      setSelected([currentMemberId]);
+    }
+  }, [access.data, account, currentMemberId]);
+
+  async function invalidateAccountViews() {
+    await queryClient.invalidateQueries({ queryKey: ['accounts'] });
+    await queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    if (account) {
+      await queryClient.invalidateQueries({ queryKey: ['account-access', account.id] });
+    }
+  }
+
+  const restrict = useMutation({
+    mutationFn: async () => {
+      if (!account) throw new ApiError('Conta não encontrada.', 404);
+      const parsed = restrictAccountSchema.safeParse({ householdMemberIds: selected });
+      if (!parsed.success) {
+        throw new ApiError(humanize(parsed.error.issues[0]?.message ?? 'Selecione ao menos um membro.'), 400);
+      }
+      return api(`/accounts/${account.id}/restrict`, {
+        method: 'PATCH',
+        body: JSON.stringify(parsed.data),
+      });
+    },
+    onSuccess: async () => {
+      onError(null);
+      await invalidateAccountViews();
+      onClose();
+    },
+    onError: (caught: unknown) => {
+      onError(caught instanceof ApiError ? caught.message : 'Não foi possível restringir a conta.');
+    },
+  });
+
+  const unrestrict = useMutation({
+    mutationFn: () => {
+      if (!account) throw new ApiError('Conta não encontrada.', 404);
+      return api(`/accounts/${account.id}/unrestrict`, { method: 'PATCH' });
+    },
+    onSuccess: async () => {
+      onError(null);
+      await invalidateAccountViews();
+      onClose();
+    },
+    onError: (caught: unknown) => {
+      onError(caught instanceof ApiError ? caught.message : 'Não foi possível tornar a conta compartilhada.');
+    },
+  });
+
+  function toggleMember(id: string, checked: boolean) {
+    if (id === currentMemberId) return;
+    setSelected((current) => {
+      if (checked) return current.includes(id) ? current : [...current, id];
+      return current.filter((item) => item !== id);
+    });
+  }
+
+  return (
+    <Modal open={Boolean(account)} title="Restringir conta" onClose={onClose}>
+      <p className="text-sm text-ink-soft">
+        Só quem estiver marcado continua vendo {account?.name}. O valor ainda pode entrar em
+        orçamentos compartilhados.
+      </p>
+      {error ? (
+        <div className="mt-4">
+          <Notice>{error}</Notice>
+        </div>
+      ) : null}
+      <ul className="mt-4 divide-y divide-hairline">
+        {members.data?.members.map((member) => {
+          const locked = member.id === currentMemberId;
+          return (
+            <li key={member.id}>
+              <label className="flex min-h-11 items-center gap-3 py-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="size-4"
+                  checked={selected.includes(member.id)}
+                  disabled={locked}
+                  onChange={(event) => {
+                    toggleMember(member.id, event.target.checked);
+                  }}
+                />
+                <span>
+                  {member.name}
+                  {locked ? ' (você)' : ''}
+                </span>
+              </label>
+            </li>
+          );
+        })}
+      </ul>
+      <div className="mt-4 flex flex-wrap justify-end gap-2">
+        <Button variant="ghost" onClick={onClose}>
+          Cancelar
+        </Button>
+        {account?.isRestricted ? (
+          <Button
+            variant="ghost"
+            disabled={unrestrict.isPending}
+            onClick={() => {
+              unrestrict.mutate();
+            }}
+          >
+            {unrestrict.isPending ? 'Liberando…' : 'Tornar compartilhada'}
+          </Button>
+        ) : null}
+        <Button
+          disabled={restrict.isPending}
+          onClick={() => {
+            restrict.mutate();
+          }}
+        >
+          {restrict.isPending
+            ? 'Salvando…'
+            : account?.isRestricted
+              ? 'Atualizar acesso'
+              : 'Restringir'}
+        </Button>
+      </div>
+    </Modal>
   );
 }

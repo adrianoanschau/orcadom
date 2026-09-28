@@ -32,7 +32,7 @@ function mockClient(counts: Partial<Record<keyof OnboardingCountClient, number>>
 
 describe('getOnboardingSteps', () => {
   it('household novo deixa tudo pendente', async () => {
-    await expect(getOnboardingSteps(mockClient({ householdMember: 1 }), 'hh-new')).resolves.toEqual(empty);
+    await expect(getOnboardingSteps(mockClient({ householdMember: 1 }), 'hh-new', 'mem-1')).resolves.toEqual(empty);
   });
 
   it('household com dados parciais marca só o que já existe', async () => {
@@ -44,6 +44,7 @@ describe('getOnboardingSteps', () => {
           householdMember: 1,
         }),
         'hh-partial',
+        'mem-1',
       ),
     ).resolves.toEqual({
       ...empty,
@@ -62,6 +63,7 @@ describe('getOnboardingSteps', () => {
         householdMember: 2,
       }),
       'hh-shared',
+      'mem-1',
     );
 
     expect(steps).toEqual({

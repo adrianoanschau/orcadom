@@ -219,6 +219,8 @@ model HouseholdMember {
   householdId String
   household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
 
+  accountAccess AccountAccess[]
+
   @@unique([userId, householdId])
   @@index([householdId])
   @@map("household_members")
@@ -252,6 +254,8 @@ model Account {
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 
+  isRestricted Boolean @default(false)
+
   householdId String
   household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
 
@@ -263,9 +267,24 @@ model Account {
   installmentPlans      InstallmentPlan[]
   recurringTransactions RecurringTransaction[]
   savingsGoals          SavingsGoal[]
+  accountAccess         AccountAccess[]
 
   @@index([householdId])
   @@map("accounts")
+}
+
+model AccountAccess {
+  id        String   @id @default(uuid())
+  grantedAt DateTime @default(now())
+
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  householdMemberId String
+  householdMember   HouseholdMember @relation(fields: [householdMemberId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, householdMemberId])
+  @@map("account_access")
 }
 
 model Category {

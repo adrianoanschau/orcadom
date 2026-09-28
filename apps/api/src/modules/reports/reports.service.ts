@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Prisma, ReportFormat, ReportStatus, runWithActor, TransactionType } from '@orcadom/database';
 import { reportFiltersSchema, type CreateReportDto, type ReportFilters } from '@orcadom/types';
+import { assertAccountAccessible, getAccessibleAccountIds } from '../../common/account-access.js';
 import { moneyString } from '../../common/money.js';
 import { PrismaService } from '../../common/prisma.service.js';
 import { buildTransactionListWhere } from '../../common/transaction-filters.js';
@@ -33,11 +34,16 @@ export class ReportsService {
     this.storage = new LocalReportStorage(defaultReportsDir(this.config.get<string>('REPORTS_DIR')));
   }
 
-  async create(householdId: string, userId: string, dto: CreateReportDto) {
-    await this.assertFilters(householdId, dto);
+  async create(householdId: string, householdMemberId: string, userId: string, dto: CreateReportDto) {
+    await this.assertFilters(householdId, householdMemberId, dto);
     const filters = this.toStoredFilters(dto);
+    const accessibleIds = await getAccessibleAccountIds(
+      this.prisma.client,
+      householdId,
+      householdMemberId,
+    );
     const count = await this.prisma.client.transaction.count({
-      where: buildTransactionListWhere(householdId, filters),
+      where: buildTransactionListWhere(householdId, filters, accessibleIds),
     });
     const created = await this.prisma.client.reportRequest.create({
       data: {
@@ -101,7 +107,16 @@ export class ReportsService {
 
     try {
       const filters = this.parseFilters(row.filters);
-      const where = buildTransactionListWhere(row.householdId, filters);
+      const membership = await this.prisma.client.householdMember.findUnique({
+        where: {
+          userId_householdId: { userId: row.requestedByUserId, householdId: row.householdId },
+        },
+        select: { id: true },
+      });
+      const accessibleIds = membership
+        ? await getAccessibleAccountIds(this.prisma.client, row.householdId, membership.id)
+        : [];
+      const where = buildTransactionListWhere(row.householdId, filters, accessibleIds);
       const [household, account, category, transactions] = await Promise.all([
         this.prisma.client.household.findUnique({
           where: { id: row.householdId },
@@ -131,7 +146,8 @@ export class ReportsService {
         }),
       ]);
 
-      const reportRows = transactions.map((transaction) => this.toReportRow(transaction));
+      const visible = new Set(accessibleIds);
+      const reportRows = transactions.map((transaction) => this.toReportRow(transaction, visible));
       const meta = {
         householdName: household?.name ?? 'Orcadom',
         generatedAt: new Date(),
@@ -220,13 +236,13 @@ export class ReportsService {
     });
   }
 
-  private async assertFilters(householdId: string, dto: CreateReportDto): Promise<void> {
+  private async assertFilters(
+    householdId: string,
+    householdMemberId: string,
+    dto: CreateReportDto,
+  ): Promise<void> {
     if (dto.accountId) {
-      const account = await this.prisma.client.account.findFirst({
-        where: { id: dto.accountId, householdId },
-        select: { id: true },
-      });
-      if (!account) throw new NotFoundException('Conta não encontrada.');
+      await assertAccountAccessible(this.prisma.client, householdId, householdMemberId, dto.accountId);
     }
     if (dto.categoryId) {
       const category = await this.prisma.client.category.findFirst({
@@ -259,25 +275,39 @@ export class ReportsService {
     return parsed.success ? parsed.data : {};
   }
 
-  private toReportRow(transaction: {
-    date: Date;
-    description: string;
-    type: string;
-    amount: { toFixed(digits: number): string };
-    account: { name: string } | null;
-    category: { name: string } | null;
-    fromAccount: { name: string } | null;
-    toAccount: { name: string } | null;
-  }): ReportRow {
+  private toReportRow(
+    transaction: {
+      accountId: string | null;
+      fromAccountId: string | null;
+      toAccountId: string | null;
+      date: Date;
+      description: string;
+      type: string;
+      amount: { toFixed(digits: number): string };
+      account: { name: string } | null;
+      category: { name: string } | null;
+      fromAccount: { name: string } | null;
+      toAccount: { name: string } | null;
+    },
+    accessibleIds: ReadonlySet<string>,
+  ): ReportRow {
     const transfer = transaction.type === TransactionType.TRANSFER;
+    const fromName = accessibleIds.has(transaction.fromAccountId ?? '')
+      ? (transaction.fromAccount?.name ?? 'origem')
+      : 'origem';
+    const toName = accessibleIds.has(transaction.toAccountId ?? '')
+      ? (transaction.toAccount?.name ?? 'destino')
+      : 'destino';
     return {
       date: transaction.date,
       description: transaction.description,
       type: transaction.type as ReportRow['type'],
       amount: moneyString(transaction.amount),
       accountName: transfer
-        ? `${transaction.fromAccount?.name ?? 'origem'} → ${transaction.toAccount?.name ?? 'destino'}`
-        : (transaction.account?.name ?? '—'),
+        ? `${fromName} → ${toName}`
+        : accessibleIds.has(transaction.accountId ?? '')
+          ? (transaction.account?.name ?? '—')
+          : '—',
       categoryName: transaction.category?.name ?? '—',
     };
   }

@@ -10,7 +10,10 @@ import {
 } from '@nestjs/common';
 import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
-import { CurrentHousehold } from '../../common/decorators/current-household.decorator.js';
+import {
+  CurrentHousehold,
+  CurrentHouseholdMember,
+} from '../../common/decorators/current-household.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { CreateReportBody, ReportParams } from './reports.dto.js';
 import { ReportsService } from './reports.service.js';
@@ -24,11 +27,12 @@ export class ReportsController {
   @Post()
   async create(
     @CurrentHousehold() householdId: string,
+    @CurrentHouseholdMember() householdMemberId: string,
     @CurrentUser() userId: string,
     @Body() body: CreateReportBody,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const created = await this.reports.create(householdId, userId, body);
+    const created = await this.reports.create(householdId, householdMemberId, userId, body);
     if (created.status === 'PENDING' || created.status === 'PROCESSING') {
       response.status(HttpStatus.ACCEPTED);
     }

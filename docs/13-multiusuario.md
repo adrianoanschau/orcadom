@@ -43,7 +43,7 @@ mistura dados de dois espaços na mesma consulta.
 ```prisma
 enum HouseholdRole {
   OWNER   // pode convidar/remover membros, renomear o household
-  MEMBER  // acesso completo aos dados financeiros, sem gerenciar membros
+  MEMBER  // opera o dinheiro do espaço, sem gerenciar membros; contas restritas exigem AccountAccess
 }
 
 model Household {
@@ -182,6 +182,15 @@ hoje filtra por `where: { userId }` passa a filtrar por
 `where: { householdId: req.household.id }`, resolvido pelo `HouseholdGuard`
 — não pelo corpo da requisição.
 
+**Atualização (permissão granular por conta):** o filtro por
+`householdId` agora é **intersectado** com as contas que o membro pode
+ver (`getAccessibleAccountIds`). Uma conta com `isRestricted = true` some
+para quem não está em `AccountAccess` — inclusive o `OWNER`. O papel só
+define gestão do espaço (convidar, renomear, remover membros), não
+visibilidade de dinheiro. Orçamentos por categoria continuam
+agregando o household inteiro; o valor de uma conta restrita ainda pode
+influenciar um orçamento compartilhado.
+
 ## 7. Migração dos dados existentes
 
 Como o MVP e todas as features anteriores já rodam em produção (ou em uso
@@ -269,12 +278,12 @@ passos, sem downtime destrutivo:
   todas as tabelas de domínio simultaneamente. Vale rodar o backfill
   (Fase 1) em um ambiente de staging com uma cópia real dos dados antes de
   considerar essa fase concluída, não só testar com dados sintéticos.
-- **Modelo de permissão é intencionalmente simples** (`OWNER`/`MEMBER`,
-  sem granularidade por conta). Um cenário real e provável — "quero
-  compartilhar a conta corrente do casal, mas manter meu cartão pessoal
-  privado" — não é suportado nesta versão. Registrado como limitação
-  conhecida, não como esquecimento; suportar isso exigiria permissão por
-  conta, não por household inteiro, e é uma mudança de escopo maior.
+- **Modelo de permissão do espaço continua simples** (`OWNER`/`MEMBER`
+  só para gestão da família). A granularidade por conta passou a existir
+  em [`25-permissao-granular-conta.md`](./25-permissao-granular-conta.md):
+  uma conta restrita é invisível até para o `OWNER`, a menos que ele
+  esteja em `AccountAccess`. Orçamentos por categoria ainda agregam o
+  household inteiro — limite consciente, não um bug.
 - **Memória de categorização compartilhada pode propagar erro:** se um
   membro categoriza um lançamento errado, a sugestão errada passa a
   aparecer para todos os membros do household, não só para quem errou.

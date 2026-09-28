@@ -7,6 +7,7 @@ import {
 import { ImportSource, ImportStatus, Prisma, TransactionSource } from '@orcadom/database';
 import type { ConfirmImportDto } from '@orcadom/types';
 import { randomUUID } from 'node:crypto';
+import { accessibleAccountWhere, assertAccountAccessible } from '../../common/account-access.js';
 import { applyBalance } from '../../common/balance.js';
 import { CategoryMemoryService } from '../../common/category-memory.service.js';
 import { moneyString, toDecimal } from '../../common/money.js';
@@ -51,11 +52,16 @@ export class ImportsService {
     private readonly budgetEvents: BudgetEventsService,
   ) {}
 
-  async upload(householdId: string, accountId: string, file: UploadedFile | undefined) {
+  async upload(
+    householdId: string,
+    householdMemberId: string,
+    accountId: string,
+    file: UploadedFile | undefined,
+  ) {
     if (!file || file.buffer.length === 0) {
       throw new BadRequestException('Envie um arquivo OFX ou CSV.');
     }
-    await this.assertAccount(householdId, accountId);
+    await this.assertAccount(householdId, householdMemberId, accountId);
 
     const text = decodeStatementText(file.buffer);
     const format = detectFormat(file.originalname, text);
@@ -125,11 +131,15 @@ export class ImportsService {
     return this.toPreview(batch, rows, input.householdId);
   }
 
-  async listOpen(householdId: string) {
+  async listOpen(householdId: string, householdMemberId: string) {
     const batches = await this.prisma.client.importBatch.findMany({
       where: {
         householdId,
         status: { in: [ImportStatus.PENDING, ImportStatus.UNMAPPED_ACCOUNT] },
+        OR: [
+          { accountId: null },
+          { account: accessibleAccountWhere(householdId, householdMemberId) },
+        ],
       },
       orderBy: { createdAt: 'desc' },
       select: {
@@ -153,8 +163,8 @@ export class ImportsService {
     }));
   }
 
-  async preview(householdId: string, batchId: string) {
-    const batch = await this.findOwnedBatch(householdId, batchId);
+  async preview(householdId: string, householdMemberId: string, batchId: string) {
+    const batch = await this.findOwnedBatch(householdId, householdMemberId, batchId);
     if (batch.status !== ImportStatus.PENDING && batch.status !== ImportStatus.UNMAPPED_ACCOUNT) {
       throw new BadRequestException('Este lote já foi encerrado.');
     }
@@ -168,8 +178,14 @@ export class ImportsService {
     return this.toPreview(batch, stored.rows, householdId);
   }
 
-  async confirm(householdId: string, userId: string, batchId: string, dto: ConfirmImportDto) {
-    const batch = await this.findOwnedBatch(householdId, batchId);
+  async confirm(
+    householdId: string,
+    householdMemberId: string,
+    userId: string,
+    batchId: string,
+    dto: ConfirmImportDto,
+  ) {
+    const batch = await this.findOwnedBatch(householdId, householdMemberId, batchId);
     if (batch.status !== ImportStatus.PENDING && batch.status !== ImportStatus.UNMAPPED_ACCOUNT) {
       throw new BadRequestException('Este lote já foi encerrado.');
     }
@@ -182,7 +198,7 @@ export class ImportsService {
     if (!accountId) {
       throw new BadRequestException('Selecione a conta deste extrato antes de confirmar.');
     }
-    await this.assertAccount(householdId, accountId);
+    await this.assertAccount(householdId, householdMemberId, accountId);
 
     if (batch.bankId && batch.acctId) {
       await this.prisma.client.bankAccountMapping.upsert({
@@ -270,8 +286,8 @@ export class ImportsService {
     };
   }
 
-  async discard(householdId: string, batchId: string): Promise<void> {
-    const batch = await this.findOwnedBatch(householdId, batchId);
+  async discard(householdId: string, householdMemberId: string, batchId: string): Promise<void> {
+    const batch = await this.findOwnedBatch(householdId, householdMemberId, batchId);
     if (batch.status !== ImportStatus.PENDING && batch.status !== ImportStatus.UNMAPPED_ACCOUNT) {
       throw new BadRequestException('Este lote já foi encerrado.');
     }
@@ -349,14 +365,12 @@ export class ImportsService {
     return exists ? `${externalId}#${randomUUID()}` : externalId;
   }
 
-  private async assertAccount(householdId: string, accountId: string): Promise<void> {
-    const account = await this.prisma.client.account.findFirst({
-      where: { id: accountId, householdId },
-      select: { id: true },
-    });
-    if (!account) {
-      throw new NotFoundException('Conta não encontrada.');
-    }
+  private async assertAccount(
+    householdId: string,
+    householdMemberId: string,
+    accountId: string,
+  ): Promise<void> {
+    await assertAccountAccessible(this.prisma.client, householdId, householdMemberId, accountId);
   }
 
   private async assertCategories(
@@ -379,8 +393,14 @@ export class ImportsService {
     }
   }
 
-  private async findOwnedBatch(householdId: string, id: string) {
-    const batch = await this.prisma.client.importBatch.findFirst({ where: { id, householdId } });
+  private async findOwnedBatch(householdId: string, householdMemberId: string, id: string) {
+    const batch = await this.prisma.client.importBatch.findFirst({
+      where: {
+        id,
+        householdId,
+        OR: [{ accountId: null }, { account: accessibleAccountWhere(householdId, householdMemberId) }],
+      },
+    });
     if (!batch) {
       throw new NotFoundException('Importação não encontrada.');
     }

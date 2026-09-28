@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { CategoryType, PostingStatus, TransactionType } from '@orcadom/database';
 import type { CreateInstallmentPlanDto } from '@orcadom/types';
+import { accessibleAccountWhere, assertAccountAccessible } from '../../common/account-access.js';
 import { applyBalance } from '../../common/balance.js';
 import { moneyString, toDecimal } from '../../common/money.js';
 import { PrismaService } from '../../common/prisma.service.js';
@@ -14,8 +15,13 @@ export class InstallmentPlansService {
     private readonly budgetEvents: BudgetEventsService,
   ) {}
 
-  async create(householdId: string, userId: string, dto: CreateInstallmentPlanDto) {
-    await this.assertAccount(householdId, dto.accountId);
+  async create(
+    householdId: string,
+    householdMemberId: string,
+    userId: string,
+    dto: CreateInstallmentPlanDto,
+  ) {
+    await this.assertAccount(householdId, householdMemberId, dto.accountId);
     await this.assertExpenseCategory(householdId, dto.categoryId);
     const purchaseDate = new Date(dto.purchaseDate);
     const generated = generateInstallments({
@@ -67,12 +73,12 @@ export class InstallmentPlansService {
     });
 
     await this.budgetEvents.emitIfCrossed(householdId, dto.categoryId, first.date, previous?.status);
-    return this.get(householdId, plan.id);
+    return this.get(householdId, householdMemberId, plan.id);
   }
 
-  async list(householdId: string) {
+  async list(householdId: string, householdMemberId: string) {
     const plans = await this.prisma.client.installmentPlan.findMany({
-      where: { householdId },
+      where: { householdId, account: accessibleAccountWhere(householdId, householdMemberId) },
       include: {
         account: { select: { id: true, name: true } },
         category: { select: { id: true, name: true } },
@@ -83,9 +89,9 @@ export class InstallmentPlansService {
     return plans.map((plan) => this.toSummary(plan));
   }
 
-  async get(householdId: string, id: string) {
+  async get(householdId: string, householdMemberId: string, id: string) {
     const plan = await this.prisma.client.installmentPlan.findFirst({
-      where: { id, householdId },
+      where: { id, householdId, account: accessibleAccountWhere(householdId, householdMemberId) },
       include: {
         account: { select: { id: true, name: true } },
         category: { select: { id: true, name: true } },
@@ -108,9 +114,9 @@ export class InstallmentPlansService {
     };
   }
 
-  async remove(householdId: string, id: string): Promise<void> {
+  async remove(householdId: string, householdMemberId: string, id: string): Promise<void> {
     const plan = await this.prisma.client.installmentPlan.findFirst({
-      where: { id, householdId },
+      where: { id, householdId, account: accessibleAccountWhere(householdId, householdMemberId) },
       include: { installments: { select: { id: true, postingStatus: true } } },
     });
     if (!plan) {
@@ -162,11 +168,12 @@ export class InstallmentPlansService {
     };
   }
 
-  private async assertAccount(householdId: string, accountId: string): Promise<void> {
-    const account = await this.prisma.client.account.findFirst({ where: { id: accountId, householdId } });
-    if (!account) {
-      throw new NotFoundException('Conta não encontrada.');
-    }
+  private async assertAccount(
+    householdId: string,
+    householdMemberId: string,
+    accountId: string,
+  ): Promise<void> {
+    await assertAccountAccessible(this.prisma.client, householdId, householdMemberId, accountId);
   }
 
   private async assertExpenseCategory(householdId: string, categoryId: string): Promise<void> {
