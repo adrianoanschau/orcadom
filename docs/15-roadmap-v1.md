@@ -173,10 +173,10 @@ Detalhado em [`26-observabilidade.md`](./26-observabilidade.md).
 
 ---
 
-## 8. Backup Automatizado do Postgres
+## 8. Backup Automatizado do Postgres — ✅ já implementado
 
 **Objetivo:** rotina de backup recorrente do banco, com teste periódico de
-restauração.
+restauração. Detalhado em [`27-backup-postgres.md`](./27-backup-postgres.md).
 
 **Por que agora:** crítico especialmente depois da feature de Auditoria
 (`14`) — perder o banco sem backup também apaga todo o histórico de

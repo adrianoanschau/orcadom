@@ -137,6 +137,7 @@ services:
       - '${PROMETHEUS_PORT:-9090}:9090'
     volumes:
       - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
       - orcadom_prometheus_data:/prometheus
 
   grafana:
@@ -157,6 +158,74 @@ services:
     depends_on:
       - prometheus
 
+  # MinIO Inc stopped publishing Docker images (repo archived 2026).
+  # pgsty/minio is a drop-in S3 API + console, still released.
+  minio:
+    image: pgsty/minio:RELEASE.2026-06-18T00-00-00Z
+    container_name: orcadom_minio
+    profiles: ['backup']
+    restart: unless-stopped
+    command: server /data --console-address ':9001'
+    environment:
+      MINIO_ROOT_USER: ${BACKUP_S3_ACCESS_KEY:-orcadom_backup}
+      MINIO_ROOT_PASSWORD: ${BACKUP_S3_SECRET_KEY:-orcadom_backup_dev}
+    ports:
+      - '${MINIO_API_PORT:-9000}:9000'
+      - '${MINIO_CONSOLE_PORT:-9001}:9001'
+    volumes:
+      - orcadom_minio_data:/data
+
+  postgres-backup:
+    build:
+      context: ./infra/backup
+      dockerfile: Dockerfile
+    image: orcadom-postgres-backup:local
+    container_name: orcadom_postgres_backup
+    profiles: ['backup']
+    restart: unless-stopped
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    environment:
+      TZ: America/Sao_Paulo
+      POSTGRES_USER: ${POSTGRES_USER:-orcadom}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-orcadom_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-orcadom_db}
+      PGHOST: postgres
+      PGPORT: '5432'
+      BACKUP_S3_ENDPOINT: ${BACKUP_S3_ENDPOINT:-http://minio:9000}
+      BACKUP_S3_BUCKET: ${BACKUP_S3_BUCKET:-orcadom-backups}
+      BACKUP_S3_ACCESS_KEY: ${BACKUP_S3_ACCESS_KEY:-orcadom_backup}
+      BACKUP_S3_SECRET_KEY: ${BACKUP_S3_SECRET_KEY:-orcadom_backup_dev}
+      BACKUP_S3_REGION: ${BACKUP_S3_REGION:-us-east-1}
+      BACKUP_AGE_PUBLIC_KEY: ${BACKUP_AGE_PUBLIC_KEY:-}
+      BACKUP_AGE_SECRET_KEY: ${BACKUP_AGE_SECRET_KEY:-}
+      BACKUP_RETENTION_DAILY: ${BACKUP_RETENTION_DAILY:-7}
+      BACKUP_RETENTION_WEEKLY: ${BACKUP_RETENTION_WEEKLY:-4}
+      BACKUP_RETENTION_MONTHLY: ${BACKUP_RETENTION_MONTHLY:-6}
+      BACKUP_CRON: ${BACKUP_CRON:-0 3 * * *}
+      BACKUP_RESTORE_TEST_CRON: ${BACKUP_RESTORE_TEST_CRON:-0 4 1 * *}
+      BACKUP_RUN_ON_START: ${BACKUP_RUN_ON_START:-true}
+      BACKUP_RESTORE_TEST_ON_START: ${BACKUP_RESTORE_TEST_ON_START:-false}
+      BACKUP_METRICS_PORT: '9105'
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-development}
+    ports:
+      - '${BACKUP_METRICS_PORT:-9105}:9105'
+    volumes:
+      - orcadom_backup_keys:/keys
+      - orcadom_backup_state:/var/lib/backup-metrics
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    healthcheck:
+      test: ['CMD', 'curl', '-fsS', 'http://127.0.0.1:9105/health']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
 volumes:
   orcadom_pgdata:
     name: orcadom_pgdata
@@ -168,3 +237,9 @@ volumes:
     name: orcadom_prometheus_data
   orcadom_grafana_data:
     name: orcadom_grafana_data
+  orcadom_minio_data:
+    name: orcadom_minio_data
+  orcadom_backup_keys:
+    name: orcadom_backup_keys
+  orcadom_backup_state:
+    name: orcadom_backup_state

@@ -33,6 +33,10 @@ pnpm-debug.log*
 # os
 .DS_Store
 
+# python (backup job unit tests)
+__pycache__/
+*.pyc
+
 # ide
 .vscode/*
 !.vscode/extensions.json

@@ -21,7 +21,12 @@
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
     "obs:up": "docker compose --profile observability up -d",
-    "obs:down": "docker compose stop grafana prometheus glitchtip glitchtip-worker redis"
+    "obs:down": "docker compose stop grafana prometheus glitchtip glitchtip-worker redis",
+    "backup:up": "docker compose --profile backup up -d --build",
+    "backup:down": "docker compose stop postgres-backup minio",
+    "backup:now": "docker compose --profile backup run --rm postgres-backup /backup/backup.sh",
+    "backup:restore-test": "docker compose --profile backup run --rm postgres-backup /backup/restore-test.sh",
+    "test:backup": "python3 -m unittest discover -s infra/backup -p 'test_*.py'"
   },
   "devDependencies": {
     "@changesets/cli": "^3.0.3",

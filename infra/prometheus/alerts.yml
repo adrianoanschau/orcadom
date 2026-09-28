@@ -1,0 +1,31 @@
+groups:
+  - name: orcadom-backup
+    rules:
+      - alert: OrcadomBackupStale
+        expr: time() - orcadom_backup_last_success_timestamp{job="dump"} > 36 * 3600
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: Orcadom Postgres dump is stale
+          description: >
+            The last successful dump was more than 36 hours ago. A backup that
+            fails silently is worse than having no backup.
+
+      - alert: OrcadomBackupFailed
+        expr: increase(orcadom_backup_runs_total{job="dump",result="failure"}[1h]) > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: Orcadom Postgres dump failed
+          description: A dump run recorded a failure in the last hour.
+
+      - alert: OrcadomRestoreTestStale
+        expr: time() - orcadom_backup_last_success_timestamp{job="restore_test"} > 40 * 24 * 3600
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: Orcadom restore test is overdue
+          description: The last successful isolated restore test was more than 40 days ago.
