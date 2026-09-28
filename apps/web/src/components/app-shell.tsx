@@ -7,6 +7,7 @@ import { useHousehold } from './household-provider';
 import { CloseIcon, HomeIcon, ImportIcon, LedgerIcon, MoreIcon } from './icons';
 import { isMoreActive, isNavActive, moreNav, primaryNav } from './nav';
 import { NotificationBell } from './notification-bell';
+import { PwaBanners } from './pwa-banners';
 import { Select } from './ui';
 import { UserMenu } from './user-menu';
 
@@ -44,6 +45,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             setMoreOpen(false);
           }}
         />
+        <PwaBanners />
       </div>
     </div>
   );

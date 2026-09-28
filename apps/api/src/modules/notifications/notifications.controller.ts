@@ -1,8 +1,24 @@
-import { Controller, Get, HttpCode, HttpStatus, Param, Patch, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { SkipHousehold } from '../../common/decorators/skip-household.decorator.js';
-import { ListNotificationsQueryDto, NotificationParams } from './notifications.dto.js';
+import {
+  DeletePushSubscriptionBody,
+  ListNotificationsQueryDto,
+  NotificationParams,
+  PushSubscriptionBody,
+} from './notifications.dto.js';
 import { NotificationsService } from './notifications.service.js';
 
 @ApiTags('notifications')
@@ -15,6 +31,23 @@ export class NotificationsController {
   @Get()
   list(@CurrentUser() userId: string, @Query() query: ListNotificationsQueryDto) {
     return this.notifications.list(userId, query);
+  }
+
+  @Get('push/public-key')
+  pushPublicKey() {
+    return this.notifications.pushPublicKey();
+  }
+
+  @Post('push/subscriptions')
+  @HttpCode(HttpStatus.CREATED)
+  subscribePush(@CurrentUser() userId: string, @Body() body: PushSubscriptionBody) {
+    return this.notifications.subscribePush(userId, body);
+  }
+
+  @Delete('push/subscriptions')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  unsubscribePush(@CurrentUser() userId: string, @Body() body: DeletePushSubscriptionBody) {
+    return this.notifications.unsubscribePush(userId, body.endpoint);
   }
 
   @Patch('read-all')

@@ -95,6 +95,7 @@ enum SavingsGoalStatus {
 enum NotificationChannel {
   IN_APP
   EMAIL
+  WEB_PUSH
 }
 
 enum HouseholdRole {
@@ -138,14 +139,15 @@ model User {
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
 
-  memberships     HouseholdMember[]
-  transactions    Transaction[]
-  emailImportLogs EmailImportLog[]
-  notifications   Notification[]
-  auditLogs       AuditLog[]
-  refreshTokens   RefreshToken[]
-  onboardingState UserOnboardingState?
-  reportRequests  ReportRequest[]
+  memberships       HouseholdMember[]
+  transactions      Transaction[]
+  emailImportLogs   EmailImportLog[]
+  notifications     Notification[]
+  auditLogs         AuditLog[]
+  refreshTokens     RefreshToken[]
+  onboardingState   UserOnboardingState?
+  reportRequests    ReportRequest[]
+  pushSubscriptions PushSubscription[]
 
   @@map("users")
 }
@@ -480,6 +482,20 @@ model Notification {
 
   @@index([userId, readAt])
   @@map("notifications")
+}
+
+model PushSubscription {
+  id        String   @id @default(uuid())
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
 }
 
 model SavingsGoal {

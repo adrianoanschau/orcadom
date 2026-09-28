@@ -16,6 +16,8 @@ export function createEslintConfig(tsconfigRootDir) {
         '**/node_modules/**',
         '**/coverage/**',
         '**/src/generated/**',
+        '**/public/sw.js',
+        '**/scripts/**',
         'pnpm-lock.yaml',
       ],
     },

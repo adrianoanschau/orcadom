@@ -1,7 +1,11 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NotificationChannel, Prisma } from '@orcadom/database';
-import type { ListNotificationsQuery } from '@orcadom/types';
+import {
+  notificationPath,
+  type ListNotificationsQuery,
+  type PushSubscriptionDto,
+} from '@orcadom/types';
 import { PrismaService } from '../../common/prisma.service.js';
 import type { BudgetThresholdPayload } from '../budgets/budget-events.service.js';
 import type { ReportReadyPayload } from '../reports/report-events.service.js';
@@ -14,7 +18,9 @@ import {
   type EmailImportEventPayload,
   type NotificationKind,
   wantsEmail,
+  wantsWebPush,
 } from './notification-policy.js';
+import { configureWebPush, sendPushNotification } from './web-push.js';
 
 @Injectable()
 export class NotificationsService {
@@ -76,7 +82,12 @@ export class NotificationsService {
 
   private async fanOut(
     householdId: string,
-    input: { type: NotificationKind; title: string; message: string; metadata: Record<string, string> },
+    input: {
+      type: NotificationKind;
+      title: string;
+      message: string;
+      metadata: Record<string, string>;
+    },
   ): Promise<void> {
     const members = await this.prisma.client.householdMember.findMany({
       where: { householdId },
@@ -115,6 +126,32 @@ export class NotificationsService {
     });
   }
 
+  pushPublicKey() {
+    return { publicKey: this.vapidPublicKey() };
+  }
+
+  async subscribePush(userId: string, input: PushSubscriptionDto) {
+    const item = await this.prisma.client.pushSubscription.upsert({
+      where: { endpoint: input.endpoint },
+      create: {
+        userId,
+        endpoint: input.endpoint,
+        p256dh: input.keys.p256dh,
+        auth: input.keys.auth,
+      },
+      update: {
+        userId,
+        p256dh: input.keys.p256dh,
+        auth: input.keys.auth,
+      },
+    });
+    return { id: item.id, endpoint: item.endpoint };
+  }
+
+  async unsubscribePush(userId: string, endpoint: string): Promise<void> {
+    await this.prisma.client.pushSubscription.deleteMany({ where: { userId, endpoint } });
+  }
+
   private async persist(input: {
     userId: string;
     type: NotificationKind;
@@ -133,18 +170,36 @@ export class NotificationsService {
       },
     });
 
-    if (!wantsEmail(input.type)) return;
-    const sent = await this.sendEmailBestEffort({
-      userId: input.userId,
-      subject: input.title,
-      body: input.message,
-      type: input.type,
-    });
-    if (!sent) return;
-    await this.prisma.client.notification.update({
-      where: { id: created.id },
-      data: { channels: [NotificationChannel.IN_APP, NotificationChannel.EMAIL] },
-    });
+    const channels: NotificationChannel[] = [NotificationChannel.IN_APP];
+
+    if (wantsEmail(input.type)) {
+      const sent = await this.sendEmailBestEffort({
+        userId: input.userId,
+        subject: input.title,
+        body: input.message,
+        type: input.type,
+      });
+      if (sent) channels.push(NotificationChannel.EMAIL);
+    }
+
+    if (wantsWebPush(input.type)) {
+      const sent = await this.sendWebPushBestEffort({
+        userId: input.userId,
+        title: input.title,
+        body: input.message,
+        type: input.type,
+        metadata: input.metadata,
+        tag: created.id,
+      });
+      if (sent) channels.push(NotificationChannel.WEB_PUSH);
+    }
+
+    if (channels.length > 1) {
+      await this.prisma.client.notification.update({
+        where: { id: created.id },
+        data: { channels },
+      });
+    }
   }
 
   private async sendEmailBestEffort(input: {
@@ -193,6 +248,73 @@ export class NotificationsService {
       this.logger.warn(`Falha ao enviar email de ${input.type}: ${detail}`);
       return false;
     }
+  }
+
+  private vapidPublicKey(): string | null {
+    const publicKey = this.config.get<string>('VAPID_PUBLIC_KEY');
+    if (!publicKey || publicKey.startsWith('troque_este')) return null;
+    return publicKey;
+  }
+
+  private webPushConfigured(): boolean {
+    const publicKey = this.vapidPublicKey();
+    const privateKey = this.config.get<string>('VAPID_PRIVATE_KEY');
+    return Boolean(publicKey && privateKey && !privateKey.startsWith('troque_este'));
+  }
+
+  private async sendWebPushBestEffort(input: {
+    userId: string;
+    title: string;
+    body: string;
+    type: NotificationKind;
+    metadata: Record<string, string>;
+    tag: string;
+  }): Promise<boolean> {
+    if (!this.webPushConfigured()) {
+      this.logger.warn(`Canal de web push ignorado para ${input.type}: VAPID não configurado.`);
+      return false;
+    }
+
+    const publicKey = this.vapidPublicKey();
+    const privateKey = this.config.get<string>('VAPID_PRIVATE_KEY');
+    if (!publicKey || !privateKey) return false;
+    const subject = this.config.get<string>('VAPID_SUBJECT') ?? 'mailto:orcadom@localhost';
+    configureWebPush(publicKey, privateKey, subject);
+
+    const subscriptions = await this.prisma.client.pushSubscription.findMany({
+      where: { userId: input.userId },
+    });
+    if (subscriptions.length === 0) return false;
+
+    const payload = JSON.stringify({
+      title: input.title,
+      body: input.body,
+      url: notificationPath(input.type, input.metadata),
+      tag: input.tag,
+    });
+
+    let delivered = false;
+    for (const subscription of subscriptions) {
+      const result = await sendPushNotification(
+        {
+          endpoint: subscription.endpoint,
+          keys: { p256dh: subscription.p256dh, auth: subscription.auth },
+        },
+        payload,
+      );
+      if (result.ok) {
+        delivered = true;
+        continue;
+      }
+      if (result.gone) {
+        await this.prisma.client.pushSubscription.delete({ where: { id: subscription.id } });
+        continue;
+      }
+      this.logger.warn(
+        `Falha ao enviar web push de ${input.type}: ${result.detail ?? 'falha desconhecida'}`,
+      );
+    }
+    return delivered;
   }
 
   private toResponse(item: {

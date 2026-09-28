@@ -69,10 +69,7 @@ export {
   type EmailImportLogsQuery,
   type UpdateBankAccountMappingDto,
 } from './email-import.types.js';
-export {
-  createInstallmentPlanSchema,
-  type CreateInstallmentPlanDto,
-} from './installment.types.js';
+export { createInstallmentPlanSchema, type CreateInstallmentPlanDto } from './installment.types.js';
 export {
   createRecurringTransactionSchema,
   updateRecurringTransactionSchema,
@@ -114,6 +111,15 @@ export {
   type ReportParam,
   type ReportStatus,
 } from './report.types.js';
+export {
+  deletePushSubscriptionSchema,
+  notificationChannelSchema,
+  notificationPath,
+  pushSubscriptionSchema,
+  type DeletePushSubscriptionDto,
+  type NotificationChannel,
+  type PushSubscriptionDto,
+} from './notification.types.js';
 export {
   onboardingStepFlags,
   type OnboardingStatus,

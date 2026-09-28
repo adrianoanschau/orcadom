@@ -213,7 +213,7 @@ export interface AppNotification {
     goalId?: string;
     reportId?: string;
   } | null;
-  channels: ('IN_APP' | 'EMAIL')[];
+  channels: ('IN_APP' | 'EMAIL' | 'WEB_PUSH')[];
   readAt: string | null;
   createdAt: string;
 }
@@ -314,11 +314,7 @@ export interface HouseholdMembersResponse {
 
 export type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE';
 export type AuditSource =
-  | 'USER'
-  | 'AUTOMATION_EMAIL'
-  | 'CRON_INSTALLMENT'
-  | 'CRON_RECURRING'
-  | 'SYSTEM';
+  'USER' | 'AUTOMATION_EMAIL' | 'CRON_INSTALLMENT' | 'CRON_RECURRING' | 'SYSTEM';
 
 export interface OnboardingStepFlags {
   hasAccount: boolean;

@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useEffect, useId, useRef, useState } from 'react';
+import { notificationPath } from '@orcadom/types';
 import { api } from '@/lib/api';
 import { formatRelativeTime } from '@/lib/format';
 import type { AppNotification } from '@/lib/models';
@@ -95,7 +96,7 @@ export function NotificationBell() {
           ) : (
             <ul className="mt-3 max-h-80 space-y-2 overflow-y-auto">
               {items.map((item) => {
-                const href = notificationHref(item);
+                const href = notificationPath(item.type, item.metadata);
                 return (
                   <li key={item.id}>
                     <Link
@@ -122,20 +123,6 @@ export function NotificationBell() {
       ) : null}
     </div>
   );
-}
-
-function notificationHref(item: AppNotification): string {
-  const batchId = item.metadata?.importBatchId;
-  if (item.type === 'EMAIL_IMPORT_READY' || item.type === 'EMAIL_IMPORT_UNMAPPED_ACCOUNT') {
-    return batchId ? `/imports?batchId=${batchId}` : '/imports';
-  }
-  if (item.type === 'SAVINGS_GOAL_COMPLETED') {
-    return item.metadata?.goalId ? `/savings-goals/${item.metadata.goalId}` : '/savings-goals';
-  }
-  if (item.type === 'REPORT_READY') {
-    return item.metadata?.reportId ? `/transactions?reportId=${item.metadata.reportId}` : '/transactions';
-  }
-  return '/budgets';
 }
 
 function BellIcon() {

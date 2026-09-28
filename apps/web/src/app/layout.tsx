@@ -1,7 +1,8 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Fraunces, Manrope } from 'next/font/google';
 import type { ReactNode } from 'react';
 import { Providers } from '@/components/providers';
+import { colors } from '@/lib/tokens';
 import './globals.css';
 
 const fraunces = Fraunces({
@@ -19,6 +20,27 @@ const manrope = Manrope({
 export const metadata: Metadata = {
   title: 'Orcadom',
   description: 'Controle financeiro doméstico',
+  applicationName: 'Orcadom',
+  appleWebApp: {
+    capable: true,
+    title: 'Orcadom',
+    statusBarStyle: 'default',
+  },
+  formatDetection: { telephone: false },
+  icons: {
+    icon: [
+      { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: [{ url: '/icons/apple-touch-icon.png', sizes: '180x180' }],
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: colors.brand,
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

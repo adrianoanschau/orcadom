@@ -9,13 +9,13 @@ export type NotificationKind =
   | 'SAVINGS_GOAL_COMPLETED'
   | 'REPORT_READY';
 
-export type NotificationChannelKind = 'IN_APP' | 'EMAIL';
+export type NotificationChannelKind = 'IN_APP' | 'EMAIL' | 'WEB_PUSH';
 
 export const NOTIFICATION_CHANNEL_POLICY: Record<NotificationKind, NotificationChannelKind[]> = {
   BUDGET_WARNING: ['IN_APP'],
-  BUDGET_EXCEEDED: ['IN_APP', 'EMAIL'],
+  BUDGET_EXCEEDED: ['IN_APP', 'EMAIL', 'WEB_PUSH'],
   EMAIL_IMPORT_READY: ['IN_APP'],
-  EMAIL_IMPORT_UNMAPPED_ACCOUNT: ['IN_APP', 'EMAIL'],
+  EMAIL_IMPORT_UNMAPPED_ACCOUNT: ['IN_APP', 'EMAIL', 'WEB_PUSH'],
   SAVINGS_GOAL_COMPLETED: ['IN_APP'],
   REPORT_READY: ['IN_APP'],
 };
@@ -30,12 +30,18 @@ export function wantsEmail(type: NotificationKind): boolean {
   return NOTIFICATION_CHANNEL_POLICY[type].includes('EMAIL');
 }
 
+export function wantsWebPush(type: NotificationKind): boolean {
+  return NOTIFICATION_CHANNEL_POLICY[type].includes('WEB_PUSH');
+}
+
 export function formatMonthLabel(month: string): string {
   const [yearText, monthText] = month.split('-');
   const date = new Date(Date.UTC(Number(yearText), Number(monthText) - 1, 1));
-  return new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(
-    date,
-  );
+  return new Intl.DateTimeFormat('pt-BR', {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(date);
 }
 
 export function budgetNotificationCopy(

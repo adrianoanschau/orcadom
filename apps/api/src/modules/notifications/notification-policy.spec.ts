@@ -1,3 +1,4 @@
+import { notificationPath } from '@orcadom/types';
 import { describe, expect, it } from 'vitest';
 import {
   budgetNotificationCopy,
@@ -6,6 +7,7 @@ import {
   reportReadyCopy,
   savingsGoalCompletedCopy,
   wantsEmail,
+  wantsWebPush,
 } from './notification-policy.js';
 
 describe('wantsEmail', () => {
@@ -16,6 +18,32 @@ describe('wantsEmail', () => {
     expect(wantsEmail('EMAIL_IMPORT_UNMAPPED_ACCOUNT')).toBe(true);
     expect(wantsEmail('SAVINGS_GOAL_COMPLETED')).toBe(false);
     expect(wantsEmail('REPORT_READY')).toBe(false);
+  });
+});
+
+describe('wantsWebPush', () => {
+  it('reaproveita a política dos tipos que já saem do app', () => {
+    expect(wantsWebPush('BUDGET_WARNING')).toBe(false);
+    expect(wantsWebPush('EMAIL_IMPORT_READY')).toBe(false);
+    expect(wantsWebPush('BUDGET_EXCEEDED')).toBe(true);
+    expect(wantsWebPush('EMAIL_IMPORT_UNMAPPED_ACCOUNT')).toBe(true);
+    expect(wantsWebPush('SAVINGS_GOAL_COMPLETED')).toBe(false);
+    expect(wantsWebPush('REPORT_READY')).toBe(false);
+  });
+});
+
+describe('notificationPath', () => {
+  it('resolve o destino pelo tipo e metadata', () => {
+    expect(notificationPath('BUDGET_EXCEEDED')).toBe('/budgets');
+    expect(notificationPath('EMAIL_IMPORT_READY', { importBatchId: 'batch-1' })).toBe(
+      '/imports?batchId=batch-1',
+    );
+    expect(notificationPath('SAVINGS_GOAL_COMPLETED', { goalId: 'goal-1' })).toBe(
+      '/savings-goals/goal-1',
+    );
+    expect(notificationPath('REPORT_READY', { reportId: 'report-1' })).toBe(
+      '/transactions?reportId=report-1',
+    );
   });
 });
 
