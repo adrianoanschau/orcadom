@@ -1,0 +1,36 @@
+# build outputs and deps — rebuilt inside the image
+**/node_modules
+**/.next
+**/dist
+**/.turbo
+.pnpm-store
+
+# vcs / editor / local env
+.git
+.gitignore
+.cursor
+.claude
+.vscode
+.env
+.env.*
+!.env.example
+
+# docs and CI are not needed to build the app images
+.github
+docs
+**/*.md
+
+# local data and credentials
+data
+**/data
+**/data/reports
+credentials
+*.log
+
+# backup job tests / python caches
+__pycache__
+**/*.pyc
+infra/backup
+
+# generated prisma client is rebuilt during `pnpm turbo run build`
+packages/database/src/generated

@@ -70,3 +70,8 @@ Supabase, Neon, Railway) — o `DATABASE_URL` muda, mas o schema e as
 migrations do Prisma permanecem os mesmos. Logs JSON, `/metrics` e o SDK
 Sentry (DSN do GlitchTip ou Sentry SaaS) seguem na API, independentemente
 do compose local.
+
+Staging e produção sobem `api` e `web` pelas imagens do GHCR, com
+[`infra/deploy/docker-compose.yml`](../infra/deploy/docker-compose.yml) —
+ver [`28-cicd.md`](./28-cicd.md). Esse arquivo não entra em
+`pnpm docker:up`.

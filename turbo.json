@@ -1,8 +1,15 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalPassThroughEnv": [
+    "CI",
+    "DATABASE_URL",
+    "NODE_ENV",
+    "NEXT_PUBLIC_API_URL",
+    "NEXT_TELEMETRY_DISABLED"
+  ],
   "tasks": {
     "build": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["^build", "db:generate"],
       "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
     },
     "dev": {
@@ -11,7 +18,7 @@
       "dependsOn": ["^build"]
     },
     "lint": {
-      "dependsOn": ["^lint"]
+      "dependsOn": ["^lint", "db:generate", "^db:generate"]
     },
     "format": {
       "cache": false
@@ -26,6 +33,9 @@
       "cache": false
     },
     "db:migrate": {
+      "cache": false
+    },
+    "db:migrate:deploy": {
       "cache": false
     }
   }

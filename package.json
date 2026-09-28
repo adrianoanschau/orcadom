@@ -18,6 +18,7 @@
     "db:down": "docker compose down",
     "db:generate": "turbo run db:generate",
     "db:migrate": "turbo run db:migrate",
+    "db:migrate:deploy": "pnpm --filter @orcadom/database exec prisma migrate deploy",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
     "obs:up": "docker compose --profile observability up -d",

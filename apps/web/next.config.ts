@@ -1,12 +1,16 @@
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { NextConfig } from 'next';
 
-const version = JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf8')) as {
+const webDir = dirname(fileURLToPath(import.meta.url));
+const version = JSON.parse(readFileSync(join(webDir, 'package.json'), 'utf8')) as {
   version: string;
 };
 
 const nextConfig: NextConfig = {
+  output: 'standalone',
+  outputFileTracingRoot: join(webDir, '../..'),
   transpilePackages: ['@orcadom/types'],
   env: {
     NEXT_PUBLIC_APP_VERSION: version.version,

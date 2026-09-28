@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    env:
+      # O barrel de @orcadom/database instancia o client no import.
+      # Os testes atuais não consultam o banco; o valor só precisa existir.
+      DATABASE_URL: postgresql://orcadom:orcadom@127.0.0.1:5432/orcadom_db?schema=public
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Cache do Turborepo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+            turbo-${{ runner.os }}-
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Gera o client Prisma
+        run: pnpm --filter @orcadom/database db:generate
+
+      - name: Lint, build e testes
+        run: pnpm turbo run lint build test
+
+      - name: Testes do job de backup
+        run: pnpm test:backup

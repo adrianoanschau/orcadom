@@ -11,11 +11,11 @@ import {
   type AccountAccessReader,
 } from './account-access.js';
 
-function mockReader(rows: Array<{ id: string }>): AccountAccessReader {
+function mockReader(rows: { id: string }[]): AccountAccessReader {
   return {
     account: {
-      findMany: async () => rows,
-      findFirst: async (args) => rows.find((row) => row.id === args.where.id) ?? null,
+      findMany: () => Promise.resolve(rows),
+      findFirst: (args) => Promise.resolve(rows.find((row) => row.id === args.where.id) ?? null),
     },
   };
 }

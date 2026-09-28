@@ -13,7 +13,7 @@ async function bootstrap(): Promise<void> {
   app.useLogger(app.get(Logger));
   app.use(cookieParser());
   app.enableCors({
-    origin: 'http://localhost:3000',
+    origin: process.env.WEB_ORIGIN ?? 'http://localhost:3000',
     credentials: true,
   });
 

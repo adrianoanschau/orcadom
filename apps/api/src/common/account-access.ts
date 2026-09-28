@@ -30,7 +30,7 @@ export interface AccountAccessReader {
     findMany(args: {
       where: ReturnType<typeof accessibleAccountWhere>;
       select: { id: true };
-    }): Promise<Array<{ id: string }>>;
+    }): Promise<{ id: string }[]>;
     findFirst(args: {
       where: { id: string } & ReturnType<typeof accessibleAccountWhere>;
       select?: { id: true };

@@ -62,7 +62,23 @@ Infraestrutura sem efeito observável (CI, observabilidade, backup) também
 
 O CI (`changeset-check`) falha se o PR alterar um pacote do workspace e
 não trouxer um arquivo novo em `.changeset/`, a menos que a label
-`no-changeset` esteja presente.
+`no-changeset` esteja presente. O PR **chore: release** (aberto pelo
+workflow `Release`) também dispensa changeset — os arquivos em
+`.changeset/` já foram consumidos nesse PR.
+
+### CI obrigatório
+
+Todo PR contra `main` roda `ci.yml`: generate do Prisma, `turbo run lint
+build test` e os testes do job de backup. O merge deve exigir o check
+`build-test` na proteção da branch.
+
+### Migrations (expand/contract)
+
+`prisma migrate deploy` roda sozinho no job de deploy, sem revisão
+manual no meio. Mudança estrutural (renomear/remover coluna, trocar tipo)
+precisa de etapas: **expand** (adicionar o novo) → migrar o dado →
+**contract** (remover o antigo numa migration posterior). Não juntar
+drop/rename destrutivo numa única migration.
 
 ### Versão única do produto
 
@@ -79,6 +95,11 @@ A versão canônica vive no `package.json` da raiz e é o que vira tag Git
 1. PRs de feature/fix entram em `main` com o respectivo changeset.
 2. O workflow `Release` abre ou atualiza o PR **chore: release**, com a
    próxima versão e o changelog.
-3. O merge desse PR cria a tag `vX.Y.Z` e a GitHub Release.
+3. O merge desse PR cria a tag `vX.Y.Z`, publica `api` e `web` no GHCR
+   com essa versão, e abre a GitHub Release.
+4. `deploy.yml` aplica `prisma migrate deploy` e puxa a **mesma** tag
+   em staging (automático) e em produção (aprovação no environment),
+   quando `DEPLOY_ENABLED` estiver ligado — ver
+   [`docs/28-cicd.md`](./docs/28-cicd.md).
 
 Detalhes do processo: [`docs/16-versionamento.md`](./docs/16-versionamento.md).

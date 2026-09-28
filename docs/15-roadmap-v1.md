@@ -191,10 +191,10 @@ rastreabilidade que acabou de ser construído.
 
 ---
 
-## 9. CI/CD
+## 9. CI/CD — ✅ já implementado
 
 **Objetivo:** pipeline automatizado de build, teste e deploy, para os dois
-apps do monorepo.
+apps do monorepo. Detalhado em [`28-cicd.md`](./28-cicd.md).
 
 **Por que agora:** o volume de mudanças de schema já é significativo
 (principalmente a migração de `13-multiusuario.md`) — migration

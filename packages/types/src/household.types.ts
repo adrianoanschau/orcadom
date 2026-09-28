@@ -12,7 +12,7 @@ export const updateHouseholdSchema = z.object({
 });
 
 export const createHouseholdInviteSchema = z.object({
-  email: z.string().trim().email().max(160),
+  email: z.email().trim().max(160),
   role: householdRoleSchema.optional(),
 });
 
