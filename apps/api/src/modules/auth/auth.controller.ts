@@ -1,9 +1,14 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Patch, Post, Req, Res } from '@nestjs/common';
 import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Public } from '../../common/decorators/public.decorator.js';
 import { SkipHousehold } from '../../common/decorators/skip-household.decorator.js';
+import {
+  THROTTLE_LOGIN_LIMIT,
+  THROTTLE_TTL_MS,
+} from '../../common/throttle/throttle.constants.js';
 import { AuthService, type SessionRequest } from './auth.service.js';
 import { ChangePasswordBody, LoginBody, RegisterBody, UpdateProfileBody } from './auth.dto.js';
 
@@ -28,6 +33,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: THROTTLE_LOGIN_LIMIT, ttl: THROTTLE_TTL_MS } })
   @HttpCode(HttpStatus.OK)
   @Post('login')
   login(

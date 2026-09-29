@@ -31,6 +31,7 @@ jobs:
       JWT_REFRESH_REMEMBER_EXPIRATION: 30d
       COOKIE_SECURE: 'false'
       CRON_DISABLED: 'true'
+      THROTTLE_DISABLED: 'true'
       WEB_ORIGIN: http://127.0.0.1:3000
       PORT: '8080'
       E2E_API_URL: http://127.0.0.1:8080

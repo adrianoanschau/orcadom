@@ -1,5 +1,6 @@
 import { Controller, Get, Header } from '@nestjs/common';
 import { ApiOkResponse, ApiProduces, ApiTags } from '@nestjs/swagger';
+import { SkipThrottle } from '@nestjs/throttler';
 import { Public } from './common/decorators/public.decorator.js';
 import { metricsRegistry } from './common/observability/metrics.js';
 
@@ -17,6 +18,7 @@ const info: ApiInfo = {
 
 @ApiTags('app')
 @Public()
+@SkipThrottle()
 @Controller()
 export class AppController {
   @Get()

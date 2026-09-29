@@ -302,7 +302,7 @@ dia a dia, mesmo que apenas pelo próprio desenvolvedor.
   exclusão, incluindo transferências).
   ```
 - [ ] Teste unitário do serviço de cálculo/atualização de saldo.
-- [ ] Rate limiting no endpoint de login (`@nestjs/throttler`).
+- [x] Rate limiting no endpoint de login (`@nestjs/throttler`).
 - [ ] Auditoria final: nenhum endpoint deve aceitar `userId` vindo do
   ```
   body/query — sempre extraído do token.

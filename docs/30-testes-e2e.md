@@ -83,15 +83,16 @@ Scripts: `pnpm test:e2e:smoke` e `pnpm test:e2e`.
 | `ci.yml` job `e2e-smoke` | todo PR contra `main` | Postgres 16 → migrate → sobe API → smoke |
 | `e2e-nightly.yml` | cron `0 5 * * *` + `workflow_dispatch` | mesma infra, suíte completa |
 
-Variáveis do job: `COOKIE_SECURE=false`, `CRON_DISABLED=true`, JWT de
-teste. Cada spec registra usuários novos — sem seed compartilhado.
+Variáveis do job: `COOKIE_SECURE=false`, `CRON_DISABLED=true`,
+`THROTTLE_DISABLED=true`, JWT de teste. Cada spec registra usuários novos —
+sem seed compartilhado.
 
 ### 6.3 — Rodar local
 
 ```bash
 # Postgres local (docker compose da raiz) + .env com COOKIE_SECURE=false
 pnpm db:migrate:deploy
-COOKIE_SECURE=false CRON_DISABLED=true pnpm --filter @orcadom/api start
+COOKIE_SECURE=false CRON_DISABLED=true THROTTLE_DISABLED=true pnpm --filter @orcadom/api start
 # outro terminal:
 E2E_API_URL=http://127.0.0.1:8080 pnpm test:e2e:smoke
 ```

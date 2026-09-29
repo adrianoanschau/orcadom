@@ -85,6 +85,10 @@ services:
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
       VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:orcadom@localhost}
       REPORTS_DIR: ${REPORTS_DIR:-/app/data/reports}
+      THROTTLE_DEFAULT_LIMIT: ${THROTTLE_DEFAULT_LIMIT:-120}
+      THROTTLE_LOGIN_LIMIT: ${THROTTLE_LOGIN_LIMIT:-5}
+      THROTTLE_AUTOMATION_LIMIT: ${THROTTLE_AUTOMATION_LIMIT:-60}
+      THROTTLE_DISABLED: ${THROTTLE_DISABLED:-false}
     volumes:
       - orcadom_reports:/app/data/reports
     ports:
