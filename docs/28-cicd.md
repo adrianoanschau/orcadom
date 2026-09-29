@@ -110,7 +110,8 @@ Release continuam verdes.
 
 | Workflow | Quando | O que faz |
 |---|---|---|
-| `ci.yml` | todo PR contra `main` | generate Prisma, `turbo run lint build test` (cache `.turbo`), `pnpm test:backup` |
+| `ci.yml` | todo PR contra `main` | generate Prisma, `turbo run lint build test` (cache `.turbo`), `pnpm test:backup`; job paralelo `e2e-smoke` (Postgres efêmero + Playwright) |
+| `e2e-nightly.yml` | cron diário + `workflow_dispatch` | suíte E2E completa contra Postgres efêmero |
 | `changeset-check.yml` | todo PR contra `main`, exceto o Release PR (`chore: release`) e PRs com label `no-changeset` | exige changeset |
 | `commitlint.yml` | todo PR contra `main` | Conventional Commits |
 | `release.yml` | push em `main` | abre/atualiza o Release PR |
@@ -150,8 +151,8 @@ Read and write (já necessário para o Release PR). Packages: o
 `GITHUB_TOKEN` do `tag-release.yml` precisa conseguir publicar em GHCR
 (`packages: write` no job).
 
-Branch protection em `main`: exigir o check `build-test` (este `ci.yml`)
-além de `changeset-check` e `commitlint`.
+Branch protection em `main`: exigir os checks `build-test` e `e2e-smoke`
+(este `ci.yml`) além de `changeset-check` e `commitlint`.
 
 ### 6.3 — Imagens e compose de deploy
 

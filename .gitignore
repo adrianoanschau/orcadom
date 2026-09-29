@@ -41,3 +41,8 @@ __pycache__/
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
+
+# playwright e2e
+e2e/test-results/
+e2e/playwright-report/
+e2e/blob-report/

@@ -1,0 +1,17 @@
+{
+  "name": "@orcadom/e2e",
+  "version": "0.12.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "playwright test --project=full",
+    "test:smoke": "playwright test --project=smoke"
+  },
+  "devDependencies": {
+    "@orcadom/config": "workspace:*",
+    "@orcadom/database": "workspace:*",
+    "@playwright/test": "^1.51.1",
+    "dotenv": "^17.2.1",
+    "typescript": "^5.6.3"
+  }
+}

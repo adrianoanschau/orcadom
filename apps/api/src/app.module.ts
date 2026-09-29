@@ -29,12 +29,14 @@ import { OnboardingModule } from './modules/onboarding/onboarding.module.js';
 import { SavingsGoalsModule } from './modules/savings-goals/savings-goals.module.js';
 import { TransactionsModule } from './modules/transactions/transactions.module.js';
 
+const cronImports = process.env.CRON_DISABLED === 'true' ? [] : [ScheduleModule.forRoot()];
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ObservabilityModule,
     EventEmitterModule.forRoot(),
-    ScheduleModule.forRoot(),
+    ...cronImports,
     PrismaModule,
     BudgetsModule,
     AuthModule,

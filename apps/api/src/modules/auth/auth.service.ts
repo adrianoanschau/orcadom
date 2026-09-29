@@ -34,6 +34,12 @@ interface RefreshPayload {
 
 const TIMING_DUMMY_HASH = bcrypt.hashSync('orcadom-invalid-password', 10);
 
+function cookieSecure(): boolean {
+  if (process.env.COOKIE_SECURE === 'true') return true;
+  if (process.env.COOKIE_SECURE === 'false') return false;
+  return process.env.NODE_ENV === 'production';
+}
+
 @Injectable()
 export class AuthService {
   private readonly accessSecret: string;
@@ -269,7 +275,7 @@ export class AuthService {
   private cookieOptions(maxAge?: number) {
     return {
       httpOnly: true,
-      secure: true,
+      secure: cookieSecure(),
       sameSite: 'lax' as const,
       path: '/',
       ...(maxAge !== undefined ? { maxAge } : {}),

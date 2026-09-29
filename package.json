@@ -10,6 +10,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "turbo run test",
+    "test:e2e": "pnpm --filter @orcadom/e2e test",
+    "test:e2e:smoke": "pnpm --filter @orcadom/e2e test:smoke",
     "prepare": "husky",
     "changeset": "changeset",
     "changeset:version": "changeset version && node scripts/sync-release-version.mjs",
