@@ -46,6 +46,12 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 export {
+  SYSTEM_CATEGORIES,
+  seedSystemCategories,
+  type CategorySeedClient,
+  type SystemCategoryRow,
+} from './seed-system-categories.js';
+export {
   actorContext,
   getActor,
   runWithActor,

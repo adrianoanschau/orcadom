@@ -22,7 +22,7 @@ Mercado › Açougue), em vez da lista plana atual diferenciada só por `type`
 | Tipo da filha | Sempre igual ao `type` do pai | Evita receita dentro de despesa, o que quebraria orçamento e dashboard |
 | Exclusão na hierarquia | `onDelete: Restrict` | Nunca apagar uma subárvore em cascata por acidente |
 | Orçamento pai x filha | Ambos permitidos, independentes | Pai mede a subárvore inteira; filha mede só a dela |
-| Seed | Continua plano | Subcategorias são criadas pelo usuário |
+| Seed | Categorias de sistema, planas | Subcategorias são criadas pelo usuário. O sistema não nasce com filhas |
 
 ## 3. Modelagem de Dados
 
@@ -33,6 +33,8 @@ model Category {
   type  CategoryType
   icon  String?
   color String?
+  isSystem  Boolean  @default(false)
+  systemKey String?
 
   householdId String
   household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
@@ -45,6 +47,7 @@ model Category {
 
   // Unicidade de nome entre IRMÃS (mesmo pai). Não cobre raízes: NULL não colide.
   @@unique([householdId, parentId, name, type])
+  @@unique([householdId, systemKey])
   @@index([householdId, parentId])
   @@map("categories")
 }
@@ -78,6 +81,14 @@ aprendida em uma filha sugere a filha, não o pai.
    (`Transaction`, `InstallmentPlan`, `RecurringTransaction`, `Budget`).
 5. `householdId` nunca vem do body — sempre do `HouseholdGuard`, mesma
    regra de segurança transversal do MVP.
+6. Categoria `isSystem` não pode ser renomeada, recolorida, ter ícone
+   alterado, movida nem excluída (403). O usuário pode criar filhas sob
+   ela e mover uma categoria própria para dentro dela. Filha do usuário
+   nasce com `isSystem = false`. `isSystem` e `systemKey` não entram no
+   schema Zod.
+7. Todo household novo recebe, na mesma transação da criação, as 22
+   categorias de sistema (16 despesa, 6 receita), raízes, via
+   `seedSystemCategories`. Rodar de novo não duplica.
 
 ## 5. Agregações: o ponto mais delicado
 
@@ -103,7 +114,7 @@ async function getCategorySubtreeIds(householdId: string, categoryId: string): P
 | Endpoint | Mudança |
 |---|---|
 | `POST /categories` / `PATCH /categories/:id` | Aceitam `parentId` opcional (schema Zod em `packages/types`, fonte única de front e back). `PATCH` com `parentId` diferente é "mover" (regra 3) |
-| `GET /categories?type=` | Lista **plana** com `parentId` e `depth` |
+| `GET /categories?type=` | Lista **plana** com `parentId`, `depth` e `isSystem` |
 | `DELETE /categories/:id` | Acrescenta o bloqueio "tem filhas" ao bloqueio "em uso" |
 
 `buildCategoryTree()` vive em `packages/types`, para o front montar a
@@ -116,7 +127,8 @@ mudança de `parentId`.
 - **`/categories`:** mantém as duas colunas Receita/Despesa, agora como
   árvore indentada com expandir/recolher. Ação "Adicionar subcategoria" em
   cada nó (oculta no nível máximo). A filha herda a cor do pai por padrão,
-  editável.
+  editável. Categoria do sistema mostra o selo "Sistema" e não oferece
+  editar nem excluir.
 - **Seletor de categoria:** **um único componente compartilhado**, que
   mostra o caminho ("Mercado › Hortifruti") e é pesquisável. Substitui os
   selects atuais de lançamento, orçamento, recorrente, parcelado e prévia
@@ -173,7 +185,7 @@ mudança de `parentId`.
 
 - Reordenação manual por drag-and-drop.
 - Mover lançamentos em massa de uma categoria para outra.
-- Subcategorias no seed.
+- Subcategorias no seed. As categorias de sistema nascem planas.
 
 ## 11. Riscos e pontos de atenção
 

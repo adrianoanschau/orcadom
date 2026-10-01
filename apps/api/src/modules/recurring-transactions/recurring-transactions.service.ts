@@ -189,7 +189,7 @@ export class RecurringTransactionsService {
             recurring.householdId,
             recurring.categoryId,
             date,
-            previous?.status,
+            previous,
           );
         }
       } catch (error) {

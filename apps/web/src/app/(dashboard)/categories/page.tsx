@@ -1,9 +1,17 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { createCategorySchema, updateCategorySchema } from '@orcadom/types';
-import { useState } from 'react';
+import {
+  MAX_CATEGORY_DEPTH,
+  assessCategoryPlacement,
+  buildCategoryTree,
+  createCategorySchema,
+  updateCategorySchema,
+  type CategoryTreeNode,
+} from '@orcadom/types';
+import { useState, type ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
+import { CategorySelect } from '@/components/category-select';
 import { ApiError, api } from '@/lib/api';
 import { humanize } from '@/lib/format';
 import type { Category } from '@/lib/models';
@@ -16,17 +24,23 @@ import {
   Notice,
   PageHeader,
   Select,
+  StatusBadge,
   controlClass,
 } from '@/components/ui';
+import { ChevronIcon, PlusIcon } from '@/components/icons';
 import { colors } from '@/lib/tokens';
 
 interface CategoryForm {
   name: string;
   type: 'INCOME' | 'EXPENSE';
   color: string;
+  parentId: string;
 }
 
-const emptyForm: CategoryForm = { name: '', type: 'EXPENSE', color: colors.brand };
+const emptyForm: CategoryForm = { name: '', type: 'EXPENSE', color: colors.brand, parentId: '' };
+
+const MOVE_WARNING =
+  'Mover esta categoria também muda orçamentos e relatórios de meses passados. Eles passam a usar a árvore atual.';
 
 export default function CategoriesPage() {
   const queryClient = useQueryClient();
@@ -35,16 +49,34 @@ export default function CategoriesPage() {
     queryFn: () => api<Category[]>('/categories'),
   });
   const [editing, setEditing] = useState<Category | null>(null);
+  const [lockedParent, setLockedParent] = useState<Category | null>(null);
   const [open, setOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<Category | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const form = useForm<CategoryForm>({ defaultValues: emptyForm });
+  const parentId = form.watch('parentId');
+  const all = categories.data ?? [];
 
   function closeForm() {
     setOpen(false);
     setEditing(null);
+    setLockedParent(null);
     setError(null);
     form.reset(emptyForm);
+  }
+
+  function openCreate(parent?: Category) {
+    setEditing(null);
+    setLockedParent(parent ?? null);
+    form.reset({
+      ...emptyForm,
+      type: parent?.type ?? 'EXPENSE',
+      color: parent?.color ?? (parent?.type === 'INCOME' ? colors.income : colors.brand),
+      parentId: parent?.id ?? '',
+    });
+    setError(null);
+    setOpen(true);
   }
 
   const save = useMutation({
@@ -53,9 +85,11 @@ export default function CategoriesPage() {
         const parsed = updateCategorySchema.safeParse({
           name: values.name,
           color: values.color || null,
+          parentId: values.parentId || null,
         });
-        if (!parsed.success)
+        if (!parsed.success) {
           throw new ApiError(humanize(parsed.error.issues[0]?.message ?? 'Valor inválido.'), 400);
+        }
         return api(`/categories/${editing.id}`, {
           method: 'PATCH',
           body: JSON.stringify(parsed.data),
@@ -63,11 +97,13 @@ export default function CategoriesPage() {
       }
       const parsed = createCategorySchema.safeParse({
         name: values.name,
-        type: values.type,
+        type: lockedParent?.type ?? values.type,
         color: values.color || undefined,
+        ...(lockedParent ? { parentId: lockedParent.id } : {}),
       });
-      if (!parsed.success)
+      if (!parsed.success) {
         throw new ApiError(humanize(parsed.error.issues[0]?.message ?? 'Valor inválido.'), 400);
+      }
       return api('/categories', { method: 'POST', body: JSON.stringify(parsed.data) });
     },
     onSuccess: async () => {
@@ -75,9 +111,7 @@ export default function CategoriesPage() {
       closeForm();
     },
     onError: (caught: unknown) => {
-      setError(
-        caught instanceof ApiError ? caught.message : 'Não foi possível salvar a categoria.',
-      );
+      setError(caught instanceof ApiError ? caught.message : 'Não foi possível salvar a categoria.');
     },
   });
 
@@ -88,25 +122,31 @@ export default function CategoriesPage() {
       setPendingDelete(null);
     },
     onError: (caught: unknown) => {
-      setError(
-        caught instanceof ApiError ? caught.message : 'Não foi possível excluir a categoria.',
-      );
+      setError(caught instanceof ApiError ? caught.message : 'Não foi possível excluir a categoria.');
       setPendingDelete(null);
     },
   });
 
-  const income = categories.data?.filter((category) => category.type === 'INCOME') ?? [];
-  const expense = categories.data?.filter((category) => category.type === 'EXPENSE') ?? [];
+  const income = buildCategoryTree(all.filter((category) => category.type === 'INCOME'));
+  const expense = buildCategoryTree(all.filter((category) => category.type === 'EXPENSE'));
+  const parentChoices = editing
+    ? all.filter((candidate) => {
+        if (candidate.type !== editing.type) return false;
+        return assessCategoryPlacement(all, {
+          id: editing.id,
+          parentId: candidate.id,
+          type: editing.type,
+        }).ok;
+      })
+    : [];
+  const moving = Boolean(editing) && (parentId || null) !== (editing?.parentId ?? null);
 
   return (
     <section>
       <PageHeader title="Categorias">
         <Button
           onClick={() => {
-            setEditing(null);
-            form.reset(emptyForm);
-            setError(null);
-            setOpen(true);
+            openCreate();
           }}
         >
           Nova categoria
@@ -124,13 +164,20 @@ export default function CategoriesPage() {
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
         <CategoryColumn
           title="Receita"
-          items={income}
+          nodes={income}
+          collapsed={collapsed}
+          onToggle={(id) => {
+            setCollapsed((current) => toggleSet(current, id));
+          }}
+          onAddChild={openCreate}
           onEdit={(category) => {
+            setLockedParent(null);
             setEditing(category);
             form.reset({
               name: category.name,
               type: category.type,
               color: category.color ?? colors.income,
+              parentId: category.parentId ?? '',
             });
             setError(null);
             setOpen(true);
@@ -142,13 +189,20 @@ export default function CategoriesPage() {
         />
         <CategoryColumn
           title="Despesa"
-          items={expense}
+          nodes={expense}
+          collapsed={collapsed}
+          onToggle={(id) => {
+            setCollapsed((current) => toggleSet(current, id));
+          }}
+          onAddChild={openCreate}
           onEdit={(category) => {
+            setLockedParent(null);
             setEditing(category);
             form.reset({
               name: category.name,
               type: category.type,
               color: category.color ?? colors.expense,
+              parentId: category.parentId ?? '',
             });
             setError(null);
             setOpen(true);
@@ -162,7 +216,7 @@ export default function CategoriesPage() {
 
       <Modal
         open={open}
-        title={editing ? 'Editar categoria' : 'Nova categoria'}
+        title={lockedParent ? 'Nova subcategoria' : editing ? 'Editar categoria' : 'Nova categoria'}
         onClose={closeForm}
       >
         <form
@@ -174,12 +228,16 @@ export default function CategoriesPage() {
           }}
         >
           {error ? <Notice>{error}</Notice> : null}
+          {moving ? <Notice>{MOVE_WARNING}</Notice> : null}
+          {lockedParent ? (
+            <p className="text-sm text-ink-soft">Subcategoria de {lockedParent.name}.</p>
+          ) : null}
           <Field label="Nome">
             <input className={controlClass} {...form.register('name')} />
           </Field>
-          {editing ? (
+          {editing || lockedParent ? (
             <p className="text-sm text-ink-soft">
-              O tipo permanece {editing.type === 'INCOME' ? 'receita' : 'despesa'}.
+              O tipo permanece {(lockedParent ?? editing)?.type === 'INCOME' ? 'receita' : 'despesa'}.
             </p>
           ) : (
             <Field label="Tipo">
@@ -189,6 +247,18 @@ export default function CategoriesPage() {
               </Select>
             </Field>
           )}
+          {editing ? (
+            <Field label="Categoria pai">
+              <CategorySelect
+                categories={parentChoices}
+                value={parentId}
+                emptyLabel="Nenhuma (raiz)"
+                onChange={(next) => {
+                  form.setValue('parentId', next, { shouldDirty: true });
+                }}
+              />
+            </Field>
+          ) : null}
           <Field label="Cor">
             <input
               type="color"
@@ -215,7 +285,8 @@ export default function CategoriesPage() {
         }}
       >
         <p className="text-sm text-ink-soft">
-          Excluir {pendingDelete?.name}? Categorias usadas em lançamentos permanecem.
+          Excluir {pendingDelete?.name}? Não é possível excluir se houver subcategorias ou se a
+          categoria estiver em uso.
         </p>
         <div className="mt-4 flex justify-end gap-2">
           <Button
@@ -242,46 +313,108 @@ export default function CategoriesPage() {
 
 function CategoryColumn({
   title,
-  items,
+  nodes,
+  collapsed,
+  onToggle,
+  onAddChild,
   onEdit,
   onDelete,
 }: {
   title: string;
-  items: Category[];
+  nodes: CategoryTreeNode<Category>[];
+  collapsed: Set<string>;
+  onToggle: (id: string) => void;
+  onAddChild: (category: Category) => void;
   onEdit: (category: Category) => void;
   onDelete: (category: Category) => void;
 }) {
   return (
     <section className="rounded-lg bg-surface p-6">
       <h2 className="font-display text-h2 font-medium">{title}</h2>
-      {items.length === 0 ? (
+      {nodes.length === 0 ? (
         <p className="mt-4 text-sm text-ink-soft">Nenhuma categoria deste tipo.</p>
-      ) : null}
-      <ul className="mt-4 space-y-3">
-        {items.map((category) => (
-          <li key={category.id} className="flex flex-wrap items-center justify-between gap-3">
-            <CategoryChip name={category.name} color={category.color} />
-            <span className="flex gap-2">
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  onEdit(category);
-                }}
-              >
-                Editar
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  onDelete(category);
-                }}
-              >
-                Excluir
-              </Button>
-            </span>
-          </li>
-        ))}
-      </ul>
+      ) : (
+        <ul className="mt-2">{nodes.map((node) => renderNode(node))}</ul>
+      )}
     </section>
   );
+
+  function renderNode(node: CategoryTreeNode<Category>): ReactNode {
+    const category = node.item;
+    const hasChildren = node.children.length > 0;
+    const hidden = collapsed.has(category.id);
+    return (
+      <li key={category.id} className="border-b border-hairline last:border-b-0">
+        <div
+          className="flex min-h-11 items-center gap-1"
+          style={{ paddingLeft: `${String((node.depth - 1) * 44)}px` }}
+        >
+          {hasChildren ? (
+            <button
+              type="button"
+              className={`inline-flex size-11 shrink-0 items-center justify-center rounded-pill text-ink-soft hover:bg-surface-sunken ${hidden ? '-rotate-90' : ''}`}
+              aria-expanded={!hidden}
+              aria-label={hidden ? `Expandir ${category.name}` : `Recolher ${category.name}`}
+              onClick={() => {
+                onToggle(category.id);
+              }}
+            >
+              <ChevronIcon />
+            </button>
+          ) : (
+            <span className="size-11 shrink-0" aria-hidden />
+          )}
+          <span className="min-w-0">
+            <CategoryChip name={category.name} color={category.color} />
+          </span>
+          {category.isSystem ? <StatusBadge tone="neutral">Sistema</StatusBadge> : null}
+          <span className="ml-auto flex shrink-0 items-center">
+            {node.depth < MAX_CATEGORY_DEPTH ? (
+              <button
+                type="button"
+                className="inline-flex size-11 items-center justify-center rounded-pill text-ink-soft hover:bg-surface-sunken hover:text-brand"
+                aria-label={`Adicionar subcategoria em ${category.name}`}
+                title="Adicionar subcategoria"
+                onClick={() => {
+                  onAddChild(category);
+                }}
+              >
+                <PlusIcon />
+              </button>
+            ) : null}
+            {category.isSystem ? null : (
+              <>
+                <button
+                  type="button"
+                  className="inline-flex min-h-11 items-center rounded-pill px-2 text-sm text-ink-soft hover:bg-surface-sunken hover:text-ink"
+                  onClick={() => {
+                    onEdit(category);
+                  }}
+                >
+                  Editar
+                </button>
+                <button
+                  type="button"
+                  className="inline-flex min-h-11 items-center rounded-pill px-2 text-sm text-ink-soft hover:bg-surface-sunken hover:text-ink"
+                  onClick={() => {
+                    onDelete(category);
+                  }}
+                >
+                  Excluir
+                </button>
+              </>
+            )}
+          </span>
+        </div>
+        {hasChildren && !hidden ? <ul>{node.children.map((child) => renderNode(child))}</ul> : null}
+      </li>
+    );
+  }
+}
+
+function toggleSet(current: Set<string>, id: string): Set<string> {
+  const next = new Set(current);
+  if (next.has(id)) next.delete(id);
+  else next.add(id);
+  return next;
 }

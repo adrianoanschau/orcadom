@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { CategoryType, TransactionType } from '@orcadom/database';
-import type { CreateBudgetDto, UpdateBudgetDto } from '@orcadom/types';
+import { categorySubtreeIds, type CreateBudgetDto, type UpdateBudgetDto } from '@orcadom/types';
+import { sumCategorySpent } from '../../common/category-tree.js';
 import { moneyString, toDecimal } from '../../common/money.js';
 import { PrismaService } from '../../common/prisma.service.js';
 import { computeBudgetProgress, monthEndExclusive, monthStart } from './budget-progress.js';
@@ -18,7 +19,7 @@ export class BudgetsService {
   async list(householdId: string, month: string) {
     const start = monthStart(month);
     const end = monthEndExclusive(month);
-    const [budgets, spentRows] = await Promise.all([
+    const [budgets, spentRows, categories] = await Promise.all([
       this.prisma.client.budget.findMany({
         where: {
           householdId,
@@ -38,15 +39,25 @@ export class BudgetsService {
         },
         _sum: { amount: true },
       }),
+      this.prisma.client.category.findMany({
+        where: { householdId },
+        select: { id: true, parentId: true },
+      }),
     ]);
 
     const spentByCategory = new Map(
       spentRows.map((row) => [row.categoryId, Number(row._sum.amount ?? 0)]),
     );
 
+    const parentIds = new Set(
+      categories.flatMap((category) => (category.parentId ? [category.parentId] : [])),
+    );
     const items = budgets.map((budget) => {
       const limit = Number(budget.amount);
-      const spent = spentByCategory.get(budget.categoryId) ?? 0;
+      const spent = sumCategorySpent(
+        spentByCategory,
+        categorySubtreeIds(categories, budget.categoryId),
+      );
       const progress = computeBudgetProgress(spent, limit);
       return {
         id: budget.id,
@@ -57,6 +68,7 @@ export class BudgetsService {
         spent: moneyString(toDecimal(progress.spent)),
         ratio: progress.ratio,
         status: progress.status,
+        includesChildren: parentIds.has(budget.categoryId),
         effectiveFrom: budget.effectiveFrom.toISOString(),
         effectiveTo: budget.effectiveTo?.toISOString() ?? null,
       };
@@ -99,10 +111,11 @@ export class BudgetsService {
     if (!budget) return null;
 
     const end = monthEndExclusive(month);
+    const categoryIds = await this.subtreeIds(householdId, categoryId);
     const { _sum } = await this.prisma.client.transaction.aggregate({
       where: {
         householdId,
-        categoryId,
+        categoryId: { in: categoryIds },
         type: TransactionType.EXPENSE,
         date: { gte: start, lt: end },
       },
@@ -144,6 +157,15 @@ export class BudgetsService {
     });
 
     return this.toResponse(created);
+  }
+
+  private async subtreeIds(householdId: string, categoryId: string): Promise<string[]> {
+    const categories = await this.prisma.client.category.findMany({
+      where: { householdId },
+      select: { id: true, parentId: true },
+    });
+    if (!categories.some((category) => category.id === categoryId)) return [categoryId];
+    return categorySubtreeIds(categories, categoryId);
   }
 
   private async assertExpenseCategory(householdId: string, categoryId: string): Promise<void> {

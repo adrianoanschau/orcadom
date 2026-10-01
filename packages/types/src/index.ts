@@ -46,9 +46,20 @@ export {
   type UpdateBudgetDto,
 } from './budget.types.js';
 export {
+  MAX_CATEGORY_DEPTH,
+  assessCategoryPlacement,
+  buildCategoryTree,
+  categoryAncestorIds,
+  categoryDepth,
+  categorySubtreeIds,
+  categoryTypeSchema,
   createCategorySchema,
   listCategoriesQuerySchema,
   updateCategorySchema,
+  type CategoryLink,
+  type CategoryPlacement,
+  type CategoryPlacementFailure,
+  type CategoryTreeNode,
   type CreateCategoryDto,
   type ListCategoriesQuery,
   type UpdateCategoryDto,
@@ -81,6 +92,7 @@ export {
 export {
   dashboardQuerySchema,
   idParamSchema,
+  includeDescendantsSchema,
   listAuditLogsQuerySchema,
   listNotificationsQuerySchema,
   listTransactionsQuerySchema,

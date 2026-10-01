@@ -14,6 +14,7 @@ import type {
   ImportPreview,
   ImportPreviewRow,
 } from '@/lib/models';
+import { CategorySelect, categoryPath } from '@/components/category-select';
 import {
   Button,
   ButtonLink,
@@ -484,19 +485,11 @@ function ImportCategoryField({
 }) {
   return (
     <>
-      <Select
+      <CategorySelect
+        categories={options}
         value={draft?.categoryId ?? ''}
-        onChange={(event) => {
-          onChange(event.target.value);
-        }}
-      >
-        <option value="">Selecione</option>
-        {options.map((category) => (
-          <option key={category.id} value={category.id}>
-            {category.name}
-          </option>
-        ))}
-      </Select>
+        onChange={onChange}
+      />
       {row.confidence === 'high' && suggested ? (
         <p className="mt-1 text-sm text-brand">conhecida</p>
       ) : null}
@@ -508,7 +501,7 @@ function ImportCategoryField({
             onChange(suggested.id);
           }}
         >
-          Aplicar sugestão: {suggested.name}
+          Aplicar sugestão: {categoryPath(options, suggested.id)}
         </button>
       ) : null}
     </>

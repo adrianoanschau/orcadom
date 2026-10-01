@@ -24,6 +24,9 @@ export interface Category {
   type: 'INCOME' | 'EXPENSE';
   icon: string | null;
   color: string | null;
+  parentId: string | null;
+  depth: number;
+  isSystem: boolean;
 }
 
 export interface Transaction {
@@ -51,13 +54,20 @@ export interface TransactionPage {
   total: number;
 }
 
+export interface ExpenseByCategory {
+  categoryId: string;
+  name: string;
+  total: string;
+  children: ExpenseByCategory[];
+}
+
 export interface DashboardSummary {
   month: string;
   income: string;
   expense: string;
   balance: string;
   scheduledCommitments: string;
-  expensesByCategory: { categoryId: string | null; name: string; total: string }[];
+  expensesByCategory: ExpenseByCategory[];
 }
 
 export interface InstallmentPlanSummary {
@@ -237,6 +247,7 @@ export interface BudgetProgress {
   spent: string;
   ratio: number;
   status: BudgetStatus;
+  includesChildren?: boolean;
   effectiveFrom: string;
   effectiveTo: string | null;
 }

@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import bcrypt from 'bcryptjs';
 import {
   AccountType,
-  CategoryType,
+  type CategoryType,
   HouseholdRole,
   PostingStatus,
   Prisma,
@@ -17,6 +17,7 @@ loadEnv({
 });
 
 const { prisma } = await import('../src/index.js');
+const { seedSystemCategories } = await import('../src/seed-system-categories.js');
 
 const STAGING_PASSWORD = 'staging-orcadom';
 const resetAll = process.env.STAGING_SEED_RESET === 'true';
@@ -40,15 +41,6 @@ const HOUSEHOLD_NAMES = {
   solo: 'Staging Solo',
   family: 'Staging Família',
 } as const;
-
-const CATEGORIES = [
-  { name: 'Alimentação', type: CategoryType.EXPENSE, icon: 'utensils', color: '#C4462F' },
-  { name: 'Transporte', type: CategoryType.EXPENSE, icon: 'car', color: '#C4462F' },
-  { name: 'Moradia', type: CategoryType.EXPENSE, icon: 'home', color: '#C4462F' },
-  { name: 'Lazer', type: CategoryType.EXPENSE, icon: 'gamepad', color: '#C4462F' },
-  { name: 'Salário', type: CategoryType.INCOME, icon: 'wallet', color: '#2F7D5A' },
-  { name: 'Freelance', type: CategoryType.INCOME, icon: 'briefcase', color: '#2F7D5A' },
-] as const;
 
 function utcDate(year: number, monthIndex: number, day: number): Date {
   return new Date(Date.UTC(year, monthIndex, day, 12, 0, 0));
@@ -169,28 +161,7 @@ async function wipeStagingUsersAndHouseholds(): Promise<void> {
 }
 
 async function seedCategories(householdId: string) {
-  const byKey = new Map<string, { id: string; name: string; type: CategoryType }>();
-  for (const category of CATEGORIES) {
-    const row = await prisma.category.upsert({
-      where: {
-        householdId_name_type: {
-          householdId,
-          name: category.name,
-          type: category.type,
-        },
-      },
-      update: { icon: category.icon, color: category.color },
-      create: {
-        householdId,
-        name: category.name,
-        type: category.type,
-        icon: category.icon,
-        color: category.color,
-      },
-    });
-    byKey.set(`${category.type}:${category.name}`, row);
-  }
-  return byKey;
+  return seedSystemCategories(prisma, householdId);
 }
 
 async function seedAccounts(householdId: string) {
@@ -227,12 +198,12 @@ async function seedAccounts(householdId: string) {
 async function seedFamilyFinance(householdId: string, userId: string): Promise<void> {
   const categories = await seedCategories(householdId);
   const accounts = await seedAccounts(householdId);
-  const alimentation = categoryByKey(categories, 'EXPENSE:Alimentação');
-  const transport = categoryByKey(categories, 'EXPENSE:Transporte');
-  const housing = categoryByKey(categories, 'EXPENSE:Moradia');
-  const leisure = categoryByKey(categories, 'EXPENSE:Lazer');
-  const salary = categoryByKey(categories, 'INCOME:Salário');
-  const freelance = categoryByKey(categories, 'INCOME:Freelance');
+  const alimentation = categoryByKey(categories, 'GROCERIES');
+  const transport = categoryByKey(categories, 'TRANSPORT');
+  const housing = categoryByKey(categories, 'HOUSING');
+  const leisure = categoryByKey(categories, 'LEISURE_TRAVEL');
+  const salary = categoryByKey(categories, 'SALARY');
+  const freelance = categoryByKey(categories, 'FREELANCE');
 
   const txns: Prisma.TransactionCreateManyInput[] = [];
   for (const offset of [2, 1, 0]) {
@@ -419,8 +390,8 @@ async function seedFamilyFinance(householdId: string, userId: string): Promise<v
 async function seedSoloFinance(householdId: string, userId: string): Promise<void> {
   const categories = await seedCategories(householdId);
   const accounts = await seedAccounts(householdId);
-  const alimentation = categoryByKey(categories, 'EXPENSE:Alimentação');
-  const salary = categoryByKey(categories, 'INCOME:Salário');
+  const alimentation = categoryByKey(categories, 'GROCERIES');
+  const salary = categoryByKey(categories, 'SALARY');
 
   await prisma.transaction.createMany({
     data: [

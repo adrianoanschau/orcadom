@@ -8,8 +8,9 @@ Toda mensagem de commit precisa seguir
     tipo(escopo)?: descrição
 
 O Husky roda o commitlint no hook `commit-msg` — um commit fora do padrão
-é rejeitado localmente. O CI (`commitlint.yml`) repete a checagem em
-todo PR contra `main`.
+é rejeitado localmente. O hook `pre-push` repete a checagem em todos os
+commits desde `origin/main`, o mesmo intervalo do CI (`commitlint.yml`),
+e barra o `git push` se alguma mensagem falhar.
 
 | Tipo       | Quando usar                              |
 | ---------- | ---------------------------------------- |
@@ -27,6 +28,10 @@ todo PR contra `main`.
 
 A descrição é em **inglês**, minúsculas, imperativo, sem ponto final.
 Escopo é opcional (`api`, `web`, `database`, `types`…).
+
+O header e cada linha do corpo e do rodapé têm no máximo 100 caracteres.
+O commitlint rejeita a mensagem inteira se uma linha passar disso. Quebre
+o corpo: uma frase por linha, sem parágrafo corrido.
 
 ```
 feat(web): show transaction audit history

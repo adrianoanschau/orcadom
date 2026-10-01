@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { api } from '@/lib/api';
 import { currentMonth, daysUntil, daysUntilLabel, formatMoney } from '@/lib/format';
-import type { BudgetList, DashboardSummary, SavingsGoal } from '@/lib/models';
+import type { BudgetList, DashboardSummary, ExpenseByCategory, SavingsGoal } from '@/lib/models';
 import { MonthInput } from '@/components/date-fields';
 import { OnboardingChecklist } from '@/components/onboarding-checklist';
 import {
@@ -35,9 +35,14 @@ export default function DashboardPage() {
   const data = summary.data;
   const featuredGoals = pickFeaturedGoals(goals.data ?? []);
   const empty = data ? Number(data.income) === 0 && Number(data.expense) === 0 : false;
-  const chart = (data?.expensesByCategory ?? []).map((item) => ({
+  const [drill, setDrill] = useState<ExpenseByCategory[]>([]);
+  const roots = data?.expensesByCategory ?? [];
+  const level = drill.at(-1)?.children ?? roots;
+  const chart = level.map((item) => ({
+    categoryId: item.categoryId,
     name: item.name || 'Sem categoria',
     total: Number(item.total),
+    childCount: item.children.length,
   }));
 
   return (
@@ -46,7 +51,13 @@ export default function DashboardPage() {
         <label className="text-sm text-ink-soft">
           Mês
           <span className="mt-1 block min-w-52">
-            <MonthInput value={month} onChange={setMonth} />
+            <MonthInput
+              value={month}
+              onChange={(next) => {
+                setMonth(next);
+                setDrill([]);
+              }}
+            />
           </span>
         </label>
       </PageHeader>
@@ -109,7 +120,12 @@ export default function DashboardPage() {
               <ul className="mt-4 space-y-4">
                 {budgets.data.budgets.map((budget) => (
                   <li key={budget.id}>
-                    <p className="mb-2 text-sm font-medium text-ink">{budget.categoryName}</p>
+                    <p className="mb-2 text-sm font-medium text-ink">
+                      {budget.categoryName}
+                      {budget.includesChildren ? (
+                        <span className="mt-1 block font-normal text-ink-soft">inclui subcategorias</span>
+                      ) : null}
+                    </p>
                     <BudgetProgressBar
                       spent={budget.spent}
                       limit={budget.limit}
@@ -165,6 +181,31 @@ export default function DashboardPage() {
           </section>
           <section className="mt-6 rounded-lg bg-surface p-6">
             <h2 className="font-display text-h2 font-medium">Despesas por categoria</h2>
+            {drill.length > 0 ? (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  className="inline-flex min-h-11 items-center text-sm text-brand"
+                  onClick={() => {
+                    setDrill([]);
+                  }}
+                >
+                  Todas
+                </button>
+                {drill.map((node, index) => (
+                  <button
+                    key={node.categoryId}
+                    type="button"
+                    className="inline-flex min-h-11 items-center text-sm text-ink"
+                    onClick={() => {
+                      setDrill(drill.slice(0, index + 1));
+                    }}
+                  >
+                    › {node.name}
+                  </button>
+                ))}
+              </div>
+            ) : null}
             {chart.length === 0 ? (
               <p className="mt-4 text-sm text-ink-soft">Nenhuma despesa neste mês.</p>
             ) : (
@@ -179,7 +220,17 @@ export default function DashboardPage() {
                       tick={{ fill: 'var(--color-ink-soft)', fontSize: 12 }}
                     />
                     <Tooltip formatter={(value) => formatMoney(Number(value).toFixed(2))} />
-                    <Bar dataKey="total" fill="var(--color-expense)" radius={8} />
+                    <Bar
+                      dataKey="total"
+                      fill="var(--color-expense)"
+                      radius={8}
+                      cursor="pointer"
+                      onClick={(bar) => {
+                        const id = barCategoryId(bar);
+                        const node = level.find((item) => item.categoryId === id);
+                        if (node && node.children.length > 0) setDrill([...drill, node]);
+                      }}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -189,6 +240,15 @@ export default function DashboardPage() {
       ) : null}
     </section>
   );
+}
+
+function barCategoryId(bar: unknown): string | null {
+  if (!bar || typeof bar !== 'object') return null;
+  if ('categoryId' in bar && typeof bar.categoryId === 'string') return bar.categoryId;
+  if ('payload' in bar && bar.payload && typeof bar.payload === 'object' && 'categoryId' in bar.payload) {
+    return typeof bar.payload.categoryId === 'string' ? bar.payload.categoryId : null;
+  }
+  return null;
 }
 
 function pickFeaturedGoals(goals: SavingsGoal[]): SavingsGoal[] {

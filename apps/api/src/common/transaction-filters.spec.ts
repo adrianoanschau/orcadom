@@ -19,6 +19,26 @@ describe('buildTransactionListWhere', () => {
     });
   });
 
+  it('inclui a subárvore quando os ids são informados', () => {
+    const where = buildTransactionListWhere(
+      'hh-1',
+      { categoryId: 'pai', includeDescendants: true },
+      undefined,
+      ['pai', 'filha'],
+    );
+    expect(where.categoryId).toEqual({ in: ['pai', 'filha'] });
+  });
+
+  it('respeita includeDescendants falso', () => {
+    const where = buildTransactionListWhere(
+      'hh-1',
+      { categoryId: 'pai', includeDescendants: false },
+      undefined,
+      ['pai', 'filha'],
+    );
+    expect(where.categoryId).toBe('pai');
+  });
+
   it('conta filtra origem, destino e conta principal', () => {
     const where = buildTransactionListWhere('hh-1', { accountId: 'acc-1' });
     expect(where.OR).toEqual([

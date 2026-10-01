@@ -12,8 +12,8 @@ import { applyBalance } from '../../common/balance.js';
 import { CategoryMemoryService } from '../../common/category-memory.service.js';
 import { moneyString, toDecimal } from '../../common/money.js';
 import { PrismaService } from '../../common/prisma.service.js';
-import { BudgetEventsService } from '../budgets/budget-events.service.js';
-import { monthFromDate, type BudgetStatus } from '../budgets/budget-progress.js';
+import { BudgetEventsService, type BudgetSnapshot } from '../budgets/budget-events.service.js';
+import { monthFromDate } from '../budgets/budget-progress.js';
 import {
   hydratePreviewRows,
   ImportPreviewStore,
@@ -224,7 +224,7 @@ export class ImportsService {
       selected.map((row) => ({ categoryId: row.categoryId, type: row.type })),
     );
 
-    const previousByKey = new Map<string, { categoryId: string; date: Date; status: BudgetStatus | null }>();
+    const previousByKey = new Map<string, { categoryId: string; date: Date; snapshot: BudgetSnapshot | null }>();
     for (const row of selected) {
       if (row.type !== 'EXPENSE') continue;
       const key = `${row.categoryId}:${monthFromDate(row.date)}`;
@@ -233,7 +233,7 @@ export class ImportsService {
       previousByKey.set(key, {
         categoryId: row.categoryId,
         date: row.date,
-        status: snapshot?.status ?? null,
+        snapshot,
       });
     }
 
@@ -275,8 +275,9 @@ export class ImportsService {
     });
 
     this.store.delete(batchId);
+    const seen = new Set<string>();
     for (const item of previousByKey.values()) {
-      await this.budgetEvents.emitIfCrossed(householdId, item.categoryId, item.date, item.status);
+      await this.budgetEvents.emitIfCrossed(householdId, item.categoryId, item.date, item.snapshot, seen);
     }
     return {
       id: batch.id,

@@ -8,15 +8,9 @@ loadEnv({
 });
 
 const { prisma } = await import('../src/index.js');
+const { seedSystemCategories } = await import('../src/seed-system-categories.js');
 
 const demoEmail = 'demo@orcadom.local';
-
-const categories = [
-  { name: 'Alimentação', type: 'EXPENSE', icon: 'utensils', color: '#C4462F' },
-  { name: 'Transporte', type: 'EXPENSE', icon: 'car', color: '#C4462F' },
-  { name: 'Moradia', type: 'EXPENSE', icon: 'home', color: '#C4462F' },
-  { name: 'Salário', type: 'INCOME', icon: 'wallet', color: '#2F7D5A' },
-] as const;
 
 async function main(): Promise<void> {
   const passwordHash = await bcrypt.hash('orcadom', 10);
@@ -44,25 +38,7 @@ async function main(): Promise<void> {
           },
         });
 
-  for (const category of categories) {
-    await prisma.category.upsert({
-      where: {
-        householdId_name_type: {
-          householdId: household.id,
-          name: category.name,
-          type: category.type,
-        },
-      },
-      update: {},
-      create: {
-        householdId: household.id,
-        name: category.name,
-        type: category.type,
-        icon: category.icon,
-        color: category.color,
-      },
-    });
-  }
+  await seedSystemCategories(prisma, household.id);
 }
 
 try {

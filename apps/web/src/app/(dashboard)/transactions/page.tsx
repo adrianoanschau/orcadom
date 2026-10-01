@@ -11,6 +11,7 @@ import { useOpenFromQuery } from '@/lib/use-open-from-query';
 import { dateToNoonIso, formatDate, humanize, todayInput } from '@/lib/format';
 import { transactionTypeLabels, type TransactionType } from '@/lib/labels';
 import type { Account, Category, Transaction, TransactionPage } from '@/lib/models';
+import { CategorySelect, categoryPath } from '@/components/category-select';
 import { DateInput } from '@/components/date-fields';
 import { EntityAudit } from '@/components/entity-audit';
 import { ExportReportPanel } from '@/components/export-report-panel';
@@ -231,19 +232,14 @@ export default function TransactionsPage() {
           </Select>
         </Field>
         <Field label="Categoria">
-          <Select
+          <CategorySelect
+            categories={categories.data ?? []}
             value={draft.categoryId}
-            onChange={(event) => {
-              setDraft({ ...draft, categoryId: event.target.value });
+            emptyLabel="Todas"
+            onChange={(categoryId) => {
+              setDraft({ ...draft, categoryId });
             }}
-          >
-            <option value="">Todas</option>
-            {categories.data?.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-              </option>
-            ))}
-          </Select>
+          />
         </Field>
         <Field label="De">
           <DateInput
@@ -274,7 +270,9 @@ export default function TransactionsPage() {
         filters={filters}
         total={transactions.data?.total ?? 0}
         accountName={filters.accountId ? names.get(filters.accountId) : undefined}
-        categoryName={filters.categoryId ? categoryNames.get(filters.categoryId) : undefined}
+        categoryName={
+          filters.categoryId ? categoryPath(categories.data ?? [], filters.categoryId) : undefined
+        }
         highlightId={reportId}
         open={exportOpen}
         onClose={() => {
@@ -488,14 +486,13 @@ export default function TransactionsPage() {
                 </Select>
               </Field>
               <Field label="Categoria">
-                <Select {...form.register('categoryId')}>
-                  <option value="">Selecione</option>
-                  {visibleCategories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                    </option>
-                  ))}
-                </Select>
+                <CategorySelect
+                  categories={visibleCategories}
+                  value={form.watch('categoryId')}
+                  onChange={(categoryId) => {
+                    form.setValue('categoryId', categoryId, { shouldDirty: true });
+                  }}
+                />
               </Field>
             </>
           )}
