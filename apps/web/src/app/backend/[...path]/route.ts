@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { proxyUpstreamHeaders } from '@/proxy/forward-headers';
 
 const apiUrl = process.env.API_URL ?? 'http://127.0.0.1:8080';
 
@@ -7,7 +8,10 @@ async function forward(request: NextRequest, context: { params: Promise<{ path: 
   const target = new URL(`${apiUrl}/${path.join('/')}`);
   target.search = request.nextUrl.search;
 
-  const headers = new Headers();
+  const headers = proxyUpstreamHeaders({
+    headers: request.headers,
+    protocol: request.nextUrl.protocol,
+  });
   const cookie = request.headers.get('cookie');
   const contentType = request.headers.get('content-type');
   const householdId = request.headers.get('x-household-id');
