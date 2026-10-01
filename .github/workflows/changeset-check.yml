@@ -14,14 +14,16 @@ jobs:
 
       - uses: pnpm/action-setup@v4
 
+      # Changesets 3 chama enableCompileCache, que só existe no Node 22.11+.
+      # O restante do CI continua no Node 20.
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
 
       - name: Verifica changeset pendente
-        if: ${{ github.event.pull_request.title != 'chore: release' && !contains(github.event.pull_request.labels.*.name, 'no-changeset') }}
+        if: "${{ github.event.pull_request.title != 'chore: release' && !contains(github.event.pull_request.labels.*.name, 'no-changeset') }}"
         run: |
           pnpm changeset status --since=origin/main

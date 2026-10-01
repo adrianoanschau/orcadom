@@ -44,11 +44,12 @@ cópia anonimizada de produção.
 2. **Credenciais e domínio isolados**, incluindo a caixa de email de
    teste para o n8n.
 3. **Script de seed sintético**.
-4. **Integração com o deploy automatizado** (item 9) — a cada tag
-   criada, o deploy em staging já acontece sozinho. A interface já
-   existe: `deploy.yml`, `infra/deploy/docker-compose.yml` e os secrets
-   por GitHub Environment. Este item provisiona o host, o `.env`
-   isolado e liga `DEPLOY_ENABLED=true` em staging.
+4. **Integração com o deploy automatizado** (item 9) — quando o host
+   existir, ele segue o mesmo modelo da produção
+   ([`32-deploy-vps-previews.md`](./32-deploy-vps-previews.md)): outro
+   GitHub Environment, migration no próprio host, chave SSH com forced
+   command. Não há deploy automático de staging no `deploy.yml` atual.
+   Enquanto isso, a validação antes do merge é o preview de PR.
 
 ## 5. Riscos e pontos de atenção
 
@@ -137,10 +138,13 @@ financeiros desses households.
 4. Conferir anti-erro: `IMPORT_EMAIL_MAILBOX` ≠ produção;
    `DATABASE_URL` ≠ produção.
 5. Subir a stack (`deps` ou managed) e aplicar migrate + seed.
-6. Preencher o GitHub Environment `staging` (tabela em
-   [`28-cicd.md`](./28-cicd.md) §6.2).
-7. Só então `DEPLOY_ENABLED=true` — releases passam a deployar sozinhas
-   em staging.
+6. Criar um GitHub Environment próprio (mesmo formato de `production` em
+   [`28-cicd.md`](./28-cicd.md) §6.2), com chave SSH presa a um forced
+   command. Não reutilizar o `DATABASE_URL` de produção.
+7. Só então `DEPLOY_ENABLED=true` nesse environment. O `deploy.yml` de
+   hoje é rollback de produção; o job de staging entra no mesmo modelo
+   (SSH `deploy-prod` no host novo), não como matriz do workflow antigo.
 
-Produção continua com Required reviewers + `DEPLOY_ENABLED` só depois
-da validação em staging.
+Produção já sobe pelo push na `main` quando `DEPLOY_ENABLED=true` no
+environment `production`. Staging não é pré-requisito desse caminho. Os
+previews de PR cobrem a olhada antes do merge.

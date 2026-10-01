@@ -8,6 +8,7 @@ import { Logger } from 'nestjs-pino';
 import { cleanupOpenApiDoc } from 'nestjs-zod';
 import { configureTrustProxy } from './common/trust-proxy.js';
 import { AppModule } from './app.module.js';
+import { parseWebOrigins } from './web-origin.js';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
@@ -15,7 +16,7 @@ async function bootstrap(): Promise<void> {
   configureTrustProxy(app.getHttpAdapter().getInstance() as unknown);
   app.use(cookieParser());
   app.enableCors({
-    origin: process.env.WEB_ORIGIN ?? 'http://localhost:3000',
+    origin: parseWebOrigins(process.env.WEB_ORIGIN),
     credentials: true,
   });
 

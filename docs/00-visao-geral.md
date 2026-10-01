@@ -59,3 +59,5 @@ da primeira entrega:
 - [`03-decisoes-arquiteturais.md`](./03-decisoes-arquiteturais.md) — estado, DTOs, autenticação
 - [`04-roadmap.md`](./04-roadmap.md) — fases de execução
 - [`05-infraestrutura-docker.md`](./05-infraestrutura-docker.md) — ambiente local
+- [`28-cicd.md`](./28-cicd.md) — pipeline de CI
+- [`32-deploy-vps-previews.md`](./32-deploy-vps-previews.md) — deploy no VPS e previews de PR

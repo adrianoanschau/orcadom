@@ -1,17 +1,22 @@
-# Compose usado por staging/produção (item 9 + item 10). Não entra em
-# `pnpm docker:up` — o compose da raiz continua só para desenvolvimento local.
+# Compose base de deploy (item 9 + item 10). Não entra em `pnpm docker:up`
+# — o compose da raiz continua só para desenvolvimento local.
 #
-# Imagens: ghcr.io/<owner>/<repo>/{api,web}:<tag>
+# Em produção este arquivo não sobe sozinho. O override é
+# infra/deploy/docker-compose.prod.yml (Caddy, redes, sem portas publicadas,
+# serviço migrate) e quem orquestra é infra/deploy/scripts/ (deploy-prod.sh,
+# deploy-preview.sh, destroy-preview.sh). Não rode o compose de produção
+# à mão.
+#
+# Imagens: ghcr.io/<owner>/<repo>/{api,web,migrate}:<tag>
 # O host precisa ter o repositório clonado (para este arquivo) e login no GHCR.
 #
-# Produção típica (Postgres/n8n gerenciados fora):
-#   docker compose --env-file .env -f infra/deploy/docker-compose.yml up -d
+# Produção no VPS (sempre com o override; os scripts já fazem isso):
+#   docker compose --env-file .env --env-file .env.image \
+#     -f infra/deploy/docker-compose.yml \
+#     -f infra/deploy/docker-compose.prod.yml --profile deps up -d
 #
-# Staging self-contained (Postgres + n8n no mesmo host):
-#   COMPOSE_PROFILES=deps docker compose --env-file .env \
-#     -f infra/deploy/docker-compose.yml up -d
-# Nesse modo, DATABASE_URL deve apontar para o serviço `postgres`
-# (ver infra/deploy/.env.staging.example).
+# Se um dia existir um host de staging, ele reutiliza este base com outro
+# .env (ver infra/deploy/.env.staging.example). Não publique o Postgres.
 
 services:
   postgres:
