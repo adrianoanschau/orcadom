@@ -3,6 +3,11 @@
 # Caminho no repositório: infra/deploy/Caddyfile
 #
 # - HTTPS automático (Let's Encrypt) para os hosts fixos de produção.
+# - O host da API é subdomínio do wildcard de preview. Desde o Caddy 2.10,
+#   um wildcard configurado (aqui, com TLS on demand) impede o certificado
+#   individual do nome que ele cobre. O bloco da API usa `tls force_automate`
+#   para emitir o certificado do nome exato na subida. O ápice do web e o
+#   n8n não casam com esse wildcard, então não precisam disso.
 # - Previews (pr-<N> e api-pr-<N>) usam TLS "on demand": o certificado só é
 #   emitido se o endpoint `ask` (abaixo) responder 200, ou seja, se existir o
 #   arquivo-marcador /srv/previews/active/<host>. Os scripts
@@ -92,6 +97,13 @@ http://127.0.0.1:5555 {
 }
 
 {$PROD_API_HOST:api.orcadom.aanschau.tech} {
+	# Sem isto, o Caddy 2.10+ não emite certificado para este host: ele
+	# casa com o wildcard de preview e o Caddy prefere esse wildcard a
+	# um certificado individual. On demand não emite certificado
+	# wildcard, o handshake não acha certificado nenhum e o TLS cai com
+	# "internal error". O ask não participa desse caminho (a política
+	# deste site não é on demand) e continua só para previews.
+	tls force_automate
 	import comum
 	import api_bloqueios
 	reverse_proxy api:8080
