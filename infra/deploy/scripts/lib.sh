@@ -16,6 +16,8 @@ PREVIEWS_DIR="${PREVIEWS_DIR:-$REPO_DIR/previews}"  # estado dos previews
 ACTIVE_DIR="$PREVIEWS_DIR/active"                   # marcadores lidos pelo Caddy
 LOCK_FILE="$REPO_DIR/.deploy.lock"
 PG_CONTAINER="orcadom-postgres"
+CADDY_CONTAINER="orcadom-caddy"
+CADDY_SITES_DIR="/opt/caddy/sites"                  # sites extras do VPS
 
 # Código de saída usado quando o limite de previews é atingido.
 EXIT_LIMIT=75
@@ -84,3 +86,25 @@ validate_image_tag() {
 
 # Gera segredo hexadecimal (seguro em URL, sem escapes).
 gen_secret() { openssl rand -hex "${1:-32}"; }
+
+# Garante que o Caddy está rodando com o Caddyfile atual do clone.
+# Montagem de arquivo + `git checkout` = container vendo o arquivo antigo; por
+# isso compara o hash do host com o de dentro do container.
+caddy_apply() {
+  local host_sum ctr_sum out
+  host_sum="$(sha256sum "$DEPLOY_DIR/Caddyfile" | cut -d' ' -f1)"
+  ctr_sum="$(docker exec "$CADDY_CONTAINER" sha256sum /etc/caddy/Caddyfile 2>/dev/null | cut -d' ' -f1 || true)"
+  if [ "$host_sum" = "$ctr_sum" ]; then
+    out="$(docker exec "$CADDY_CONTAINER" caddy reload --config /etc/caddy/Caddyfile 2>&1)" \
+      || { printf '%s\n' "$out" | tail -n 5 >&2
+           log "AVISO: caddy reload falhou (Caddy segue com a config anterior)."; }
+    return 0
+  fi
+  log "Caddyfile mudou — validando antes de recriar o Caddy…"
+  out="$(compose_prod run --rm --no-deps -T caddy \
+    caddy validate --config /etc/caddy/Caddyfile 2>&1)" \
+    || { printf '%s\n' "$out" | tail -n 5 >&2
+         die "Caddyfile inválido; o Caddy continua com a versão anterior."; }
+  compose_prod up -d --no-deps --force-recreate caddy
+  log "Caddy recriado com o Caddyfile novo."
+}

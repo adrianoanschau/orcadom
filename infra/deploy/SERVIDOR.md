@@ -35,8 +35,12 @@ echo 'vm.swappiness=10' | sudo tee /etc/sysctl.d/99-orcadom.conf && sudo sysctl 
 sudo mkdir -p /opt/orcadom && sudo chown deploy:deploy /opt/orcadom
 git clone https://github.com/adrianoanschau/orcadom.git /opt/orcadom
 cd /opt/orcadom
-chmod +x infra/deploy/scripts/deploy-prod.sh infra/deploy/scripts/deploy-preview.sh infra/deploy/scripts/destroy-preview.sh infra/deploy/scripts/ssh-gate.sh
+chmod +x infra/deploy/scripts/*.sh
 mkdir -p previews/active
+
+# Sites extras do VPS (fora do Orcadom; ver seção 11). Tem que existir e ser
+# do `deploy` antes do primeiro `up` — senão o Docker cria como root.
+sudo mkdir -p /opt/caddy/sites && sudo chown -R deploy:deploy /opt/caddy
 ```
 
 ## 2. Criar o `.env` de produção
@@ -129,7 +133,14 @@ infra/deploy/scripts/deploy-prod.sh "$TAG"
 
 O script: baixa as imagens → sobe o Postgres → revoga `CONNECT` público nos
 bancos de produção → `prisma migrate deploy` no container `migrate` → `up -d
---wait` → grava a tag em `.env.image` → smoke test → prune.
+--wait` → grava a tag em `.env.image` → aplica o Caddyfile atual (veja
+abaixo) → smoke test → prune.
+
+> O Caddyfile é montado como arquivo: depois de um `git checkout` o
+> container continuaria vendo a versão antiga. O `deploy-prod.sh` compara o
+> hash do arquivo no host com o de dentro do container; se mudou, valida o
+> novo (`caddy validate`) e recria só o Caddy; se não mudou, faz um
+> `caddy reload` (no-op quando nada mudou).
 
 ## 6. Verificação
 
@@ -209,3 +220,36 @@ journalctl -t orcadom-deploy --since today           # comandos recebidos via SS
 ```
 
 Token do GHCR expirou? Repita o passo 3.
+
+## 11. Sites extras do VPS (fora do Orcadom)
+
+O Caddy do Orcadom é o único que publica 80/443, então outros sites
+estáticos/containers do mesmo VPS entram por ele **sem mudar este repo**:
+o `Caddyfile` termina com `import /etc/caddy/sites/*.caddy`, e o
+`docker-compose.prod.yml` monta `/opt/caddy/sites` (host) em
+`/etc/caddy/sites` (somente leitura).
+
+- A pasta é criada no passo 1 (`sudo mkdir -p /opt/caddy/sites && sudo
+  chown -R deploy:deploy /opt/caddy`); os arquivos são do usuário `deploy`.
+  Pasta vazia não quebra o Caddy (só um aviso "No files matching import glob
+  pattern" no log).
+- Cada `<nome>.caddy` contém **só blocos de site** (sem bloco de opções
+  globais e sem snippets com nomes já usados aqui). Pode usar `import comum`
+  (os snippets do Caddyfile são definidos antes do import), mas prefira
+  arquivos autocontidos, que não dependem do Orcadom.
+- O container do site precisa estar na rede docker `orcadom_edge` (é a rede
+  do proxy) e **não** publicar portas; no arquivo, use
+  `reverse_proxy <container>:<porta>`.
+- Depois de criar/alterar/apagar um arquivo, recarregue (sem downtime; se a
+  config for inválida o Caddy recusa e mantém a anterior):
+
+```bash
+cd /opt/orcadom
+docker compose --env-file .env --env-file .env.image \
+  -f infra/deploy/docker-compose.yml -f infra/deploy/docker-compose.prod.yml \
+  --profile deps exec caddy caddy reload --config /etc/caddy/Caddyfile
+# atalho equivalente: docker exec orcadom-caddy caddy reload --config /etc/caddy/Caddyfile
+docker logs --tail 30 orcadom-caddy
+```
+
+O `deploy-prod.sh` também faz esse reload a cada deploy.
