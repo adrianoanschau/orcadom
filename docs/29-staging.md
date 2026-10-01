@@ -48,7 +48,8 @@ cópia anonimizada de produção.
    existir, ele segue o mesmo modelo da produção
    ([`32-deploy-vps-previews.md`](./32-deploy-vps-previews.md)): outro
    GitHub Environment, migration no próprio host, chave SSH com forced
-   command. Não há deploy automático de staging no `deploy.yml` atual.
+   command. Não há deploy automático de staging. O deploy de produção
+   está em `deploy-production.yml` (chamado pelo release, ou manual).
    Enquanto isso, a validação antes do merge é o preview de PR.
 
 ## 5. Riscos e pontos de atenção
@@ -141,10 +142,12 @@ financeiros desses households.
 6. Criar um GitHub Environment próprio (mesmo formato de `production` em
    [`28-cicd.md`](./28-cicd.md) §6.2), com chave SSH presa a um forced
    command. Não reutilizar o `DATABASE_URL` de produção.
-7. Só então `DEPLOY_ENABLED=true` nesse environment. O `deploy.yml` de
-   hoje é rollback de produção; o job de staging entra no mesmo modelo
-   (SSH `deploy-prod` no host novo), não como matriz do workflow antigo.
+7. Só então `DEPLOY_ENABLED=true` nesse environment. O rollback de
+   produção é o `workflow_dispatch` de `deploy-production.yml`; o job de
+   staging entra no mesmo modelo (SSH `deploy-prod` no host novo), não
+   como matriz desse workflow.
 
-Produção já sobe pelo push na `main` quando `DEPLOY_ENABLED=true` no
-environment `production`. Staging não é pré-requisito desse caminho. Os
-previews de PR cobrem a olhada antes do merge.
+Produção sobe quando o Release PR é mergeado (tag `vX.Y.Z`), se
+`DEPLOY_ENABLED=true` no environment `production`. Push comum em `main`
+não faz deploy. Staging não é pré-requisito desse caminho. Os previews
+de PR cobrem a olhada antes do merge.

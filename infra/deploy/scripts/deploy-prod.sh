@@ -4,7 +4,10 @@
 # Caminho no repositório: infra/deploy/scripts/deploy-prod.sh
 #
 # Uso:   infra/deploy/scripts/deploy-prod.sh <IMAGE_TAG>
-# Ex.:   infra/deploy/scripts/deploy-prod.sh sha-3f2a1b9c0d4e
+# Ex.:   infra/deploy/scripts/deploy-prod.sh v0.16.0
+#        infra/deploy/scripts/deploy-prod.sh sha-3f2a1b9c0d4e
+# A tag de release (vX.Y.Z) é o caminho do Actions. sha-<12> continua
+# válido para uma imagem antiga que ainda esteja no GHCR.
 # Rollback: rode de novo com a tag anterior (cat .env.image.prev).
 #           Atenção: migrations não são revertidas (use expand/contract).
 #

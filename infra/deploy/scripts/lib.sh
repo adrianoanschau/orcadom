@@ -80,6 +80,7 @@ validate_pr_number() {
   [[ "${1:-}" =~ ^[1-9][0-9]{0,5}$ ]] || die "número de PR inválido: '${1:-}'"
 }
 
+# Aceita tag de release (v0.16.0) e tag de commit (sha-3f2a1b9c0d4e).
 validate_image_tag() {
   [[ "${1:-}" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$ ]] || die "tag de imagem inválida: '${1:-}'"
 }

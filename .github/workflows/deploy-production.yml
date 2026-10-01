@@ -1,9 +1,30 @@
 name: Deploy produção
 
+# Não builda imagem. As tags vX.Y.Z saem do tag-release.yml; este
+# workflow só entra no VPS.
+#
+# - workflow_call: deploy da release que acabou de publicar as imagens.
+# - workflow_dispatch: redeploy ou rollback de uma tag que já existe.
+#   Disparar a partir da branch main (o environment production só
+#   permite main).
+
 on:
-  push:
-    branches: [main]
+  workflow_call:
+    inputs:
+      version:
+        description: Tag da imagem (ex. v0.16.0)
+        required: true
+        type: string
+      sha:
+        description: Commit da release em main (40 hex)
+        required: true
+        type: string
   workflow_dispatch:
+    inputs:
+      version:
+        description: Tag de versão já publicada (ex. v0.15.1)
+        required: true
+        type: string
 
 concurrency:
   group: deploy-production
@@ -11,70 +32,10 @@ concurrency:
 
 permissions:
   contents: read
+  packages: read
 
 jobs:
-  images:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    outputs:
-      tag: ${{ steps.meta.outputs.tag }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Prefixo e tag
-        id: meta
-        run: |
-          echo "prefix=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
-          echo "tag=sha-${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
-
-      - uses: docker/setup-buildx-action@v3
-
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build e push da API
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: apps/api/Dockerfile
-          push: true
-          tags: |
-            ${{ steps.meta.outputs.prefix }}/api:${{ steps.meta.outputs.tag }}
-            ${{ steps.meta.outputs.prefix }}/api:main
-          cache-from: type=gha,scope=api
-          cache-to: type=gha,mode=max,scope=api
-
-      - name: Build e push do web
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: apps/web/Dockerfile
-          push: true
-          tags: |
-            ${{ steps.meta.outputs.prefix }}/web:${{ steps.meta.outputs.tag }}
-            ${{ steps.meta.outputs.prefix }}/web:main
-          cache-from: type=gha,scope=web
-          cache-to: type=gha,mode=max,scope=web
-
-      - name: Build e push do migrate
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: packages/database/Dockerfile
-          push: true
-          tags: |
-            ${{ steps.meta.outputs.prefix }}/migrate:${{ steps.meta.outputs.tag }}
-            ${{ steps.meta.outputs.prefix }}/migrate:main
-          cache-from: type=gha,scope=migrate
-          cache-to: type=gha,mode=max,scope=migrate
-
   deploy:
-    needs: images
     runs-on: ubuntu-latest
     environment:
       name: production
@@ -92,6 +53,53 @@ jobs:
             echo "::notice::DEPLOY_ENABLED não é true no environment production — deploy pulado."
           fi
 
+      - uses: actions/checkout@v4
+        if: steps.guard.outputs.enabled == 'true' && github.event_name == 'workflow_dispatch'
+
+      - uses: docker/login-action@v3
+        if: steps.guard.outputs.enabled == 'true' && github.event_name == 'workflow_dispatch'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve versão, commit e imagens
+        id: target
+        if: steps.guard.outputs.enabled == 'true'
+        env:
+          EVENT: ${{ github.event_name }}
+          VERSION: ${{ inputs.version }}
+          SHA: ${{ github.event_name == 'workflow_call' && inputs.sha || '' }}
+        run: |
+          set -euo pipefail
+          tag_re='^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'
+          if [[ ! "$VERSION" =~ $tag_re ]]; then
+            echo "::error::Versão inválida: '${VERSION}'. Use uma tag como v0.15.1."
+            exit 1
+          fi
+
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            git fetch --quiet origin "refs/tags/${VERSION}:refs/tags/${VERSION}" \
+              || { echo "::error::Tag ${VERSION} não existe."; exit 1; }
+            SHA="$(git rev-parse --verify "refs/tags/${VERSION}^{commit}")"
+            prefix="ghcr.io/${GITHUB_REPOSITORY,,}"
+            for name in api web migrate; do
+              image="${prefix}/${name}:${VERSION}"
+              if ! docker manifest inspect "$image" >/dev/null; then
+                echo "::error::Imagem ${image} não existe no GHCR."
+                exit 1
+              fi
+            done
+          fi
+
+          if [[ ! "$SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Commit da release inválido."
+            exit 1
+          fi
+
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
+
       - name: Configura SSH
         if: steps.guard.outputs.enabled == 'true'
         env:
@@ -108,16 +116,17 @@ jobs:
         env:
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          SHA: ${{ steps.target.outputs.sha }}
         run: |
           ssh -o BatchMode=yes -o StrictHostKeyChecking=yes \
-            "${DEPLOY_USER}@${DEPLOY_HOST}" "update-repo ${GITHUB_SHA}"
+            "${DEPLOY_USER}@${DEPLOY_HOST}" "update-repo ${SHA}"
 
       - name: Migrations + deploy (no VPS)
         if: steps.guard.outputs.enabled == 'true'
         env:
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-          IMAGE_TAG: ${{ needs.images.outputs.tag }}
+          IMAGE_TAG: ${{ steps.target.outputs.version }}
         run: |
           ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o ServerAliveInterval=30 \
             "${DEPLOY_USER}@${DEPLOY_HOST}" "deploy-prod ${IMAGE_TAG}"

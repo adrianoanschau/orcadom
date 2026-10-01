@@ -1,5 +1,13 @@
 name: Release
 
+# Push em main só abre ou atualiza o Release PR. Não publica tag, imagem
+# nem faz deploy — isso é o tag-release.yml, no merge desse PR.
+#
+# O token é de um GitHub App, não o GITHUB_TOKEN. O GITHUB_TOKEN não
+# dispara outros workflows: o PR sairia sem o check build-test e o
+# ruleset de main impediria o merge. O mesmo token autentica o git push
+# do branch changeset-release/main, então o CI roda nele.
+
 on:
   push:
     branches: [main]
@@ -10,12 +18,39 @@ jobs:
   release:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      pull-requests: write
+      contents: read
     steps:
+      - name: Confere o GitHub App de release
+        env:
+          RELEASE_APP_ID: ${{ vars.RELEASE_APP_ID }}
+          RELEASE_APP_PRIVATE_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+        run: |
+          if [ -z "$RELEASE_APP_ID" ] || [ -z "$RELEASE_APP_PRIVATE_KEY" ]; then
+            echo "::error::Defina a variável RELEASE_APP_ID e o secret RELEASE_APP_PRIVATE_KEY (GitHub App). Sem eles o Release PR não abre e o CI não roda nesse PR."
+            exit 1
+          fi
+
+      - name: Token do GitHub App
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Identidade git do App
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+        run: |
+          if user_id="$(gh api "users/${APP_SLUG}[bot]" --jq .id)"; then
+            git config user.name "${APP_SLUG}[bot]"
+            git config user.email "${user_id}+${APP_SLUG}[bot]@users.noreply.github.com"
+          fi
 
       - uses: pnpm/action-setup@v4
 
@@ -27,13 +62,18 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Cria/atualiza Release PR ou publica release
-        uses: changesets/action@v1
+      - name: Cria/atualiza o Release PR
+        uses: changesets/action@v2
         with:
-          title: 'chore: release'
-          commit: 'chore: release'
-          version: pnpm run changeset:version
-          # Sem "publish" apontando para npm — este monorepo não publica
-          # pacotes públicos. O passo de tag é feito pelo workflow tag-release.
+          pr-title: "chore: release"
+          commit-message: "chore: release"
+          version-script: pnpm run changeset:version
+          github-token: ${{ steps.app-token.outputs.token }}
+          # git push com o token do App (usuário x-access-token). O push
+          # do branch changeset-release/main dispara o CI. O v1 da action
+          # só lia GITHUB_TOKEN e gravava .netrc como github-actions[bot],
+          # que não autentica um installation token.
+          push-with-git-cli: true
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # A action recusa GITHUB_TOKEN diferente do input github-token.
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}

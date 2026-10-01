@@ -98,13 +98,20 @@ A versão canônica vive no `package.json` da raiz e é o que vira tag Git
 ### Fluxo de release
 
 1. PRs de feature/fix entram em `main` com o respectivo changeset.
+   Esse merge não faz deploy de produção.
 2. O workflow `Release` abre ou atualiza o PR **chore: release**, com a
-   próxima versão e o changelog.
-3. O merge desse PR cria a tag `vX.Y.Z`, publica `api` e `web` no GHCR
-   com essa versão, e abre a GitHub Release.
-4. `deploy.yml` aplica `prisma migrate deploy` e puxa a **mesma** tag
-   em staging (automático) e em produção (aprovação no environment),
-   quando `DEPLOY_ENABLED` estiver ligado — ver
-   [`docs/28-cicd.md`](./docs/28-cicd.md).
+   próxima versão e o changelog. O push do branch
+   `changeset-release/main` usa um GitHub App, então o CI (`build-test`)
+   roda nesse PR.
+3. O merge desse PR — merge commit, squash ou rebase — muda a versão do
+   `package.json` da raiz. O workflow `Tag Release` cria a tag `vX.Y.Z`,
+   publica `api`, `web` e `migrate` no GHCR com essa versão, abre a
+   GitHub Release e faz o deploy de produção dessa mesma tag, quando
+   `DEPLOY_ENABLED` estiver ligado.
+4. Redeploy ou rollback de uma tag já publicada: Actions → **Deploy
+   produção** → Run workflow, input `version` (ex.: `v0.16.0`), a
+   partir da branch `main`.
 
-Detalhes do processo: [`docs/16-versionamento.md`](./docs/16-versionamento.md).
+Detalhe da pipeline: [`docs/28-cicd.md`](./docs/28-cicd.md) e
+[`docs/32-deploy-vps-previews.md`](./docs/32-deploy-vps-previews.md).
+O processo de changeset: [`docs/16-versionamento.md`](./docs/16-versionamento.md).

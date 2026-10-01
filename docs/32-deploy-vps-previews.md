@@ -54,27 +54,37 @@ build, e a mesma imagem web serve qualquer host.
 Cookies de sessão continuam host-only (sem `Domain`). Um preview em
 `pr-<N>.orcadom.aanschau.tech` não recebe o cookie de produção.
 
-## 3. Push na main → produção
+## 3. Release → produção
 
-Workflow [`deploy-production.yml`](../.github/workflows/deploy-production.yml).
+Push ou merge em `main` não faz deploy. O
+[`release.yml`](../.github/workflows/release.yml) só abre ou atualiza o
+Release PR (`changeset-release/main`), com o token de um GitHub App
+(`RELEASE_APP_ID` e `RELEASE_APP_PRIVATE_KEY`). Esse token também faz o
+git push do branch, então o CI roda no Release PR. O preview não sobe
+para esse branch.
 
-1. Build e push de `api`, `web` e `migrate`, tags `sha-<12 do commit>`
-   (imutável) e `main` (móvel).
-2. Se `DEPLOY_ENABLED` do environment `production` não for `true`, o
-   job avisa e para. As imagens já foram publicadas.
-3. SSH como `deploy`: `update-repo <sha40>` e depois
-   `deploy-prod <tag>`.
+O deploy acontece no
+[`tag-release.yml`](../.github/workflows/tag-release.yml), quando o
+merge do Release PR muda a versão do `package.json` da raiz. Vale para
+merge commit, squash e rebase — não depende da mensagem do commit.
+
+1. Build e push de `api`, `web` e `migrate`, tags `vX.Y.Z` e `X.Y.Z`.
+   Não há segundo build para produção.
+2. Cria a tag `vX.Y.Z` se ela ainda não existe e cria ou atualiza a
+   GitHub Release. Tag ou Release já existentes não falham o job.
+3. Chama [`deploy-production.yml`](../.github/workflows/deploy-production.yml).
+   Se `DEPLOY_ENABLED` do environment `production` não for `true`, o
+   job avisa e para. As imagens e a tag já foram publicadas.
+4. SSH como `deploy`: `update-repo <sha40 do commit da release>` e
+   depois `deploy-prod vX.Y.Z`.
 
 No VPS, `deploy-prod.sh` baixa as imagens, sobe o Postgres, revoga
 `CONNECT` nos bancos de produção para `PUBLIC`, roda
 `prisma migrate deploy` no container `migrate` e só então faz
 `compose up`. A chave SSH de produção está presa ao forced command
-`ssh-gate.sh prod` — o workflow não tem shell livre.
-
-`tag-release.yml` continua publicando as mesmas três imagens com
-`vX.Y.Z` quando o commit é `chore: release`. Isso não dispara deploy.
-Quem sobe a versão em produção é o push na `main` (tag `sha-…`), ou o
-rollback manual.
+`ssh-gate.sh prod` — o workflow não tem shell livre. `deploy-prod`
+aceita a tag `vX.Y.Z`. `update-repo` aceita o sha de 40 caracteres ou
+uma tag `vX.Y.Z` (o commit precisa estar em `origin/main`).
 
 ## 4. PR → preview → teardown
 
@@ -139,24 +149,26 @@ Não há `DATABASE_URL` no GitHub. A migration roda no VPS, com o
 `DATABASE_URL` do `.env` de `/opt/orcadom`. Não há `GHCR_PULL_TOKEN` no
 workflow: o VPS já está logado no GHCR.
 
-Enquanto `DEPLOY_ENABLED` não for `true`, o workflow publica imagem (no
-caso da `main`) ou só avisa e sai verde (preview e rollback).
+Enquanto `DEPLOY_ENABLED` não for `true`, o release publica tag e
+imagem e o job de deploy avisa e sai verde. Preview e rollback fazem o
+mesmo aviso.
 
 ## 6. Rollback
 
-[`deploy.yml`](../.github/workflows/deploy.yml) é manual
-(`workflow_dispatch`), input `tag` (`v0.16.0` ou `sha-…`), environment
-`production`. Um único SSH: `deploy-prod <tag>`.
+[`deploy-production.yml`](../.github/workflows/deploy-production.yml)
+também é manual (`workflow_dispatch`), input `version` (`v0.15.1`),
+environment `production`, grupo de concorrência `deploy-production`.
+Disparar a partir da branch `main`.
+
+O job confere se a tag existe e se `api`, `web` e `migrate` dessa tag
+estão no GHCR, resolve o commit da tag e faz `update-repo <sha>` e
+`deploy-prod vX.Y.Z`. Não builda imagem.
 
 A migration roda de novo no VPS e não volta atrás. Rollback de schema
 continua sendo expand/contract, não "desfazer o SQL".
 
 Tags `≤ v0.15.1` não têm imagem `migrate` e não podem ser usadas nesse
 rollback.
-
-O clone no VPS não muda nesse workflow: a tag escolhida é só a das
-imagens. O compose é o que estiver em `/opt/orcadom` (atualizado pelo
-`update-repo` do deploy de produção).
 
 Não existe host de staging. Se um dia existir, o modelo é o mesmo com
 outro environment — não uma matriz neste workflow.

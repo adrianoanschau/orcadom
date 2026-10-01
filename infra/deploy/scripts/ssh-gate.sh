@@ -13,8 +13,8 @@
 # consegue fazer deploy de produção nem mexer no clone.
 #
 # Comandos:
-#   update-repo <sha40>             atualiza o clone /opt/orcadom para o commit
-#   deploy-prod <tag>
+#   update-repo <sha40 | vX.Y.Z>    atualiza o clone /opt/orcadom para o commit
+#   deploy-prod <tag>               tag de imagem, ex.: v0.16.0 ou sha-<12>
 #   deploy-preview <N> <tag>
 #   deploy-preview --check <N>
 #   destroy-preview <N>
@@ -43,13 +43,25 @@ fi
 
 case "$cmd" in
   update-repo)
-    if [ "${#argv[@]}" -ne 2 ] || [[ ! "${argv[1]}" =~ ^[0-9a-f]{40}$ ]]; then
-      echo "uso: update-repo <sha de 40 caracteres>" >&2; exit 64
+    ref="${argv[1]:-}"
+    if [ "${#argv[@]}" -ne 2 ]; then
+      echo "uso: update-repo <sha40 | vX.Y.Z>" >&2
+      exit 64
+    fi
+    if [[ "$ref" =~ ^[0-9a-f]{40}$ ]]; then
+      sha="$ref"
+    elif [[ "$ref" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+      git -C "$REPO_DIR" fetch --quiet origin "refs/tags/${ref}:refs/tags/${ref}" \
+        || { echo "tag ${ref} não encontrada em origin" >&2; exit 65; }
+      sha="$(git -C "$REPO_DIR" rev-parse --verify "${ref}^{commit}")"
+    else
+      echo "uso: update-repo <sha40 | vX.Y.Z>" >&2
+      exit 64
     fi
     git -C "$REPO_DIR" fetch --quiet origin main
-    git -C "$REPO_DIR" merge-base --is-ancestor "${argv[1]}" origin/main \
-      || { echo "commit ${argv[1]} não está em origin/main" >&2; exit 65; }
-    git -C "$REPO_DIR" checkout --quiet --force --detach "${argv[1]}"
+    git -C "$REPO_DIR" merge-base --is-ancestor "$sha" origin/main \
+      || { echo "commit ${sha} não está em origin/main" >&2; exit 65; }
+    git -C "$REPO_DIR" checkout --quiet --force --detach "$sha"
     echo "repo em $(git -C "$REPO_DIR" rev-parse --short HEAD)"
     ;;
   deploy-prod)

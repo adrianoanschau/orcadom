@@ -207,6 +207,11 @@ jobs:
 
 ### 2.6 — Workflow de tag e GitHub Release no merge do Release PR
 
+O workflow que está no repositório não usa mais a mensagem `chore: release`.
+Ele compara a versão do `package.json` da raiz com a do commit anterior e,
+no mesmo fluxo, faz o deploy de produção. O comportamento atual está em
+[`28-cicd.md`](./28-cicd.md). O YAML abaixo é o desenho original.
+
 Cria-se `.github/workflows/tag-release.yml`, que detecta especificamente o
 merge do PR de release (pelo commit de versão) e cria a tag + a Release do
 GitHub:
