@@ -128,7 +128,7 @@ verdes.
 | `release.yml` | push em `main` | abre/atualiza o Release PR |
 | `tag-release.yml` | push em `main` cujo commit começa com `chore: release` | tag `vX.Y.Z`, build/push GHCR de api, web e migrate, GitHub Release com as URLs |
 | `deploy-production.yml` | push em `main` ou `workflow_dispatch` | build/push `sha-<12>` e `main`; SSH `update-repo` + `deploy-prod` se `DEPLOY_ENABLED=true` |
-| `preview.yml` | PR contra `main` (abre, sincroniza, reabre, fecha) | preview web+api em `pr-<N>.orcadom.aanschau.tech`; teardown ao fechar. Pula fork e o Release PR |
+| `preview.yml` | PR contra `main` com a label `preview` (abre, sincroniza, reabre, label); teardown ao fechar ou ao tirar a label | preview web+api em `pr-<N>.orcadom.aanschau.tech`. Pula fork e o Release PR |
 | `deploy.yml` | só `workflow_dispatch` (input `tag`) | rollback: SSH `deploy-prod <tag>` no environment `production` |
 
 Imagens de release: `ghcr.io/<owner>/<repo>/{api,web,migrate}:vX.Y.Z`

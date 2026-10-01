@@ -79,11 +79,13 @@ rollback manual.
 ## 4. PR → preview → teardown
 
 Workflow [`preview.yml`](../.github/workflows/preview.yml), nos eventos
-`opened`, `synchronize`, `reopened` e `closed` contra `main`.
+`opened`, `synchronize`, `reopened`, `labeled`, `unlabeled` e `closed`
+contra `main`. O deploy só roda se o PR tiver a label `preview`. Tirar
+essa label remove o preview.
 
 Não usa `pull_request_target`. Pula PR de fork e o Release PR do
-changesets (`changeset-release/main`). PR em rascunho ganha preview;
-para passar a ignorar, o comentário no topo do workflow mostra o `if`.
+changesets (`changeset-release/main`). PR em rascunho com a label ganha
+preview; para passar a ignorar, o comentário no topo do workflow mostra o `if`.
 
 1. `deploy-preview --check <N>` — se já existem 2 outros previews, o
    script sai com código 75.
