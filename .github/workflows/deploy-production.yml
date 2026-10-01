@@ -67,9 +67,13 @@ jobs:
         id: target
         if: steps.guard.outputs.enabled == 'true'
         env:
+          # Dentro de workflow_call, github.event_name é o evento de quem
+          # chamou (push ou workflow_dispatch), nunca workflow_call. O SHA
+          # da release vem de inputs.sha; no dispatch esse input não existe
+          # e fica vazio, e o ramo abaixo preenche o commit a partir da tag.
           EVENT: ${{ github.event_name }}
           VERSION: ${{ inputs.version }}
-          SHA: ${{ github.event_name == 'workflow_call' && inputs.sha || '' }}
+          SHA: ${{ inputs.sha }}
         run: |
           set -euo pipefail
           tag_re='^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'
