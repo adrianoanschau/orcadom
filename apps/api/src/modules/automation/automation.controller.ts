@@ -42,12 +42,14 @@ export class AutomationController {
     @Body() body: EmailImportBody,
     @UploadedFile() file: { originalname: string; buffer: Buffer } | undefined,
   ) {
-    const attachment = file?.buffer?.length ? file.buffer.toString('base64') : body.attachment;
+    const attachment = file?.buffer.length ? file.buffer.toString('base64') : body.attachment;
     if (!attachment) {
       throw new BadRequestException('Envie o anexo OFX.');
     }
     return this.automation.ingestEmail({
-      ...body,
+      token: body.token,
+      recipientAddress: body.recipientAddress,
+      messageId: body.messageId,
       fileName: body.fileName ?? file?.originalname,
       attachment,
     });
