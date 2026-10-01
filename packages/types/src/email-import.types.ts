@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const emailImportSchema = z.object({
   token: z.string().trim().min(1).max(32),
-  attachment: z.string().min(1),
+  attachment: z.string().min(1).optional(),
   messageId: z.string().trim().min(1).max(300),
   recipientAddress: z.string().trim().min(1).max(320),
   fileName: z.string().trim().min(1).max(180).optional(),
