@@ -6,7 +6,7 @@ on:
 
 jobs:
   tag:
-    if: startsWith(github.event.head_commit.message, 'chore: release')
+    if: "startsWith(github.event.head_commit.message, 'chore: release')"
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -76,6 +76,18 @@ jobs:
           cache-from: type=gha,scope=web
           cache-to: type=gha,mode=max,scope=web
 
+      - name: Build e push do migrate
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: packages/database/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.ghcr.outputs.prefix }}/migrate:v${{ needs.tag.outputs.version }}
+            ${{ steps.ghcr.outputs.prefix }}/migrate:${{ needs.tag.outputs.version }}
+          cache-from: type=gha,scope=migrate
+          cache-to: type=gha,mode=max,scope=migrate
+
   release:
     needs: [tag, images]
     runs-on: ubuntu-latest
@@ -93,6 +105,7 @@ jobs:
             echo
             echo "- \`${prefix}/api:v${version}\`"
             echo "- \`${prefix}/web:v${version}\`"
+            echo "- \`${prefix}/migrate:v${version}\`"
             echo
             echo "## Changelog"
             echo

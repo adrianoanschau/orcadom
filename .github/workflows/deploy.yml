@@ -1,94 +1,72 @@
-name: Deploy
+# Rollback (ou redeploy) de uma tag que já está no GHCR.
+# Não roda migration no runner: deploy-prod no VPS aplica prisma migrate
+# deploy dentro do container migrate e depois sobe a stack.
+#
+# Tags antigas (≤ v0.15.1) não têm imagem migrate e não servem aqui.
+# Se um dia existir host de staging, ele segue o mesmo modelo com outro
+# environment — não há matrix neste workflow.
+
+name: Deploy manual / rollback
 
 on:
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Version tag to deploy (e.g. v0.12.0)'
+        description: 'Tag da imagem já publicada (ex.: v0.16.0 ou sha-3f2a1b9c0d4e)'
         required: true
         type: string
-      target:
-        description: 'Environment'
-        type: choice
-        options: [staging, production, both]
-        default: both
+
+permissions:
+  contents: read
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        environment: [staging, production]
-    if: >
-      github.event_name == 'release' ||
-      inputs.target == 'both' ||
-      inputs.target == matrix.environment
-    environment: ${{ matrix.environment }}
-    permissions:
-      contents: read
-      packages: read
-    env:
-      IMAGE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    environment:
+      name: production
+      url: https://orcadom.aanschau.tech
     steps:
       - name: Confere se o deploy está habilitado
         id: guard
+        env:
+          DEPLOY_ENABLED: ${{ vars.DEPLOY_ENABLED }}
         run: |
-          if [ "${{ vars.DEPLOY_ENABLED }}" = "true" ]; then
+          if [ "$DEPLOY_ENABLED" = "true" ]; then
             echo "enabled=true" >> "$GITHUB_OUTPUT"
           else
             echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "DEPLOY_ENABLED não é true no environment ${{ matrix.environment }} — skip."
+            echo "::notice::DEPLOY_ENABLED não é true no environment production — deploy pulado."
           fi
 
-      - uses: actions/checkout@v4
-        if: steps.guard.outputs.enabled == 'true'
-        with:
-          ref: ${{ env.IMAGE_TAG }}
-
-      - uses: pnpm/action-setup@v4
-        if: steps.guard.outputs.enabled == 'true'
-
-      - uses: actions/setup-node@v4
-        if: steps.guard.outputs.enabled == 'true'
-        with:
-          node-version: 20
-          cache: pnpm
-
-      - name: Instala dependências
-        if: steps.guard.outputs.enabled == 'true'
-        run: pnpm install --frozen-lockfile
-
-      - name: Aplica migrations (prisma migrate deploy)
+      - name: Confere a tag
+        id: tag
         if: steps.guard.outputs.enabled == 'true'
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: pnpm db:migrate:deploy
+          IMAGE_TAG: ${{ inputs.tag }}
+        run: |
+          if [[ ! "$IMAGE_TAG" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$ ]]; then
+            echo "::error::Tag de imagem inválida."
+            exit 1
+          fi
+          echo "value=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
 
-      - name: Prefixo GHCR
+      - name: Configura SSH
         if: steps.guard.outputs.enabled == 'true'
-        id: ghcr
-        run: echo "prefix=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
-
-      - name: Sobe as imagens no host
-        if: steps.guard.outputs.enabled == 'true'
-        uses: appleboy/ssh-action@v1.2.2
         env:
-          GHCR_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
-          GHCR_IMAGE_PREFIX: ${{ steps.ghcr.outputs.prefix }}
-          IMAGE_TAG: ${{ env.IMAGE_TAG }}
-          DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/opt/orcadom' }}
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          envs: GHCR_TOKEN,GHCR_IMAGE_PREFIX,IMAGE_TAG,DEPLOY_PATH
-          script: |
-            set -euo pipefail
-            echo "$GHCR_TOKEN" | docker login ghcr.io -u token --password-stdin
-            cd "$DEPLOY_PATH"
-            export GHCR_IMAGE_PREFIX IMAGE_TAG
-            docker compose --env-file .env -f infra/deploy/docker-compose.yml pull
-            docker compose --env-file .env -f infra/deploy/docker-compose.yml up -d
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+
+      - name: Deploy da tag no VPS
+        if: steps.guard.outputs.enabled == 'true'
+        env:
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          IMAGE_TAG: ${{ steps.tag.outputs.value }}
+        run: |
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o ServerAliveInterval=30 \
+            "${DEPLOY_USER}@${DEPLOY_HOST}" "deploy-prod ${IMAGE_TAG}"

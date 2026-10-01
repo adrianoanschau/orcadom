@@ -1,0 +1,139 @@
+# =============================================================================
+# docker-compose.preview.yml — template de PREVIEW por PR (web + api, sem n8n)
+# Caminho no repositório: infra/deploy/docker-compose.preview.yml
+#
+# Não rode à mão: use infra/deploy/scripts/deploy-preview.sh <N> <tag>, que
+# gera previews/pr-<N>/.env (chmod 600) e chama:
+#   docker compose -p orcadom-pr-<N> --env-file previews/pr-<N>/.env \
+#     -f infra/deploy/docker-compose.preview.yml up -d --wait
+#
+# Isolamento:
+#   - Banco próprio `orcadom_pr_<N>` com usuário próprio `orcadom_pr_<N>`
+#     (sem superuser, sem CONNECT no banco de produção).
+#   - Segredos JWT próprios (sessões de produção não valem no preview).
+#   - Cookies host-only em pr-<N>.orcadom.aanschau.tech (o app não define
+#     Domain), então o navegador nunca envia cookies de produção ao preview.
+#   - Nomes de serviço `preview-*` e containers `orcadom-pr-<N>-*`: nunca
+#     colidem com os aliases `api`/`web` da produção nas redes compartilhadas.
+#   - Sem n8n: AUTOMATION_API_KEY / webhooks vazios (canais desligados).
+# =============================================================================
+
+name: orcadom-pr-${PR_NUMBER:?PR_NUMBER obrigatório}
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: '5m'
+    max-file: '2'
+
+services:
+  preview-api:
+    image: ${GHCR_IMAGE_PREFIX:?}/api:${IMAGE_TAG:?}
+    container_name: orcadom-pr-${PR_NUMBER}-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: '8080'
+      NODE_OPTIONS: --max-old-space-size=256
+      DATABASE_URL: ${PREVIEW_DATABASE_URL:?}
+      WEB_ORIGIN: https://pr-${PR_NUMBER}.${PREVIEW_BASE_DOMAIN:?}
+      COOKIE_SECURE: 'true'
+      JWT_ACCESS_SECRET: ${PREVIEW_JWT_ACCESS_SECRET:?}
+      JWT_REFRESH_SECRET: ${PREVIEW_JWT_REFRESH_SECRET:?}
+      JWT_ACCESS_EXPIRATION: 15m
+      JWT_REFRESH_EXPIRATION: 12h
+      JWT_REFRESH_REMEMBER_EXPIRATION: 30d
+      LOG_LEVEL: ${PREVIEW_LOG_LEVEL:-info}
+      SENTRY_DSN: ''
+      SENTRY_ENVIRONMENT: preview-pr-${PR_NUMBER}
+      # Crons desligados por padrão (CPU de 1 vCPU é da produção).
+      CRON_DISABLED: ${PREVIEW_CRON_DISABLED:-true}
+      AUTOMATION_API_KEY: ''
+      NOTIFICATIONS_WEBHOOK_URL: ''
+      NOTIFICATIONS_WEBHOOK_SECRET: ''
+      IMPORT_EMAIL_MAILBOX: importacoes+pr${PR_NUMBER}@example.invalid
+      VAPID_PUBLIC_KEY: ''
+      VAPID_PRIVATE_KEY: ''
+      VAPID_SUBJECT: mailto:preview@example.invalid
+      REPORTS_DIR: /app/data/reports
+      THROTTLE_DEFAULT_LIMIT: '120'
+      THROTTLE_LOGIN_LIMIT: '10'
+      THROTTLE_AUTOMATION_LIMIT: '60'
+    volumes:
+      - reports:/app/data/reports
+    networks:
+      - backend
+      - edge
+    mem_limit: 384m
+    cpu_shares: 256
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:8080/').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    logging: *logging
+
+  preview-web:
+    image: ${GHCR_IMAGE_PREFIX:?}/web:${IMAGE_TAG:?}
+    container_name: orcadom-pr-${PR_NUMBER}-web
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: '3000'
+      HOSTNAME: 0.0.0.0
+      NODE_OPTIONS: --max-old-space-size=192
+      # SEMPRE o container do próprio preview — nunca `api` (produção).
+      API_URL: http://orcadom-pr-${PR_NUMBER}-api:8080
+      NEXT_PUBLIC_API_URL: /backend
+    networks:
+      - edge
+    mem_limit: 320m
+    cpu_shares: 256
+    depends_on:
+      preview-api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/login').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    logging: *logging
+
+  # Migração/seed sob demanda (deploy-preview.sh). Usa o usuário do preview,
+  # que só tem acesso ao banco orcadom_pr_<N>.
+  preview-migrate:
+    image: ${GHCR_IMAGE_PREFIX:?}/migrate:${IMAGE_TAG:?}
+    profiles: [tools]
+    restart: 'no'
+    environment:
+      DATABASE_URL: ${PREVIEW_DATABASE_URL:?}
+    networks:
+      - backend
+    mem_limit: 384m
+    logging: *logging
+
+networks:
+  backend:
+    name: orcadom_backend
+    external: true
+  edge:
+    name: orcadom_edge
+    external: true
+
+volumes:
+  reports:
+    name: orcadom_pr_${PR_NUMBER}_reports

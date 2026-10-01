@@ -1,0 +1,170 @@
+# =============================================================================
+# docker-compose.prod.yml — override de PRODUÇÃO (VPS Hostinger KVM 1)
+# Caminho no repositório: infra/deploy/docker-compose.prod.yml
+#
+# Usado SEMPRE junto com o compose base de deploy:
+#   docker compose --env-file .env --env-file .env.image \
+#     -f infra/deploy/docker-compose.yml \
+#     -f infra/deploy/docker-compose.prod.yml --profile deps <comando>
+# (os scripts em infra/deploy/scripts/ já fazem isso — use-os.)
+#
+# O que este override faz:
+#   - Adiciona o Caddy (único serviço que publica portas: 80 e 443).
+#   - Remove TODAS as portas publicadas do base (`!reset []`) — o Docker
+#     ignora o ufw, então nada além do Caddy pode publicar porta.
+#   - Limites de memória, logs rotacionados, tuning do Postgres p/ 4 GB.
+#   - Redes fixas, compartilhadas com os previews:
+#       orcadom_backend (default do projeto): postgres, api, n8n, migrate
+#       orcadom_edge: caddy, web, api, n8n (+ web/api dos previews)
+#   - Serviço `migrate` (profile tools) para `prisma migrate deploy` DENTRO
+#     do VPS — o Postgres nunca é exposto ao runner do GitHub.
+#   - Profile `observability` NÃO é usado em produção. O profile `backup`
+#     (B2) será adicionado depois; ele entra na rede default (orcadom_backend)
+#     e enxerga o `postgres` sem mudanças aqui.
+#
+# Requer Docker Compose >= 2.24.4 (suporte a `!reset`).
+# =============================================================================
+
+name: orcadom
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: '10m'
+    max-file: '3'
+
+services:
+  caddy:
+    image: caddy:2.11-alpine
+    container_name: orcadom-caddy
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      ACME_EMAIL: ${ACME_EMAIL:?defina ACME_EMAIL no .env}
+      PROD_WEB_HOST: ${PROD_WEB_HOST:-orcadom.aanschau.tech}
+      PROD_API_HOST: ${PROD_API_HOST:-api.orcadom.aanschau.tech}
+      N8N_HOST: ${N8N_HOST:-n8n.aanschau.tech}
+      PREVIEW_BASE_DOMAIN: ${PREVIEW_BASE_DOMAIN:-orcadom.aanschau.tech}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Marcadores de previews ativos (criados pelos scripts). Somente leitura.
+      - ${PREVIEWS_DIR:-/opt/orcadom/previews}/active:/srv/previews/active:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - edge
+    mem_limit: 128m
+    logging: *logging
+
+  postgres:
+    container_name: orcadom-postgres
+    ports: !reset []
+    # Tuning para 1 GB de limite. max_connections cobre prod (api ~10,
+    # n8n ~5) + 2 previews (~10 cada) + migrações/psql.
+    command:
+      - postgres
+      - -c
+      - shared_buffers=256MB
+      - -c
+      - effective_cache_size=640MB
+      - -c
+      - work_mem=4MB
+      - -c
+      - maintenance_work_mem=64MB
+      - -c
+      - max_connections=60
+      - -c
+      - password_encryption=scram-sha-256
+    shm_size: 256m
+    mem_limit: 1g
+    logging: *logging
+
+  n8n:
+    # Recomendado fixar a versão (ex.: N8N_VERSION=1.123.4) para um `pull`
+    # não atualizar o n8n sem você querer.
+    image: n8nio/n8n:${N8N_VERSION:-latest}
+    ports: !reset []
+    environment:
+      N8N_HOST: ${N8N_HOST:-n8n.aanschau.tech}
+      N8N_PROTOCOL: https
+      N8N_PORT: '5678'
+      N8N_EDITOR_BASE_URL: https://${N8N_HOST:-n8n.aanschau.tech}/
+      N8N_PROXY_HOPS: '1'
+      N8N_DIAGNOSTICS_ENABLED: 'false'
+      N8N_PERSONALIZATION_ENABLED: 'false'
+      EXECUTIONS_DATA_PRUNE: 'true'
+      EXECUTIONS_DATA_MAX_AGE: '168'
+      # URL interna da API para os workflows (ver PROMPT_CURSOR.md).
+      ORCADOM_API_URL: http://api:8080
+      NODE_OPTIONS: --max-old-space-size=512
+    networks:
+      - default
+      - edge
+    mem_limit: 768m
+    logging: *logging
+
+  api:
+    ports: !reset []
+    environment:
+      NODE_OPTIONS: --max-old-space-size=384
+      COOKIE_SECURE: 'true'
+    networks:
+      - default
+      - edge
+    mem_limit: 512m
+    logging: *logging
+
+  web:
+    ports: !reset []
+    environment:
+      # Mesmo valor do base, explícito: o BFF /backend fala com a API de
+      # PRODUÇÃO pela rede interna. Previews usam nomes de container próprios.
+      API_URL: http://api:8080
+      NODE_OPTIONS: --max-old-space-size=384
+    networks:
+      - edge
+    mem_limit: 512m
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/login').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    logging: *logging
+
+  # Executado só sob demanda pelo deploy-prod.sh:
+  #   ... --profile tools run --rm migrate
+  # Imagem publicada pelo GitHub Actions (packages/database/Dockerfile).
+  migrate:
+    image: ${GHCR_IMAGE_PREFIX:?defina GHCR_IMAGE_PREFIX}/migrate:${IMAGE_TAG:?defina IMAGE_TAG}
+    profiles: [tools]
+    restart: 'no'
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?defina DATABASE_URL}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    mem_limit: 512m
+    logging: *logging
+
+networks:
+  # Rede default do projeto com nome fixo: previews se conectam a ela para
+  # alcançar o `postgres` (cada preview com usuário/banco próprios).
+  default:
+    name: orcadom_backend
+  edge:
+    name: orcadom_edge
+
+volumes:
+  caddy_data:
+    name: orcadom_caddy_data
+  caddy_config:
+    name: orcadom_caddy_config

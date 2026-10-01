@@ -96,15 +96,26 @@ por já estar no GitHub, sem outra conta de serviço).
 
 ## 6. Implementação
 
-Workflows em `.github/workflows/`. Imagens em `ghcr.io/<owner>/<repo>/{api,web}`.
-Compose de deploy em [`infra/deploy/docker-compose.yml`](../infra/deploy/docker-compose.yml)
+O desenho das seções 3.3 e 4 (migration no runner, `DATABASE_URL` no
+GitHub, deploy a cada Release para um host de staging) foi substituído
+pelo que está abaixo. O host é um VPS único; o passo a passo operacional
+está em [`32-deploy-vps-previews.md`](./32-deploy-vps-previews.md) e em
+[`infra/deploy/SERVIDOR.md`](../infra/deploy/SERVIDOR.md).
+
+Workflows em `.github/workflows/`. Imagens em
+`ghcr.io/<owner>/<repo>/{api,web,migrate}`. Compose de deploy em
+[`infra/deploy/docker-compose.yml`](../infra/deploy/docker-compose.yml)
+mais o override [`docker-compose.prod.yml`](../infra/deploy/docker-compose.prod.yml)
 — **não** entra em `pnpm docker:up`; o compose da raiz continua só local
 ([`05-infraestrutura-docker.md`](./05-infraestrutura-docker.md)).
 
-O host de staging/produção (item 10) ainda não existe. Os jobs de deploy
-rodam a cada GitHub Release, mas saem no primeiro passo se
-`vars.DEPLOY_ENABLED` do environment não for `true`. Tag, imagens e
-Release continuam verdes.
+Nenhum workflow roda `prisma migrate` no runner, nem contra um banco
+real. A migration roda no container `migrate`, dentro do VPS, antes do
+`compose up`. Não há `DATABASE_URL` nos secrets do GitHub.
+
+Os jobs de deploy saem no primeiro passo se `vars.DEPLOY_ENABLED` do
+environment não for `true`. Build de imagem, tag e Release continuam
+verdes.
 
 ### 6.1 — Workflows
 
@@ -115,91 +126,89 @@ Release continuam verdes.
 | `changeset-check.yml` | todo PR contra `main`, exceto o Release PR (`chore: release`) e PRs com label `no-changeset` | exige changeset |
 | `commitlint.yml` | todo PR contra `main` | Conventional Commits |
 | `release.yml` | push em `main` | abre/atualiza o Release PR |
-| `tag-release.yml` | push em `main` cujo commit começa com `chore: release` | tag `vX.Y.Z`, build/push GHCR, GitHub Release com URLs das imagens |
-| `deploy.yml` | `release: published` ou `workflow_dispatch` | `prisma migrate deploy` + SSH `compose pull/up` da **mesma** tag, por environment |
+| `tag-release.yml` | push em `main` cujo commit começa com `chore: release` | tag `vX.Y.Z`, build/push GHCR de api, web e migrate, GitHub Release com as URLs |
+| `deploy-production.yml` | push em `main` ou `workflow_dispatch` | build/push `sha-<12>` e `main`; SSH `update-repo` + `deploy-prod` se `DEPLOY_ENABLED=true` |
+| `preview.yml` | PR contra `main` (abre, sincroniza, reabre, fecha) | preview web+api em `pr-<N>.orcadom.aanschau.tech`; teardown ao fechar. Pula fork e o Release PR |
+| `deploy.yml` | só `workflow_dispatch` (input `tag`) | rollback: SSH `deploy-prod <tag>` no environment `production` |
 
-Imagens: `ghcr.io/<owner>/<repo>/api:vX.Y.Z` e `.../web:vX.Y.Z` (também
-sem o prefixo `v`). Produção puxa essa tag — nunca rebuild.
+Imagens de release: `ghcr.io/<owner>/<repo>/{api,web,migrate}:vX.Y.Z`
+(também sem o prefixo `v`). O deploy do dia a dia usa `sha-<12>`, não a
+tag de release. Tags `≤ v0.15.1` não têm imagem `migrate` e não servem
+no rollback.
+
+Não existe host de staging. Se um dia existir, segue o mesmo modelo
+(environment próprio, migration no host, chave SSH com forced command)
+— não uma matriz neste repositório.
 
 ### 6.2 — GitHub Environments (checklist)
 
-Criar em Settings → Environments. Segredos **por environment**, nunca
-no repositório compartilhado entre staging e produção.
+Criar em Settings → Environments. Segredos **por environment**. A chave
+de `preview` é outra: no VPS ela só aceita comandos de preview.
 
-| Nome | Tipo | Onde | Função |
+| Environment | Regra de branch | Variable | Secrets |
 |---|---|---|---|
-| `DEPLOY_ENABLED` | variable | environment | `true` liga o job; qualquer outro valor = skip sem falhar |
-| `DEPLOY_PATH` | variable | environment | diretório do clone no host (padrão `/opt/orcadom`) |
-| `DATABASE_URL` | secret | environment | Postgres daquele ambiente; tem que ser o mesmo do `.env` do host |
-| `DEPLOY_HOST` | secret | environment | hostname/IP para SSH |
-| `DEPLOY_USER` | secret | environment | usuário SSH |
-| `DEPLOY_SSH_KEY` | secret | environment | chave privada |
-| `GHCR_PULL_TOKEN` | secret | environment | PAT (ou token) com `read:packages` para o host puxar imagens privadas |
+| `production` | só `main` | `DEPLOY_ENABLED` (`true` liga o deploy; outro valor = aviso e skip) | `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY` (chave prod), `DEPLOY_KNOWN_HOSTS` |
+| `preview` | sem restrição (o job roda em `refs/pull/N/merge`) | `DEPLOY_ENABLED` | `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY` (chave preview), `DEPLOY_KNOWN_HOSTS` |
 
-Ordem ao ligar produção (evita promover sem aprovação):
+Ordem ao ligar produção:
 
-1. Criar o environment `production` e preencher os segredos (valores
-   **diferentes** dos de staging — conferir `DATABASE_URL` lado a lado).
-2. Em production, marcar **Required reviewers**.
-3. Só então `DEPLOY_ENABLED=true`.
-
-Staging não tem reviewer: a cada tag, migrate + pull acontecem sozinhos
-quando o host (item 10) existir.
+1. Preparar o VPS ([`SERVIDOR.md`](../infra/deploy/SERVIDOR.md)) com
+   `DEPLOY_ENABLED` ainda diferente de `true`, para o primeiro push só
+   publicar imagem.
+2. Criar o environment `production` (branch só `main`) e `preview`.
+3. Colar host, usuário, chave e `known_hosts`.
+4. Só então `DEPLOY_ENABLED=true` em `production`. O de `preview` pode
+   ir junto, quando o forced command da chave de preview já estiver no
+   `authorized_keys`.
 
 Permissões do repositório: Actions → General → Workflow permissions em
-Read and write (já necessário para o Release PR). Packages: o
-`GITHUB_TOKEN` do `tag-release.yml` precisa conseguir publicar em GHCR
-(`packages: write` no job).
+Read and write (já necessário para o Release PR e para publicar no
+GHCR). Nos pacotes que já existirem, Package settings → Manage Actions
+access → Write para este repositório.
 
 Branch protection em `main`: exigir os checks `build-test` e `e2e-smoke`
 (este `ci.yml`) além de `changeset-check` e `commitlint`.
 
 ### 6.3 — Imagens e compose de deploy
 
-Dockerfiles em `apps/api/Dockerfile` e `apps/web/Dockerfile`, contexto na
-raiz do monorepo (`turbo prune` + build). O web usa `output: 'standalone'`
-e o proxy `/backend` (`API_URL` é runtime, aponta para `http://api:8080`
-no compose). CORS da API lê `WEB_ORIGIN` (default `http://localhost:3000`).
+Dockerfiles em `apps/api/Dockerfile`, `apps/web/Dockerfile` e
+`packages/database/Dockerfile` (imagem `migrate`), contexto na raiz do
+monorepo (`turbo prune`). O web usa `output: 'standalone'` e o proxy
+`/backend` (`API_URL` é runtime). CORS da API lê `WEB_ORIGIN`
+(default `http://localhost:3000`; várias origens separadas por vírgula).
 
 Build local para validar:
 
 ```bash
 docker build -f apps/api/Dockerfile -t ghcr.io/local/orcadom/api:dev .
 docker build -f apps/web/Dockerfile -t ghcr.io/local/orcadom/web:dev .
-GHCR_IMAGE_PREFIX=ghcr.io/local/orcadom IMAGE_TAG=dev \
-  docker compose --env-file .env -f infra/deploy/docker-compose.yml up -d
+docker build -f packages/database/Dockerfile -t migrate:dev .
+IMAGE_TAG=x docker compose \
+  --env-file infra/deploy/.env.production.example \
+  -f infra/deploy/docker-compose.yml \
+  -f infra/deploy/docker-compose.prod.yml \
+  --profile deps --profile tools config
 ```
 
-No host de staging/produção o clone vive em `DEPLOY_PATH`. O `.env` da
-raiz desse clone alimenta o compose (`--env-file .env`). O pipeline só
-injeta `IMAGE_TAG` e `GHCR_IMAGE_PREFIX`.
-
-Migration no runner do GitHub, **antes** do `compose up`:
-
-```bash
-pnpm db:migrate:deploy   # prisma migrate deploy em @orcadom/database
-```
-
-`DATABASE_URL` vem do secret do environment, não do `.env` do runner.
+No VPS o clone vive em `/opt/orcadom`. O `.env` desse clone alimenta o
+compose. A tag em uso fica em `.env.image` (a anterior, em
+`.env.image.prev`) — os dois estão no `.gitignore`. Quem grava é o
+`deploy-prod.sh`, não o runner.
 
 ### 6.4 — Expand/contract
 
 Migration destrutiva (renomear/remover coluna numa única etapa) agora
-roda sozinha no deploy. Mudança estrutural segue expand/contract:
-adicionar o novo, migrar o dado, só depois remover o antigo. Já foi o
-padrão de `13-multiusuario.md`; a pipeline torna isso obrigatório.
+roda sozinha no deploy, dentro do VPS. Mudança estrutural segue
+expand/contract: adicionar o novo, migrar o dado, só depois remover o
+antigo. Já foi o padrão de `13-multiusuario.md`; a pipeline torna isso
+obrigatório. Rollback de imagem não desfaz migration.
 
-### 6.5 — O que fica para o item 10 (host)
+### 6.5 — Staging (item 10) e o que o VPS já cobre
 
-Artefatos no repositório (compose com profile `deps`, seed sintético,
-template `.env`, runbook): ver [`29-staging.md`](./29-staging.md) §6.
+Previews de PR (banco isolado, seed sintético, no máximo 2) são a
+validação antes do merge. Não substituem um ambiente de staging com
+domínio e caixa de email próprios — isso continua em
+[`29-staging.md`](./29-staging.md).
 
-Ainda operacional, quando a cloud for escolhida:
-
-- Provisionar o host, DNS/TLS e caixa de email de teste.
-- Clonar o repo em `DEPLOY_PATH`, `.env` isolado.
-- Ligar `DEPLOY_ENABLED=true` em staging (e, depois da validação,
-  production com reviewers).
-
-A interface que o item 10 consome já está neste repositório: `deploy.yml`,
-`infra/deploy/docker-compose.yml` e a tabela de secrets acima.
+Se esse host for criado, o deploy dele repete o modelo de produção com
+outro GitHub Environment. O `deploy.yml` atual não tem matriz staging.

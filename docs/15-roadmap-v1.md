@@ -194,7 +194,9 @@ rastreabilidade que acabou de ser construído.
 ## 9. CI/CD — ✅ já implementado
 
 **Objetivo:** pipeline automatizado de build, teste e deploy, para os dois
-apps do monorepo. Detalhado em [`28-cicd.md`](./28-cicd.md).
+apps do monorepo. Detalhado em [`28-cicd.md`](./28-cicd.md). O deploy no
+VPS e os previews de PR estão em
+[`32-deploy-vps-previews.md`](./32-deploy-vps-previews.md).
 
 **Por que agora:** o volume de mudanças de schema já é significativo
 (principalmente a migração de `13-multiusuario.md`) — migration
@@ -206,10 +208,9 @@ da pipeline (build, teste, deploy) em torno dela.
 **Escopo aproximado:**
 - Pipeline rodando lint, build e testes a cada PR (aproveitando o cache
   do Turborepo já configurado).
-- Deploy automatizado para staging (item 10) a cada merge, e para
-  produção via aprovação manual ou tag.
-- Execução de migration do Prisma como etapa controlada do pipeline, não
-  manual.
+- Push na `main` publica as imagens e faz deploy de produção no VPS
+  (migration dentro do host, não no runner).
+- Preview automático por PR (web + API, banco isolado), no máximo 2.
 
 ---
 
@@ -220,8 +221,11 @@ para validar mudanças antes do deploy real.
 
 **Por que agora:** a própria feature de Multiusuário (`13`) já recomendou
 rodar o backfill em staging antes de produção — essa recomendação hoje não
-tem um ambiente formal que a garanta. Depende do CI/CD (item 9) para o
-deploy automatizado ser útil na prática.
+tem um ambiente formal que a garanta. Os previews de PR
+([`32-deploy-vps-previews.md`](./32-deploy-vps-previews.md)) cobrem a
+validação antes do merge, com banco isolado no mesmo Postgres. Um host
+de staging dedicado, se existir, segue o mesmo modelo de deploy com
+outro GitHub Environment.
 
 **Escopo aproximado:**
 - Infraestrutura espelhando produção (mesmos serviços do

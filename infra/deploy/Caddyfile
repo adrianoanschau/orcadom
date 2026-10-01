@@ -1,0 +1,137 @@
+# =============================================================================
+# Caddyfile — Orcadom (produção + previews de PR)
+# Caminho no repositório: infra/deploy/Caddyfile
+#
+# - HTTPS automático (Let's Encrypt) para os hosts fixos de produção.
+# - Previews (pr-<N> e api-pr-<N>) usam TLS "on demand": o certificado só é
+#   emitido se o endpoint `ask` (abaixo) responder 200, ou seja, se existir o
+#   arquivo-marcador /srv/previews/active/<host>. Os scripts
+#   deploy-preview.sh / destroy-preview.sh criam/apagam esses marcadores.
+# - Nenhum reload do Caddy é necessário para criar ou remover previews: o
+#   roteamento é dinâmico (container orcadom-pr-<N>-web / -api na rede
+#   docker `orcadom_edge`).
+# - Não precisa de API do provedor de DNS: o wildcard *.orcadom.aanschau.tech
+#   já aponta para o VPS e cada host recebe certificado próprio (HTTP-01 /
+#   TLS-ALPN-01).
+#
+# Variáveis (vêm do .env via docker-compose.prod.yml):
+#   ACME_EMAIL, PROD_WEB_HOST, PROD_API_HOST, N8N_HOST, PREVIEW_BASE_DOMAIN
+# =============================================================================
+{
+	email {$ACME_EMAIL}
+
+	# Só HTTP/1.1 e HTTP/2 (a porta 443/udp não é publicada).
+	servers {
+		protocols h1 h2
+	}
+
+	# Permissão para emitir certificados "on demand" (somente previews ativos).
+	on_demand_tls {
+		ask http://127.0.0.1:5555/ask
+	}
+}
+
+# Cabeçalhos e compressão comuns.
+(comum) {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+	log {
+		output stdout
+		format console
+	}
+}
+
+# Bloqueios na API pública: /metrics (Prometheus) e /automation/* (usado só
+# pelo n8n, que chama a API pela rede interna http://api:8080).
+(api_bloqueios) {
+	@interno path /metrics /metrics/* /automation/*
+	respond @interno 404
+}
+
+# -----------------------------------------------------------------------------
+# Endpoint interno `ask` do on-demand TLS. Escuta só em 127.0.0.1 dentro do
+# container do Caddy (não é publicado). Responde 200 apenas para hosts de
+# preview válidos E com marcador em /srv/previews/active.
+# -----------------------------------------------------------------------------
+http://127.0.0.1:5555 {
+	bind 127.0.0.1
+
+	@permitido {
+		path /ask
+		expression `{query.domain}.matches("^(api-)?pr-[0-9]{1,6}[.]")`
+		file {
+			root /srv/previews/active
+			try_files {query.domain}
+		}
+	}
+	handle @permitido {
+		respond 200
+	}
+	handle {
+		respond 404
+	}
+}
+
+# -----------------------------------------------------------------------------
+# Produção
+# -----------------------------------------------------------------------------
+{$PROD_WEB_HOST:orcadom.aanschau.tech} {
+	import comum
+	# O web faz BFF: o navegador chama /backend/* na própria origem e o Next
+	# encaminha para http://api:8080 (cookies host-only, sem CORS).
+	reverse_proxy web:3000
+}
+
+{$PROD_API_HOST:api.orcadom.aanschau.tech} {
+	import comum
+	import api_bloqueios
+	reverse_proxy api:8080
+}
+
+{$N8N_HOST:n8n.aanschau.tech} {
+	import comum
+	reverse_proxy n8n:5678
+}
+
+# -----------------------------------------------------------------------------
+# Previews de PR: pr-<N>.<base> (web) e api-pr-<N>.<base> (API, opcional:
+# Swagger em /api/docs e testes). Só respondem se o marcador existir.
+# -----------------------------------------------------------------------------
+*.{$PREVIEW_BASE_DOMAIN:orcadom.aanschau.tech} {
+	tls {
+		on_demand
+	}
+	import comum
+	header X-Robots-Tag "noindex, nofollow"
+
+	@preview_web {
+		header_regexp prweb Host ^pr-([0-9]{1,6})[.]
+		file {
+			root /srv/previews/active
+			try_files {http.request.host}
+		}
+	}
+	@preview_api {
+		header_regexp prapi Host ^api-pr-([0-9]{1,6})[.]
+		file {
+			root /srv/previews/active
+			try_files {http.request.host}
+		}
+	}
+
+	handle @preview_web {
+		reverse_proxy orcadom-pr-{re.prweb.1}-web:3000
+	}
+	handle @preview_api {
+		import api_bloqueios
+		reverse_proxy orcadom-pr-{re.prapi.1}-api:8080
+	}
+	handle {
+		respond "Preview inexistente ou encerrado." 404
+	}
+}

@@ -42,6 +42,12 @@ __pycache__/
 !.vscode/extensions.json
 !.vscode/settings.json
 
+# estado de deploy no VPS (fica em /opt/orcadom, fora do git)
+previews/
+.env.image
+.env.image.prev
+.deploy.lock
+
 # playwright e2e
 e2e/test-results/
 e2e/playwright-report/

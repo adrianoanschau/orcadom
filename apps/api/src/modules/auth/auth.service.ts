@@ -273,6 +273,9 @@ export class AuthService {
   }
 
   private cookieOptions(maxAge?: number) {
+    // Host-only de propósito: nunca definir Domain=.orcadom.aanschau.tech.
+    // Os previews (pr-<N>.orcadom.aanschau.tech) são subdomínios e
+    // receberiam o cookie de sessão de produção.
     return {
       httpOnly: true,
       secure: cookieSecure(),

@@ -81,13 +81,15 @@ O GlitchTip usa um database separado (`glitchtip`) na mesma instância.
 ## Nota sobre produção
 
 Este `docker-compose.yml` é para **ambiente local de desenvolvimento**
-apenas. Em produção, a expectativa é usar um Postgres gerenciado (ex: RDS,
-Supabase, Neon, Railway) — o `DATABASE_URL` muda, mas o schema e as
-migrations do Prisma permanecem os mesmos. Logs JSON, `/metrics` e o SDK
-Sentry (DSN do GlitchTip ou Sentry SaaS) seguem na API, independentemente
-do compose local.
+apenas. Produção roda no VPS, com Postgres no próprio host (profile
+`deps`), Caddy na frente e imagens puxadas do GHCR — ver
+[`32-deploy-vps-previews.md`](./32-deploy-vps-previews.md). O schema e as
+migrations do Prisma são os mesmos. Logs JSON, `/metrics` e o SDK Sentry
+(DSN do GlitchTip ou Sentry SaaS) seguem na API, independentemente do
+compose local.
 
-Staging e produção sobem `api` e `web` pelas imagens do GHCR, com
-[`infra/deploy/docker-compose.yml`](../infra/deploy/docker-compose.yml) —
-ver [`28-cicd.md`](./28-cicd.md). Esse arquivo não entra em
-`pnpm docker:up`.
+O compose de deploy é
+[`infra/deploy/docker-compose.yml`](../infra/deploy/docker-compose.yml)
+mais [`docker-compose.prod.yml`](../infra/deploy/docker-compose.prod.yml).
+Esse par não entra em `pnpm docker:up`. O pipeline está em
+[`28-cicd.md`](./28-cicd.md).
