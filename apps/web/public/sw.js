@@ -1,8 +1,8 @@
-/* Orcadom service worker — cache version 0.12.0 (release tag v0.12.0) */
+/* Orcadom service worker — cache version 0.15.1 (release tag v0.15.1) */
 /* eslint-disable */
 importScripts('https://storage.googleapis.com/workbox-cdn/releases/7.3.0/workbox-sw.js');
 
-const APP_VERSION = '0.12.0';
+const APP_VERSION = '0.15.1';
 const CACHE_PREFIX = 'orcadom';
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1']);
 const CACHE_ENABLED = !LOCAL_HOSTS.has(self.location.hostname);
