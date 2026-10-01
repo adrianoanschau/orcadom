@@ -9,6 +9,7 @@ import {
   type ReactNode,
   type SelectHTMLAttributes,
 } from 'react';
+import { Drawer } from 'vaul';
 import { formatMoney } from '@/lib/format';
 import { colors } from '@/lib/tokens';
 import {
@@ -178,6 +179,156 @@ export function Modal({
       </div>
       <div className="mt-4">{children}</div>
     </dialog>
+  );
+}
+
+const BOTTOM_SHEET_HISTORY = 'orcadomBottomSheet';
+const DESKTOP_SHELL_QUERY = '(min-width: 1024px)';
+
+let bottomSheetGeneration = 0;
+let suppressBottomSheetPop = false;
+
+function bottomSheetGenerationFrom(state: unknown) {
+  if (typeof state !== 'object' || state === null) return null;
+  const value = (state as Record<string, unknown>)[BOTTOM_SHEET_HISTORY];
+  return typeof value === 'number' ? value : null;
+}
+
+function copyHistoryState(state: unknown) {
+  if (typeof state !== 'object' || state === null || Array.isArray(state)) return {};
+  const copy: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(state)) {
+    copy[key] = value as unknown;
+  }
+  return copy;
+}
+
+function useBottomSheetHistory(open: boolean, onClose: () => void) {
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    if (!open) return;
+
+    const generation = ++bottomSheetGeneration;
+    const nextState = {
+      ...copyHistoryState(window.history.state),
+      [BOTTOM_SHEET_HISTORY]: generation,
+    };
+    if (bottomSheetGenerationFrom(window.history.state) === null) {
+      window.history.pushState(nextState, '');
+    } else {
+      window.history.replaceState(nextState, '');
+    }
+
+    let closedByPop = false;
+
+    const onPopState = () => {
+      closedByPop = true;
+      if (suppressBottomSheetPop) return;
+      onCloseRef.current();
+    };
+
+    window.addEventListener('popstate', onPopState);
+    return () => {
+      window.removeEventListener('popstate', onPopState);
+      queueMicrotask(() => {
+        if (bottomSheetGeneration !== generation || closedByPop) return;
+        if (bottomSheetGenerationFrom(window.history.state) === null) return;
+        suppressBottomSheetPop = true;
+        const swallow = () => {
+          window.removeEventListener('popstate', swallow);
+          queueMicrotask(() => {
+            suppressBottomSheetPop = false;
+          });
+        };
+        window.addEventListener('popstate', swallow);
+        window.history.back();
+      });
+    };
+  }, [open]);
+}
+
+export function navigateAfterBottomSheet(navigate: () => void) {
+  if (bottomSheetGenerationFrom(window.history.state) === null) {
+    navigate();
+    return;
+  }
+  const onPop = () => {
+    window.removeEventListener('popstate', onPop);
+    navigate();
+  };
+  window.addEventListener('popstate', onPop);
+}
+
+function useCloseBottomSheetOnDesktop(open: boolean, onClose: () => void) {
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    if (!open) return;
+    const query = window.matchMedia(DESKTOP_SHELL_QUERY);
+    const closeIfDesktop = () => {
+      if (query.matches) onCloseRef.current();
+    };
+    closeIfDesktop();
+    query.addEventListener('change', closeIfDesktop);
+    return () => {
+      query.removeEventListener('change', closeIfDesktop);
+    };
+  }, [open]);
+}
+
+export function BottomSheet({
+  open,
+  onClose,
+  title,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  children: ReactNode;
+}) {
+  const titleId = useId();
+  useBottomSheetHistory(open, onClose);
+  useCloseBottomSheetOnDesktop(open, onClose);
+
+  return (
+    <Drawer.Root
+      open={open}
+      autoFocus
+      direction="bottom"
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+    >
+      <Drawer.Portal>
+        <Drawer.Overlay className="fixed inset-0 z-50 bg-ink/40 lg:hidden" />
+        <Drawer.Content
+          aria-describedby={undefined}
+          aria-labelledby={titleId}
+          className="fixed inset-x-0 bottom-0 z-50 flex flex-col rounded-t-lg bg-surface text-ink outline-none lg:hidden"
+          style={{
+            colorScheme: 'light',
+            maxHeight: 'min(85dvh, calc(100dvh - env(safe-area-inset-top)))',
+          }}
+        >
+          <Drawer.Close
+            aria-label="Fechar"
+            className="flex min-h-11 w-full shrink-0 items-center justify-center"
+          >
+            <span className="h-1 w-9 rounded-pill bg-hairline" aria-hidden />
+          </Drawer.Close>
+          <Drawer.Title id={titleId} className="px-5 font-display text-h2 font-medium">
+            {title}
+          </Drawer.Title>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
+            {children}
+          </div>
+        </Drawer.Content>
+      </Drawer.Portal>
+    </Drawer.Root>
   );
 }
 

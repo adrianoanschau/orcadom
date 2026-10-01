@@ -32,3 +32,20 @@ body {
   color: var(--color-ink);
   font-family: var(--font-sans);
 }
+
+[data-vaul-drawer] {
+  animation-duration: 200ms !important;
+  transition-duration: 200ms !important;
+}
+
+[data-vaul-overlay] {
+  animation-duration: 200ms !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-vaul-drawer],
+  [data-vaul-overlay] {
+    animation: none !important;
+    transition: none !important;
+  }
+}
