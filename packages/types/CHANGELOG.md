@@ -1,5 +1,11 @@
 # @orcadom/types
 
+## 0.16.0
+
+### Minor Changes
+
+- 0d454cf: Categorias podem ter subcategorias e todo espaço novo recebe categorias de sistema. Mover uma categoria altera orçamentos e relatórios de meses passados, porque o cálculo usa a árvore atual.
+
 ## 0.15.1
 
 No changes in this release.

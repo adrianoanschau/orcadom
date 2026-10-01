@@ -1,5 +1,17 @@
 # @orcadom/web
 
+## 0.16.0
+
+### Minor Changes
+
+- 0d454cf: Categorias podem ter subcategorias e todo espaço novo recebe categorias de sistema. Mover uma categoria altera orçamentos e relatórios de meses passados, porque o cálculo usa a árvore atual.
+
+### Patch Changes
+
+- a0f6083: O limite de login e o IP da sessão passam a usar o endereço real do cliente atrás do proxy, em vez do IP do container web.
+- Updated dependencies [0d454cf]
+  - @orcadom/types@0.16.0
+
 ## 0.15.1
 
 No changes in this release.
