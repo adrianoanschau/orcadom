@@ -1,5 +1,15 @@
 # @orcadom/web
 
+## 0.17.0
+
+### Minor Changes
+
+- 8f81709: A versão do produto aparece no rodapé da barra lateral, no menu Mais e na tela de entrada.
+
+### Patch Changes
+
+- @orcadom/types@0.17.0
+
 ## 0.16.0
 
 ### Minor Changes
