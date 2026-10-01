@@ -154,12 +154,26 @@ docker stats --no-stream --format 'table {{.Name}}\t{{.MemUsage}}\t{{.CPUPerc}}'
 
 curl -sSI https://orcadom.aanschau.tech/login | head -n1                     # HTTP/2 200
 curl -sS  https://api.orcadom.aanschau.tech/                                 # {"name":"Orcadom API","status":"ok",...}
+curl -sI --resolve api.orcadom.aanschau.tech:443:127.0.0.1 https://api.orcadom.aanschau.tech/ | head -n1
 curl -s -o /dev/null -w '%{http_code}\n' https://api.orcadom.aanschau.tech/metrics   # 404 (bloqueado)
 curl -sSI https://n8n.aanschau.tech | head -n1                               # 200
 curl -sS -o /dev/null -w '%{http_code}\n' https://pr-999.orcadom.aanschau.tech  # falha de TLS (sem preview: ok)
 
 docker logs --tail 50 orcadom-caddy
 ```
+
+O host da API (`PROD_API_HOST`) é subdomínio de `*.PREVIEW_BASE_DOMAIN`.
+Desde o Caddy 2.10, um wildcard na configuração faz o Caddy pular o
+certificado individual dos nomes que ele cobre. O wildcard de preview
+é on demand e não chega a emitir um certificado `*.…` (on demand só
+age no handshake, e só se o `ask` autorizar). O host da API fica sem
+certificado: o log de subida lista o domínio, mas não há
+`certificate obtained`, e o handshake responde `tlsv1 alert internal
+error`. O bloco da API usa `tls force_automate` para pedir o
+certificado do nome exato na subida. O `ask` não muda e segue
+liberando só `pr-N` / `api-pr-N` com marcador. Depois do deploy, o log
+do Caddy deve ter `certificate obtained successfully` para o
+`PROD_API_HOST`.
 
 No seu computador, confirme que nada além de 22/80/443 responde:
 
