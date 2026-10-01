@@ -61,6 +61,7 @@ n8n: IMAP Trigger (1 credencial só) → filtra anexo *.ofx → para cada email:
    HTTP Request → POST /automation/email-imports
                   body: { token, attachment }
                   header: x-orcadom-api-key (chave única, fixa, compartilhada)
+                  URL: $env.ORCADOM_API_URL (local host.docker.internal, produção http://api:8080)
         │
         ▼
 API Orcadom:
@@ -227,6 +228,10 @@ N8N_PORT=5678
 # credenciais forem salvas no n8n, ou elas ficam ilegíveis.
 N8N_ENCRYPTION_KEY=troque_este_valor_em_producao
 N8N_WEBHOOK_URL=http://localhost:5678/
+
+# URL da API no workflow de importação. Local: host.docker.internal.
+# Na rede Docker de deploy: http://api:8080
+ORCADOM_API_URL=http://host.docker.internal:8080
 
 # Chave compartilhada entre o workflow do n8n e a API, usada pelo
 # AutomationApiKeyGuard no endpoint /automation/email-imports.

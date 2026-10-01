@@ -6,7 +6,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## Ativar com Gmail OAuth2\n1. Clique em **Gmail Trigger** → Credential → **Create new** → **Gmail OAuth2 API**.\n2. No Google Cloud: ative a Gmail API, crie um client OAuth (tipo Web) com redirect `http://localhost:5678/rest/oauth2-credential/callback` e cole Client ID/Secret.\n3. Use a **mesma credencial** no node **Marcar como lido**.\n4. Publique o workflow.\n\nEncaminhe o OFX para `seuemail+<token>@gmail.com`.",
+        "content": "## Ativar com Gmail OAuth2\n1. Clique em **Gmail Trigger** → Credential → **Create new** → **Gmail OAuth2 API**.\n2. No Google Cloud: ative a Gmail API, crie um client OAuth (tipo Web) com redirect `http://localhost:5678/rest/oauth2-credential/callback` e cole Client ID/Secret.\n3. Use a **mesma credencial** no node **Marcar como lido**.\n4. Publique o workflow.\n\nA URL da API vem de `ORCADOM_API_URL` (local: `http://host.docker.internal:8080`; na rede Docker: `http://api:8080`).\n\nEncaminhe o OFX para `seuemail+<token>@gmail.com`.",
         "height": 460,
         "width": 340
       },
@@ -61,7 +61,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://host.docker.internal:8080/automation/email-imports",
+        "url": "={{ ($env.ORCADOM_API_URL || 'http://host.docker.internal:8080').replace(/\\/$/, '') + '/automation/email-imports' }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
