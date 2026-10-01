@@ -25,11 +25,11 @@ item).
 
 Usando `@nestjs/throttler`, já mencionado desde o MVP:
 
-| Rota | Limite sugerido | Motivo |
-|---|---|---|
-| `/auth/login` | 5 tentativas/min por IP | Já previsto desde o MVP original |
-| `/automation/email-imports` | 60 req/min | Tráfego esperado do n8n, mas com teto contra abuso |
-| Demais rotas autenticadas por sessão | Limite geral mais permissivo | Proteção de última linha, não o foco principal |
+| Rota                                 | Limite sugerido              | Motivo                                             |
+| ------------------------------------ | ---------------------------- | -------------------------------------------------- |
+| `/auth/login`                        | 5 tentativas/min por IP      | Já previsto desde o MVP original                   |
+| `/automation/email-imports`          | 60 req/min                   | Tráfego esperado do n8n, mas com teto contra abuso |
+| Demais rotas autenticadas por sessão | Limite geral mais permissivo | Proteção de última linha, não o foco principal     |
 
 Resposta de limite excedido segue o formato de erro padronizado já
 definido no interceptor global (Fase 4 do MVP), com `429` explícito, não
@@ -45,8 +45,15 @@ uma falha genérica.
 
 ### Implementação
 
-- Pacote `@nestjs/throttler` com `AppThrottlerGuard` global; tracking por IP
-  (`trust proxy` habilitado).
+- Pacote `@nestjs/throttler` com `AppThrottlerGuard` global; tracking por
+  `req.ip`. O Express confia só em `loopback`, `linklocal` e `uniquelocal`
+  (o Next no mesmo host e os containers na rede privada do Docker: Caddy e
+  web). Um `X-Forwarded-For` vindo de um IP público é ignorado. O proxy
+  `/backend` preserva a cadeia recebida e acrescenta o IP do socket do
+  web. Produção é Caddy → web → `http://api:8080` na rede interna. Se a
+  porta publicada da API passar pelo userland proxy do Docker, a origem
+  vista pelo container pode ser o gateway privado e um header forjado
+  nessa porta ainda seria aceito.
 - Defaults: geral **120**/min, `POST /auth/login` **5**/min,
   `/automation/*` **60**/min. Override via
   `THROTTLE_DEFAULT_LIMIT` / `THROTTLE_LOGIN_LIMIT` /

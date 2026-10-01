@@ -51,21 +51,29 @@ describe('política de sessão', () => {
 describe('isConsumedRefreshToken', () => {
   it('trata rotação e revogação como reuso', () => {
     expect(isConsumedRefreshToken({ revokedAt: null, replacedByTokenHash: null })).toBe(false);
-    expect(
-      isConsumedRefreshToken({ revokedAt: new Date(), replacedByTokenHash: null }),
-    ).toBe(true);
-    expect(
-      isConsumedRefreshToken({ revokedAt: null, replacedByTokenHash: 'next-hash' }),
-    ).toBe(true);
+    expect(isConsumedRefreshToken({ revokedAt: new Date(), replacedByTokenHash: null })).toBe(true);
+    expect(isConsumedRefreshToken({ revokedAt: null, replacedByTokenHash: 'next-hash' })).toBe(
+      true,
+    );
   });
 });
 
 describe('clientSessionMeta', () => {
-  it('lê user-agent e o primeiro IP do forwarded', () => {
+  it('usa o IP resolvido pelo proxy e ignora o x-forwarded-for cru', () => {
     expect(
       clientSessionMeta({
-        headers: { 'user-agent': 'OrcadomTest', 'x-forwarded-for': '1.1.1.1, 2.2.2.2' },
+        ip: '203.0.113.10',
+        headers: { 'user-agent': 'OrcadomTest', 'x-forwarded-for': '1.1.1.1, 203.0.113.10' },
       }),
-    ).toEqual({ userAgent: 'OrcadomTest', ipAddress: '1.1.1.1' });
+    ).toEqual({ userAgent: 'OrcadomTest', ipAddress: '203.0.113.10' });
+  });
+
+  it('cai no endereço do socket quando o proxy não resolveu o IP', () => {
+    expect(
+      clientSessionMeta({
+        headers: { 'x-forwarded-for': '1.1.1.1' },
+        socket: { remoteAddress: '198.51.100.8' },
+      }),
+    ).toEqual({ userAgent: null, ipAddress: '198.51.100.8' });
   });
 });
