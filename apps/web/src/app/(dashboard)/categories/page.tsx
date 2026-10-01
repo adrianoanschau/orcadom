@@ -27,6 +27,7 @@ import {
   StatusBadge,
   controlClass,
 } from '@/components/ui';
+import { ChevronIcon, PlusIcon } from '@/components/icons';
 import { colors } from '@/lib/tokens';
 
 interface CategoryForm {
@@ -333,7 +334,7 @@ function CategoryColumn({
       {nodes.length === 0 ? (
         <p className="mt-4 text-sm text-ink-soft">Nenhuma categoria deste tipo.</p>
       ) : (
-        <ul className="mt-4 space-y-3">{nodes.map((node) => renderNode(node))}</ul>
+        <ul className="mt-2">{nodes.map((node) => renderNode(node))}</ul>
       )}
     </section>
   );
@@ -343,66 +344,67 @@ function CategoryColumn({
     const hasChildren = node.children.length > 0;
     const hidden = collapsed.has(category.id);
     return (
-      <li key={category.id}>
+      <li key={category.id} className="border-b border-hairline last:border-b-0">
         <div
-          className="flex flex-wrap items-center justify-between gap-3"
-          style={{ paddingLeft: `${String((node.depth - 1) * 16)}px` }}
+          className="flex min-h-11 items-center gap-1"
+          style={{ paddingLeft: `${String((node.depth - 1) * 12)}px` }}
         >
-          <span className="flex min-w-0 items-center gap-2">
-            {hasChildren ? (
+          {hasChildren ? (
+            <button
+              type="button"
+              className={`inline-flex size-11 shrink-0 items-center justify-center rounded-pill text-ink-soft hover:bg-surface-sunken ${hidden ? '-rotate-90' : ''}`}
+              aria-expanded={!hidden}
+              aria-label={hidden ? `Expandir ${category.name}` : `Recolher ${category.name}`}
+              onClick={() => {
+                onToggle(category.id);
+              }}
+            >
+              <ChevronIcon />
+            </button>
+          ) : null}
+          <span className="min-w-0">
+            <CategoryChip name={category.name} color={category.color} />
+          </span>
+          {category.isSystem ? <StatusBadge tone="neutral">Sistema</StatusBadge> : null}
+          <span className="ml-auto flex shrink-0 items-center">
+            {node.depth < MAX_CATEGORY_DEPTH ? (
               <button
                 type="button"
-                className="inline-flex size-11 shrink-0 items-center justify-center rounded-pill text-ink-soft hover:bg-surface-sunken"
-                aria-expanded={!hidden}
-                aria-label={hidden ? `Expandir ${category.name}` : `Recolher ${category.name}`}
-                onClick={() => {
-                  onToggle(category.id);
-                }}
-              >
-                {hidden ? '▸' : '▾'}
-              </button>
-            ) : (
-              <span className="inline-flex size-11 shrink-0" aria-hidden />
-            )}
-            <CategoryChip name={category.name} color={category.color} />
-            {category.isSystem ? <StatusBadge tone="neutral">Sistema</StatusBadge> : null}
-          </span>
-          <span className="flex flex-wrap gap-2">
-            {node.depth < MAX_CATEGORY_DEPTH ? (
-              <Button
-                variant="secondary"
+                className="inline-flex size-11 items-center justify-center rounded-pill text-ink-soft hover:bg-surface-sunken hover:text-brand"
+                aria-label={`Adicionar subcategoria em ${category.name}`}
+                title="Adicionar subcategoria"
                 onClick={() => {
                   onAddChild(category);
                 }}
               >
-                Adicionar subcategoria
-              </Button>
+                <PlusIcon />
+              </button>
             ) : null}
             {category.isSystem ? null : (
               <>
-                <Button
-                  variant="secondary"
+                <button
+                  type="button"
+                  className="inline-flex min-h-11 items-center rounded-pill px-2 text-sm text-ink-soft hover:bg-surface-sunken hover:text-ink"
                   onClick={() => {
                     onEdit(category);
                   }}
                 >
                   Editar
-                </Button>
-                <Button
-                  variant="ghost"
+                </button>
+                <button
+                  type="button"
+                  className="inline-flex min-h-11 items-center rounded-pill px-2 text-sm text-ink-soft hover:bg-surface-sunken hover:text-ink"
                   onClick={() => {
                     onDelete(category);
                   }}
                 >
                   Excluir
-                </Button>
+                </button>
               </>
             )}
           </span>
         </div>
-        {hasChildren && !hidden ? (
-          <ul className="mt-3 space-y-3">{node.children.map((child) => renderNode(child))}</ul>
-        ) : null}
+        {hasChildren && !hidden ? <ul>{node.children.map((child) => renderNode(child))}</ul> : null}
       </li>
     );
   }
