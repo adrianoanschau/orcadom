@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
-  type KeyboardEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
   type RefObject,
   type UIEvent,
@@ -600,7 +600,7 @@ function WheelColumn({
     }
   }
 
-  function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+  function onKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
     if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
     event.preventDefault();
     const index = items.findIndex((item) => item.value === value);
