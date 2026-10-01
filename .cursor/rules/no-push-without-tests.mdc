@@ -1,0 +1,20 @@
+---
+description: Não enviar ao GitHub sem o lint, o build e os testes locais
+alwaysApply: true
+---
+
+# Push só depois do build-test
+
+Não fazer `git push` para o GitHub, em nenhuma branch, antes de este
+comando terminar com sucesso nesta máquina:
+
+```
+pnpm turbo run lint build test
+```
+
+É o mesmo comando do job `build-test` em `.github/workflows/ci.yml`.
+Commit local continua livre. O push é que espera o comando verde.
+
+Se falhar, corrigir e rodar de novo. Não enviar o commit para “ver no
+CI”. Quando a mudança mexe em backup, rodar também `pnpm test:backup`,
+que faz parte do mesmo job.
