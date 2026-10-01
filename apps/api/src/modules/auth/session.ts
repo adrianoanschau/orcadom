@@ -28,11 +28,7 @@ export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
-export function refreshTtlFor(
-  remember: boolean,
-  sessionTtl: string,
-  rememberTtl: string,
-): string {
+export function refreshTtlFor(remember: boolean, sessionTtl: string, rememberTtl: string): string {
   return remember ? rememberTtl : sessionTtl;
 }
 
@@ -52,10 +48,9 @@ export function clientSessionMeta(request: {
   headers?: Record<string, string | string[] | undefined>;
   socket?: { remoteAddress?: string };
 }): { userAgent: string | null; ipAddress: string | null } {
-  const forwarded = headerValue(request.headers?.['x-forwarded-for']);
   return {
     userAgent: headerValue(request.headers?.['user-agent']),
-    ipAddress: request.ip ?? forwarded?.split(',')[0]?.trim() ?? request.socket?.remoteAddress ?? null,
+    ipAddress: request.ip ?? request.socket?.remoteAddress ?? null,
   };
 }
 

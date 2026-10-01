@@ -6,12 +6,13 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import { Logger } from 'nestjs-pino';
 import { cleanupOpenApiDoc } from 'nestjs-zod';
+import { configureTrustProxy } from './common/trust-proxy.js';
 import { AppModule } from './app.module.js';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   app.useLogger(app.get(Logger));
-  app.getHttpAdapter().getInstance().set('trust proxy', 1);
+  configureTrustProxy(app.getHttpAdapter().getInstance() as unknown);
   app.use(cookieParser());
   app.enableCors({
     origin: process.env.WEB_ORIGIN ?? 'http://localhost:3000',
