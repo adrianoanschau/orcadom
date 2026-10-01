@@ -1,14 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useHousehold } from './household-provider';
-import { CloseIcon, HomeIcon, ImportIcon, LedgerIcon, MoreIcon } from './icons';
+import { HomeIcon, ImportIcon, LedgerIcon, MoreIcon } from './icons';
 import { isMoreActive, isNavActive, moreNav, primaryNav } from './nav';
 import { NotificationBell } from './notification-bell';
 import { PwaBanners } from './pwa-banners';
-import { Select } from './ui';
+import { BottomSheet, navigateAfterBottomSheet, Select } from './ui';
 import { AppVersion } from './app-version';
 import { UserMenu } from './user-menu';
 
@@ -169,39 +169,11 @@ function MobileTabBar({ moreOpen, onMore }: { moreOpen: boolean; onMore: () => v
 }
 
 function MoreSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const ref = useRef<HTMLDialogElement>(null);
-  const titleId = useId();
   const pathname = usePathname();
-
-  useEffect(() => {
-    const dialog = ref.current;
-    if (!dialog) return;
-    if (open && !dialog.open) dialog.showModal();
-    if (!open && dialog.open) dialog.close();
-  }, [open]);
+  const router = useRouter();
 
   return (
-    <dialog
-      ref={ref}
-      aria-labelledby={titleId}
-      className="fixed inset-x-0 bottom-0 z-40 m-0 mt-auto max-h-[85dvh] w-full max-w-none overflow-y-auto rounded-t-lg border-0 bg-surface p-5 text-ink backdrop:bg-ink/40 lg:hidden"
-      onClose={() => {
-        if (open) onClose();
-      }}
-    >
-      <div className="flex items-center justify-between gap-3">
-        <h2 id={titleId} className="font-display text-h2 font-medium">
-          Mais
-        </h2>
-        <button
-          type="button"
-          className="inline-flex size-11 items-center justify-center rounded-pill text-ink-soft hover:bg-surface-sunken"
-          aria-label="Fechar"
-          onClick={onClose}
-        >
-          <CloseIcon />
-        </button>
-      </div>
+    <BottomSheet open={open} onClose={onClose} title="Mais">
       {moreNav.map((group) => (
         <div key={group.title} className="mt-5">
           <p className="text-xs font-medium tracking-wide text-ink-faint uppercase">
@@ -216,7 +188,13 @@ function MoreSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
                     href={item.href}
                     aria-current={active ? 'page' : undefined}
                     className={`block px-4 py-3 text-sm ${active ? 'font-medium text-brand' : 'text-ink'}`}
-                    onClick={onClose}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      navigateAfterBottomSheet(() => {
+                        router.push(item.href);
+                      });
+                      onClose();
+                    }}
                   >
                     {item.label}
                   </Link>
@@ -235,7 +213,7 @@ function MoreSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
           <AppVersion />
         </div>
       </div>
-    </dialog>
+    </BottomSheet>
   );
 }
 

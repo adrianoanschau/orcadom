@@ -2,12 +2,13 @@
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useId, useRef, useState } from 'react';
 import { api, setActiveHouseholdId } from '@/lib/api';
 import type { PublicUser } from '@/lib/models';
 import { Avatar } from './avatar';
 import { ChevronIcon } from './icons';
+import { navigateAfterBottomSheet } from './ui';
 
 const menuItems = [
   { href: '/profile', label: 'Ver perfil' },
@@ -23,6 +24,7 @@ export function UserMenu({
 }) {
   const queryClient = useQueryClient();
   const pathname = usePathname();
+  const router = useRouter();
   const me = useQuery({
     queryKey: ['me'],
     queryFn: () => api<PublicUser>('/profile'),
@@ -54,7 +56,13 @@ export function UserMenu({
               <Link
                 href={item.href}
                 className={`block px-4 py-3 text-sm ${pathname === item.href || pathname.startsWith(`${item.href}/`) ? 'font-medium text-brand' : 'text-ink'}`}
-                onClick={onNavigate}
+                onClick={(event) => {
+                  event.preventDefault();
+                  navigateAfterBottomSheet(() => {
+                    router.push(item.href);
+                  });
+                  onNavigate?.();
+                }}
               >
                 {item.label}
               </Link>
@@ -64,7 +72,10 @@ export function UserMenu({
             <button
               type="button"
               className="block w-full px-4 py-3 text-left text-sm text-ink"
-              onClick={logout}
+              onClick={() => {
+                navigateAfterBottomSheet(logout);
+                onNavigate?.();
+              }}
             >
               Sair
             </button>
