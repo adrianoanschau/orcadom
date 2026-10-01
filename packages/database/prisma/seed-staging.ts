@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import bcrypt from 'bcryptjs';
 import {
   AccountType,
-  CategoryType,
+  type CategoryType,
   HouseholdRole,
   PostingStatus,
   Prisma,
