@@ -1,5 +1,32 @@
 # @orcadom/web
 
+## 0.15.1
+
+No changes in this release.
+
+## 0.15.0
+
+### Minor Changes
+
+- 6274f6f: Contas do espaço restritas a um subconjunto de membros, sem vazamento nas outras leituras.
+
+### Patch Changes
+
+- Updated dependencies [6274f6f]
+  - @orcadom/types@0.15.0
+
+## 0.14.0
+
+### Minor Changes
+
+- 05e8198: App web instalável como PWA, com cache versionado do shell e Web Push.
+
+## 0.13.0
+
+### Minor Changes
+
+- 76489ee: Exportação de relatórios de transações em PDF ou Excel, com os mesmos filtros da listagem.
+
 ## 0.12.0
 
 ### Minor Changes

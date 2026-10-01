@@ -5,6 +5,35 @@ O produto usa uma única versão SemVer (`MAJOR.MINOR.PATCH`) para o
 monorepo inteiro. A partir de `0.9.0`, as entradas passam a ser geradas
 pelos changesets.
 
+## 0.15.1
+
+### Patch Changes
+
+- Logs estruturados, métricas de cron/HTTP e rastreamento de erros.
+- Backup automático do Postgres com teste de restore.
+- CI com gate de PR, imagens no GHCR e deploy por ambiente.
+- Perfil de deploy de staging, seed e runbook.
+- Suíte E2E dos fluxos financeiros críticos.
+- Rate limiting no login e na automação.
+
+## 0.15.0
+
+### Minor Changes
+
+- Contas do espaço restritas a um subconjunto de membros, sem vazamento nas outras leituras.
+
+## 0.14.0
+
+### Minor Changes
+
+- App web instalável como PWA, com cache versionado do shell e Web Push.
+
+## 0.13.0
+
+### Minor Changes
+
+- Exportação de relatórios de transações em PDF ou Excel, com os mesmos filtros da listagem.
+
 ## 0.12.0
 
 ### Minor Changes
