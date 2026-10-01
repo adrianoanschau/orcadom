@@ -195,6 +195,8 @@ jobs:
           context: .
           file: apps/web/Dockerfile
           push: true
+          build-args: |
+            APP_VERSION_SUFFIX=pr.${{ github.event.pull_request.number }}
           tags: |
             ${{ steps.meta.outputs.prefix }}/web:${{ steps.meta.outputs.tag }}
             ${{ steps.meta.outputs.prefix }}/web:pr-${{ github.event.pull_request.number }}
