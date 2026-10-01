@@ -158,3 +158,8 @@ imagens. O compose é o que estiver em `/opt/orcadom` (atualizado pelo
 
 Não existe host de staging. Se um dia existir, o modelo é o mesmo com
 outro environment — não uma matriz neste workflow.
+
+## 7. Ensaio de preview
+
+Parágrafo temporário para validar o workflow de preview. Feche o PR sem
+mergear: ao fechar, o preview é apagado.
