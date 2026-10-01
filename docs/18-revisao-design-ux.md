@@ -230,7 +230,8 @@ Card sorting das seções existentes:
 
 - **< `lg`:** cabeçalho compacto (marca, espaço, sino) + tab bar
   (Painel, Lançamentos, Importar, Mais). “Mais” abre uma folha inferior
-  com os três grupos restantes e Sair.
+  com os três grupos restantes e Sair. A troca do x por alça e gesto está
+  em [`36-folha-inferior-seletores.md`](./36-folha-inferior-seletores.md).
 - **`lg+`:** sidebar fixa com os quatro grupos, seletor de espaço, sino
   e Sair. Sem a faixa de 11 links que quebrava no wrap.
 
