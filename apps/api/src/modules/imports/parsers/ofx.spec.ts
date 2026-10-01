@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { extractOfxAccount, parseOfx } from './ofx.js';
+import { decodeStatementText } from './shared.js';
 
 function fixture(name: string): string {
   return readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf8');
@@ -24,6 +25,16 @@ describe('parseOfx', () => {
       type: 'INCOME',
       externalId: 'ITAU20260905035000',
     });
+  });
+
+  it('lê o mesmo OFX quando o banco manda UTF-16 LE', () => {
+    const text = fixture('itau.ofx');
+    const withBom = Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(text, 'utf16le')]);
+    const withoutBom = Buffer.from(text, 'utf16le');
+
+    expect(parseOfx(decodeStatementText(withBom))).toHaveLength(3);
+    expect(parseOfx(decodeStatementText(withoutBom))).toHaveLength(3);
+    expect(parseOfx(text)).toHaveLength(3);
   });
 
   it('extrai BANKID e ACCTID do OFX 1.x do Itaú', () => {
