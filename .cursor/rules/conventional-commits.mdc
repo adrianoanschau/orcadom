@@ -10,7 +10,8 @@ sugerir** uma mensagem de commit — sem criar o commit, a menos que o
 usuário peça.
 
 A mensagem deve passar no commitlint
-(`@commitlint/config-conventional`) e no Husky (`commit-msg`):
+(`@commitlint/config-conventional`), no Husky (`commit-msg`) e de novo
+no `pre-push`, que revisa todo commit desde `origin/main`:
 
 ```
 tipo(escopo)?: descrição
@@ -19,13 +20,19 @@ tipo(escopo)?: descrição
 - `tipo`: `feat` | `fix` | `docs` | `style` | `refactor` | `perf` | `test` | `build` | `ci` | `chore` | `revert`
 - `escopo` opcional: `api`, `web`, `database`, `types`, `config`
 - description in **English**, lowercase, imperative, no trailing period
-- header ≤ 100 characters; body only if the "why" does not fit the header
+- header, each body line and each footer line ≤ 100 characters
+- body only if the "why" does not fit the header; wrap it, one sentence per line
 - breaking change: `feat!:` or footer `BREAKING CHANGE:`
 
 ```
 feat(web): show transaction audit history
 fix(api): correct balance calculation on transfers
 ci: enforce conventional commits with husky
+
+docs: add open finance and insights specs
+
+Document consent, data model and rollout for Open Finance.
+Document generation and risks for automatic insights.
 ```
 
 Ofereça **uma** mensagem pronta para copiar (ou 2 alternativas se o tipo

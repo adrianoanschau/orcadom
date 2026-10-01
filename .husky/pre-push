@@ -1,0 +1,28 @@
+# Same range as .github/workflows/commitlint.yml: every commit on the
+# branch that is not in main, before anything is sent to GitHub.
+
+base_ref=
+if git rev-parse --verify --quiet origin/main >/dev/null; then
+  base_ref=origin/main
+elif git rev-parse --verify --quiet main >/dev/null; then
+  base_ref=main
+else
+  echo "commitlint: não achei origin/main nem main. Rode git fetch origin main." >&2
+  exit 1
+fi
+
+zero=0000000000000000000000000000000000000000
+status=0
+
+while read -r _local_ref local_sha _remote_ref _remote_sha; do
+  if [ "$local_sha" = "$zero" ]; then
+    continue
+  fi
+  count=$(git rev-list --count "$base_ref".."$local_sha")
+  if [ "$count" -eq 0 ]; then
+    continue
+  fi
+  pnpm exec commitlint --from "$base_ref" --to "$local_sha" --verbose || status=$?
+done
+
+exit "$status"

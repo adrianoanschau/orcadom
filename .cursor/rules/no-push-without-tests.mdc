@@ -18,3 +18,7 @@ Commit local continua livre. O push é que espera o comando verde.
 Se falhar, corrigir e rodar de novo. Não enviar o commit para “ver no
 CI”. Quando a mudança mexe em backup, rodar também `pnpm test:backup`,
 que faz parte do mesmo job.
+
+O `git push` também dispara `.husky/pre-push`: commitlint em todo commit
+desde `origin/main`, o mesmo intervalo do CI. Não usar `--no-verify`.
+Se o hook falhar, corrigir a mensagem antes de enviar.
