@@ -9,6 +9,7 @@ import { isMoreActive, isNavActive, moreNav, primaryNav } from './nav';
 import { NotificationBell } from './notification-bell';
 import { PwaBanners } from './pwa-banners';
 import { Select } from './ui';
+import { AppVersion } from './app-version';
 import { UserMenu } from './user-menu';
 
 const tabIcons = {
@@ -97,6 +98,9 @@ function DesktopSidebar() {
       </nav>
       <div className="border-t border-hairline">
         <UserMenu />
+        <div className="px-4 pb-3">
+          <AppVersion />
+        </div>
       </div>
     </aside>
   );
@@ -226,6 +230,9 @@ function MoreSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
         <p className="text-xs font-medium tracking-wide text-ink-faint uppercase">Conta</p>
         <div className="mt-2">
           <UserMenu variant="sheet" onNavigate={onClose} />
+        </div>
+        <div className="mt-4 px-1 pb-1">
+          <AppVersion />
         </div>
       </div>
     </dialog>

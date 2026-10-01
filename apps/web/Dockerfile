@@ -19,6 +19,11 @@ COPY --from=pruner /app/out/json/ .
 COPY --from=pruner /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
 RUN pnpm install --frozen-lockfile --ignore-scripts
 COPY --from=pruner /app/out/full/ .
+# Sufixo opcional de preview (ex.: pr.15). Depois do install, para o
+# cache das dependências não mudar quando só o sufixo muda.
+# A versão em si vem do package.json da raiz, já incluído pelo turbo prune.
+ARG APP_VERSION_SUFFIX=
+ENV APP_VERSION_SUFFIX=$APP_VERSION_SUFFIX
 RUN pnpm turbo run build --filter=@orcadom/web
 
 FROM base AS runner

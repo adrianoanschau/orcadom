@@ -10,7 +10,8 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build", "db:generate"],
-      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**"],
+      "env": ["APP_VERSION_SUFFIX"]
     },
     "dev": {
       "cache": false,
