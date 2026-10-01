@@ -14,6 +14,10 @@
 #   já aponta para o VPS e cada host recebe certificado próprio (HTTP-01 /
 #   TLS-ALPN-01).
 #
+# - Sites extras do VPS (fora do Orcadom): o fim deste arquivo importa
+#   /etc/caddy/sites/*.caddy (= /opt/caddy/sites no host, somente leitura).
+#   Pasta vazia ou ausente não quebra o Caddy (só um aviso no log).
+#
 # Variáveis (vêm do .env via docker-compose.prod.yml):
 #   ACME_EMAIL, PROD_WEB_HOST, PROD_API_HOST, N8N_HOST, PREVIEW_BASE_DOMAIN
 # =============================================================================
@@ -135,3 +139,12 @@ http://127.0.0.1:5555 {
 		respond "Preview inexistente ou encerrado." 404
 	}
 }
+
+# -----------------------------------------------------------------------------
+# Sites extras do VPS (fora do Orcadom). Cada arquivo /opt/caddy/sites/*.caddy
+# no host contém só blocos de site (sem opções globais nem snippets com os
+# nomes daqui). Podem usar `import comum`, mas o ideal é serem autocontidos.
+# Fica no fim de propósito: os snippets acima já estão definidos.
+# Depois de criar/alterar um arquivo: caddy reload (ver SERVIDOR.md, seção 11).
+# -----------------------------------------------------------------------------
+import /etc/caddy/sites/*.caddy

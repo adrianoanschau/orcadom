@@ -9,7 +9,8 @@
 # (os scripts em infra/deploy/scripts/ já fazem isso — use-os.)
 #
 # O que este override faz:
-#   - Adiciona o Caddy (único serviço que publica portas: 80 e 443).
+#   - Adiciona o Caddy (único serviço que publica portas: 80 e 443). Ele
+#     também importa sites extras do VPS de /opt/caddy/sites (fora do repo).
 #   - Remove TODAS as portas publicadas do base (`!reset []`) — o Docker
 #     ignora o ufw, então nada além do Caddy pode publicar porta.
 #   - Limites de memória, logs rotacionados, tuning do Postgres p/ 4 GB.
@@ -51,6 +52,9 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       # Marcadores de previews ativos (criados pelos scripts). Somente leitura.
       - ${PREVIEWS_DIR:-/opt/orcadom/previews}/active:/srv/previews/active:ro
+      # Sites extras do VPS (fora do Orcadom), importados no fim do Caddyfile.
+      # Crie a pasta como `deploy` antes (senão o Docker a cria como root).
+      - /opt/caddy/sites:/etc/caddy/sites:ro
       - caddy_data:/data
       - caddy_config:/config
     networks:

@@ -12,7 +12,8 @@
 #   1. valida .env  2. pull das imagens  3. sobe o Postgres
 #   4. endurece permissões do banco de produção
 #   5. `prisma migrate deploy` DENTRO do VPS (container migrate)
-#   6. `compose up -d --wait`  7. grava a tag em uso  8. smoke test  9. prune
+#   6. `compose up -d --wait`  7. grava a tag em uso
+#   8. aplica o Caddyfile atual no Caddy  9. smoke test  10. prune
 # =============================================================================
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
@@ -32,6 +33,8 @@ for key in GHCR_IMAGE_PREFIX POSTGRES_PASSWORD DATABASE_URL JWT_ACCESS_SECRET \
 done
 
 mkdir -p "$ACTIVE_DIR"   # o Caddy monta este diretório (precisa existir)
+# Sites extras do VPS: se a pasta não existir, o Docker a criaria como root.
+[ -d "$CADDY_SITES_DIR" ] || die "crie $CADDY_SITES_DIR como deploy (SERVIDOR.md, passo 1)."
 
 # A tag nova vale para este processo; só é gravada em .env.image no sucesso.
 export IMAGE_TAG="$TAG"
@@ -67,7 +70,15 @@ compose_prod up -d --wait --wait-timeout 300
 [ -f "$IMAGE_ENV_FILE" ] && cp "$IMAGE_ENV_FILE" "$IMAGE_ENV_FILE.prev"
 printf 'IMAGE_TAG=%s\n' "$IMAGE_TAG" > "$IMAGE_ENV_FILE"
 
-# --- 8. Smoke test pelo próprio Caddy (sem depender de DNS/hairpin) ----------
+# --- 8. Caddy com o Caddyfile atual ------------------------------------------
+# O Caddyfile é montado como ARQUIVO: depois de um `git checkout` (que troca o
+# arquivo por um novo) o container continua vendo a versão antiga. Se o
+# conteúdo dentro do container for diferente do host, valida o novo e recria
+# o Caddy; se for igual, só faz um reload (no-op se nada mudou; também pega
+# mudanças em /opt/caddy/sites).
+caddy_apply
+
+# --- 9. Smoke test pelo próprio Caddy (sem depender de DNS/hairpin) ----------
 WEB_HOST="$(env_get PROD_WEB_HOST "$ENV_FILE")"; WEB_HOST="${WEB_HOST:-orcadom.aanschau.tech}"
 API_HOST="$(env_get PROD_API_HOST "$ENV_FILE")"; API_HOST="${API_HOST:-api.orcadom.aanschau.tech}"
 for url in "https://$WEB_HOST/login" "https://$API_HOST/"; do
@@ -79,7 +90,7 @@ for url in "https://$WEB_HOST/login" "https://$API_HOST/"; do
   fi
 done
 
-# --- 9. Limpeza de imagens antigas não usadas (> 7 dias) ---------------------
+# --- 10. Limpeza de imagens antigas não usadas (> 7 dias) --------------------
 docker image prune -af --filter "until=168h" >/dev/null || true
 
 log "Deploy de produção concluído: $IMAGE_TAG"
