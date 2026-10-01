@@ -57,12 +57,13 @@ espaços e opera em um de cada vez.
 
 | Papel | O que pode fazer |
 | --- | --- |
-| **OWNER** | Tudo do dinheiro + convidar, renomear o espaço e remover membros |
-| **MEMBER** | Operar contas, lançamentos, orçamentos, metas, importação e demais dados financeiros — sem gerir a família |
+| **OWNER** | Convidar, renomear o espaço e remover membros. Não vê conta restrita sem estar na lista de acesso. |
+| **MEMBER** | Operar contas, lançamentos, orçamentos, metas, importação e demais dados financeiros que possa ver — sem gerir a família |
 
-Todo membro vê **todas** as contas do espaço. Não existe ainda “cartão
-pessoal invisível para o resto da casa” — isso é o item 6 do roadmap 1.0
-(Permissão Granular por Conta).
+Uma conta pode ser **restrita** a alguns membros. Quem não está na lista
+não vê a conta, o saldo nem os lançamentos — vale também para o OWNER.
+O valor ainda pode entrar em orçamentos compartilhados (agregam por
+categoria, não por conta).
 
 ---
 
@@ -397,12 +398,12 @@ roteiro. Numeração de versão segundo `16-versionamento.md`.
 | 4 | Exportar PDF / Excel | 0.13.0 | **Não iniciado** |
 | 5 | PWA (instalável no celular, possível push) | 0.14.0 | **Não iniciado** — o site já é responsivo |
 | 6 | Permissão granular por conta | 0.15.0 | **Não iniciado** |
-| 7 | Observabilidade | (infra — não gera MINOR) | **Não iniciado** |
+| 7 | Observabilidade | (infra — não gera MINOR) | **Entregue** |
 | 8 | Backup automático do banco | (infra) | **Não iniciado** |
-| 9 | CI/CD (lint/teste/build/deploy) | (infra) | **Parcial** — Changesets e Release PR; sem gate de testes nem deploy |
-| 10 | Staging formal | (infra) | **Não iniciado** |
-| 11 | Testes E2E dos fluxos críticos | (infra) | **Não iniciado** |
-| 12 | Rate limiting (login e automação) | (infra) | **Não iniciado** |
+| 9 | CI/CD (lint/teste/build/deploy) | (infra) | **Entregue** — gate de PR, imagens no GHCR, deploy/migrate prontos (host = item 10) |
+| 10 | Staging formal | (infra) | **Artefatos entregues** — compose `deps`, seed sintético, `.env` template e runbook; host cloud + `DEPLOY_ENABLED` pendentes |
+| 11 | Testes E2E dos fluxos críticos | (infra) | **Entregue** — Playwright API-first, smoke em PR, suíte completa no cron noturno |
+| 12 | Rate limiting (login e automação) | (infra) | **Entregue** — `@nestjs/throttler`, limites por IP (login 5/min, automation 60/min, geral 120/min), 429 padronizado |
 | 13 | Open Finance Brasil | 0.16.0 | **Não iniciado** |
 | 14 | Insights automáticos | 0.17.0 | **Não iniciado** |
 | — | Marco estável | **1.0.0** | Quando os 14 itens acima estiverem completos |
@@ -464,7 +465,9 @@ etc.), nunca por um botão “marcar como feito”.
 
 ## 10. Limitações que o PO deve ter em mente
 
-1. **Privacidade dentro da casa:** qualquer membro vê todas as contas.
+1. **Privacidade dentro da casa:** conta restrita some para quem não tem
+   acesso, inclusive o OWNER. Orçamentos por categoria ainda somam o
+   household inteiro — o valor pode vazar indiretamente.
 2. **Primeiro uso ainda sem roteiro:** quem cadastra cai no painel
    vazio; o caminho esperado é conta → lançamento, mas o checklist
    ainda não existe (é o próximo item).
@@ -477,9 +480,9 @@ etc.), nunca por um botão “marcar como feito”.
 7. **Sem “esqueci minha senha”** e sem o MEMBER sair sozinho do espaço.
 8. **Segundo espaço** só via API — a UI não oferece “criar outra
    família”.
-9. **Produção formal ainda é dívida:** sem backup, staging,
-   monitoramento e suíte E2E, o uso real é possível, mas o risco
-   operacional é consciente.
+9. **Produção formal ainda é dívida parcial:** backup e E2E seguem
+   abertos; staging tem artefatos no repo (compose, seed, runbook) mas
+   ainda sem host cloud nem `DEPLOY_ENABLED`.
 
 ---
 

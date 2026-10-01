@@ -1,11 +1,13 @@
 name: Preview
 
-# PRs em rascunho também ganham preview. Para passar a ignorá-los,
-# acrescente `&& github.event.pull_request.draft == false` no `if` de cada job.
+# O preview só sobe se o PR tiver a label `preview`. Tirar a label
+# remove o preview. PRs em rascunho com a label também sobem; para
+# ignorá-los, acrescente `&& github.event.pull_request.draft == false`
+# no `if` do job `check`.
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, closed]
+    types: [opened, synchronize, reopened, closed, labeled, unlabeled]
     branches: [main]
 
 concurrency:
@@ -22,6 +24,9 @@ jobs:
   check:
     if: >-
       github.event.action != 'closed' &&
+      github.event.action != 'unlabeled' &&
+      (github.event.action != 'labeled' || github.event.label.name == 'preview') &&
+      contains(github.event.pull_request.labels.*.name, 'preview') &&
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.head_ref != 'changeset-release/main'
     runs-on: ubuntu-latest
@@ -361,7 +366,10 @@ jobs:
 
   teardown:
     if: >-
-      github.event.action == 'closed' &&
+      (
+        github.event.action == 'closed' ||
+        (github.event.action == 'unlabeled' && github.event.label.name == 'preview')
+      ) &&
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.head_ref != 'changeset-release/main'
     runs-on: ubuntu-latest

@@ -11,19 +11,21 @@ pull request. Nunca fazer `git push` para `main`.
 Trabalho fica numa branch de feature. Commit local é livre. **Não abrir
 PR** até a entrega precisar ser testada de ponta a ponta.
 
-Abrir PR contra `main` dispara `preview.yml`: sobe web e API no VPS
+Abrir PR contra `main` não sobe preview. O preview só sobe com a label
+`preview` no PR: aí `preview.yml` publica web e API no VPS
 (`pr-<N>.orcadom.aanschau.tech` e `api-pr-<N>.orcadom.aanschau.tech`).
 Há no máximo 2 previews ao mesmo tempo. Merge em `main` dispara
-`deploy-production.yml` (deploy de produção). Fechar o PR sem merge
-apaga o preview.
+`deploy-production.yml` (deploy de produção). Fechar o PR, ou remover a
+label `preview`, apaga o preview.
 
-Só virar PR quando a mudança precisa desse preview: funcionalidade nova,
-correção observável, fluxo de UI ou API. Não abrir PR para documentação,
-regra do Cursor, refactor sem comportamento novo, chore ou commit ainda
-incompleto — isso consome vaga e RAM da VPS sem necessidade.
+A label `preview` é para funcionalidade nova, correção observável ou
+fluxo de UI ou API. Não colocar em documentação, regra do Cursor,
+refactor sem comportamento novo, chore ou commit ainda incompleto —
+isso consome vaga e RAM da VPS sem necessidade.
 
-Um PR por entrega testável, não um por commit. Se o usuário pedir o PR
-explicitamente, abrir; nesse caso avisar que o preview vai subir.
+Um PR por entrega testável, não um por commit. Se o usuário pedir o
+preview explicitamente, adicionar a label `preview` e avisar que o
+preview vai subir.
 
 O Release PR (`changeset-release/main`) não ganha preview. Não criar PR
 extra só para release.
