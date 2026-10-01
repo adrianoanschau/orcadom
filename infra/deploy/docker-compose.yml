@@ -51,7 +51,9 @@ services:
       GENERIC_TIMEZONE: America/Sao_Paulo
       AUTOMATION_API_KEY: ${AUTOMATION_API_KEY}
       NOTIFICATIONS_WEBHOOK_SECRET: ${NOTIFICATIONS_WEBHOOK_SECRET}
+      # n8n 2 bloqueia $env nos nodes por padrão; o workflow lê ORCADOM_API_URL.
       N8N_BLOCK_ENV_ACCESS_IN_NODE: 'false'
+      ORCADOM_API_URL: ${ORCADOM_API_URL:-http://api:8080}
       N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: 'false'
     ports:
       - '${N8N_PORT:-5678}:5678'

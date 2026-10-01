@@ -35,6 +35,22 @@ observabilidade usa `LOG_LEVEL`, `SENTRY_DSN`, `GLITCHTIP_*`,
 `PROMETHEUS_PORT` e `GRAFANA_*`. O backup usa `BACKUP_S3_*`,
 `BACKUP_AGE_*` e `BACKUP_RETENTION_*`.
 
+## n8n chamando a API
+
+O workflow de importação
+([`infra/n8n/email-import-workflow.json`](../infra/n8n/email-import-workflow.json))
+monta `POST /automation/email-imports` com `$env.ORCADOM_API_URL`. A imagem
+`n8nio/n8n:latest` (linha 2.x) bloqueia `$env` por padrão; os composes
+deixam `N8N_BLOCK_ENV_ACCESS_IN_NODE=false` para a expressão valer na
+execução. A pré-visualização na UI pode mostrar "access to env vars denied"
+mesmo com a flag desligada — o valor é lido quando o workflow roda.
+
+No compose local o default é `http://host.docker.internal:8080` (API no
+host). No compose de deploy o default é `http://api:8080`, o serviço na
+mesma rede Docker, sem depender de porta publicada no host. Um workflow já
+importado no volume do n8n não muda sozinho: reimporte o JSON ou edite a
+URL do node HTTP na UI.
+
 ## Comandos úteis
 
 | Comando                                        | Efeito                                                     |
