@@ -347,7 +347,7 @@ function CategoryColumn({
       <li key={category.id} className="border-b border-hairline last:border-b-0">
         <div
           className="flex min-h-11 items-center gap-1"
-          style={{ paddingLeft: `${String((node.depth - 1) * 12)}px` }}
+          style={{ paddingLeft: `${String((node.depth - 1) * 44)}px` }}
         >
           {hasChildren ? (
             <button
@@ -361,7 +361,9 @@ function CategoryColumn({
             >
               <ChevronIcon />
             </button>
-          ) : null}
+          ) : (
+            <span className="size-11 shrink-0" aria-hidden />
+          )}
           <span className="min-w-0">
             <CategoryChip name={category.name} color={category.color} />
           </span>
