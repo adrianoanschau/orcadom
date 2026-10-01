@@ -1,5 +1,15 @@
 # @orcadom/database
 
+## 0.16.0
+
+### Minor Changes
+
+- 0d454cf: Categorias podem ter subcategorias e todo espaço novo recebe categorias de sistema. Mover uma categoria altera orçamentos e relatórios de meses passados, porque o cálculo usa a árvore atual.
+
+### Patch Changes
+
+- eb907c0: A API aceita várias origens em WEB_ORIGIN, separadas por vírgula. A imagem migrate leva o CLI do Prisma para aplicar migrations dentro do VPS.
+
 ## 0.15.1
 
 ### Patch Changes
