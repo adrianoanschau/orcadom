@@ -74,13 +74,21 @@ export class AutomationService {
     }
 
     if (rows.length === 0) {
+      const readable = /OFXHEADER|<OFX|<STMTTRN/i.test(text);
+      const preview = text
+        .replace(/[^\t\n\r\x20-\x7EÀ-ÿ]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 80);
       return this.recordLog({
         messageId: dto.messageId,
         attachmentHash,
         recipientAddress,
         householdId: alias.householdId,
         status: EmailImportStatus.ERROR,
-        errorMessage: 'Nenhum lançamento encontrado no OFX.',
+        errorMessage: readable
+          ? 'Nenhum lançamento encontrado no OFX.'
+          : `O anexo não parece um OFX (${preview || 'vazio'}).`,
       });
     }
 

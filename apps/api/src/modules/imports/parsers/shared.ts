@@ -11,6 +11,9 @@ export interface ParsedStatementRow {
 }
 
 export function decodeStatementText(buffer: Buffer): string {
+  const utf16 = decodeUtf16(buffer);
+  if (utf16 !== null) return utf16;
+
   if (buffer[0] === 0xef && buffer[1] === 0xbb && buffer[2] === 0xbf) {
     return buffer.subarray(3).toString('utf8');
   }
@@ -25,6 +28,41 @@ export function decodeStatementText(buffer: Buffer): string {
     return buffer.toString('latin1');
   }
   return utf8;
+}
+
+function decodeUtf16(buffer: Buffer): string | null {
+  if (buffer.length >= 2 && buffer[0] === 0xff && buffer[1] === 0xfe) {
+    return buffer.subarray(2).toString('utf16le');
+  }
+  if (buffer.length >= 2 && buffer[0] === 0xfe && buffer[1] === 0xff) {
+    return swapUtf16(buffer.subarray(2)).toString('utf16le');
+  }
+
+  const pairs = Math.floor(Math.min(buffer.length, 64) / 2);
+  if (pairs < 8) return null;
+
+  let oddZero = 0;
+  let evenZero = 0;
+  for (let i = 0; i < pairs; i++) {
+    if (buffer[i * 2] === 0) evenZero += 1;
+    if (buffer[i * 2 + 1] === 0) oddZero += 1;
+  }
+  if (oddZero > pairs * 0.6 && evenZero < pairs * 0.2) {
+    return buffer.toString('utf16le');
+  }
+  if (evenZero > pairs * 0.6 && oddZero < pairs * 0.2) {
+    return swapUtf16(buffer).toString('utf16le');
+  }
+  return null;
+}
+
+function swapUtf16(buffer: Buffer): Buffer {
+  const swapped = Buffer.alloc(buffer.length - (buffer.length % 2));
+  for (let i = 0; i + 1 < buffer.length; i += 2) {
+    swapped[i] = buffer[i + 1] ?? 0;
+    swapped[i + 1] = buffer[i] ?? 0;
+  }
+  return swapped;
 }
 
 export function parseAmount(raw: string): number {

@@ -2,6 +2,9 @@ name: Changeset Check
 
 on:
   pull_request:
+    # `labeled` faz o check rodar de novo quando a label no-changeset entra
+    # depois do PR aberto. Sem isso o evento original não vê a label.
+    types: [opened, synchronize, reopened, labeled]
     branches: [main]
 
 jobs:
