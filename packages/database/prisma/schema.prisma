@@ -288,14 +288,20 @@ model AccountAccess {
 }
 
 model Category {
-  id    String       @id @default(uuid())
-  name  String
-  type  CategoryType
-  icon  String?
-  color String?
+  id        String       @id @default(uuid())
+  name      String
+  type      CategoryType
+  icon      String?
+  color     String?
+  isSystem  Boolean      @default(false)
+  systemKey String?
 
   householdId String
   household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  parentId String?
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children Category[] @relation("CategoryTree")
 
   transactions          Transaction[]
   categoryMemories      CategoryMemory[]
@@ -303,8 +309,10 @@ model Category {
   installmentPlans      InstallmentPlan[]
   recurringTransactions RecurringTransaction[]
 
-  @@unique([householdId, name, type])
-  @@index([householdId])
+  // Raízes com o mesmo nome: índice parcial categories_root_name_type_key na migration.
+  @@unique([householdId, parentId, name, type])
+  @@unique([householdId, systemKey])
+  @@index([householdId, parentId])
   @@map("categories")
 }
 

@@ -27,6 +27,7 @@ const FIELD_LABELS: Record<string, string> = {
   name: 'nome',
   balance: 'saldo',
   color: 'cor',
+  parentId: 'categoria pai',
   role: 'papel',
   effectiveFrom: 'início',
   effectiveTo: 'fim',

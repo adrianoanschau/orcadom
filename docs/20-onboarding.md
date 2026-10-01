@@ -80,11 +80,11 @@ diferenciado, seção 5).
 1. **Criar a primeira conta financeira** → `hasAccount`
 2. **Lançar a primeira transação** → `hasTransaction`
 
-Deliberadamente **não existe** um passo "criar uma categoria" — categorias
-padrão já são semeadas no cadastro do household (script de seed
-mencionado desde `04-roadmap.md`), então esse passo estaria sempre
-"concluído" sem o usuário ter feito nada, o que é um sinal falso de
-progresso.
+Deliberadamente **não existe** um passo "criar uma categoria" — todo
+household novo já recebe as categorias de sistema (Moradia, Mercado,
+Salário e as demais) na mesma transação do cadastro. O usuário pode
+criar subcategorias, mas o checklist não pede isso: o passo estaria
+sempre concluído sem ação dele.
 
 ### 4.2 — Aprofundamento (aparecem depois dos essenciais, todos opcionais)
 

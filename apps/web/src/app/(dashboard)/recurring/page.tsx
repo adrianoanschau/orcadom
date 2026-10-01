@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createRecurringTransactionSchema, updateRecurringTransactionSchema } from '@orcadom/types';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { CategorySelect } from '@/components/category-select';
 import { DateInput } from '@/components/date-fields';
 import {
   Button,
@@ -364,14 +365,13 @@ export default function RecurringPage() {
             </Select>
           </Field>
           <Field label="Categoria">
-            <Select {...form.register('categoryId')}>
-              <option value="">Selecione</option>
-              {visibleCategories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </Select>
+            <CategorySelect
+              categories={visibleCategories}
+              value={form.watch('categoryId')}
+              onChange={(categoryId) => {
+                form.setValue('categoryId', categoryId, { shouldDirty: true });
+              }}
+            />
           </Field>
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={closeForm}>

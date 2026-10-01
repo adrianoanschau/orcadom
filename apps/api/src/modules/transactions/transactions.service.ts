@@ -11,9 +11,10 @@ import { applyBalance } from '../../common/balance.js';
 import { CategoryMemoryService } from '../../common/category-memory.service.js';
 import { moneyString, toDecimal } from '../../common/money.js';
 import { PrismaService } from '../../common/prisma.service.js';
+import { categoryIdsForFilter } from '../../common/category-tree.js';
 import { buildTransactionListWhere } from '../../common/transaction-filters.js';
-import { BudgetEventsService } from '../budgets/budget-events.service.js';
-import { monthFromDate, type BudgetStatus } from '../budgets/budget-progress.js';
+import { BudgetEventsService, type BudgetSnapshot } from '../budgets/budget-events.service.js';
+import { monthFromDate } from '../budgets/budget-progress.js';
 import { SavingsGoalsService } from '../savings-goals/savings-goals.service.js';
 
 @Injectable()
@@ -46,7 +47,7 @@ export class TransactionsService {
       return transaction;
     });
     if (dto.type === TransactionType.EXPENSE) {
-      await this.budgetEvents.emitIfCrossed(householdId, dto.categoryId, date, previous?.status);
+      await this.budgetEvents.emitIfCrossed(householdId, dto.categoryId, date, previous);
     }
     if (dto.type === TransactionType.TRANSFER) {
       await this.savingsGoals.completeIfReached(householdId, dto.toAccountId);
@@ -56,7 +57,13 @@ export class TransactionsService {
 
   async list(householdId: string, householdMemberId: string, query: ListTransactionsQuery) {
     const accessibleIds = await this.accessibleIds(householdId, householdMemberId);
-    const where = buildTransactionListWhere(householdId, query, accessibleIds);
+    const categoryIds = await categoryIdsForFilter(
+      this.prisma.client,
+      householdId,
+      query.categoryId,
+      query.includeDescendants,
+    );
+    const where = buildTransactionListWhere(householdId, query, accessibleIds, categoryIds);
     const [total, rows] = await this.prisma.client.$transaction([
       this.prisma.client.transaction.count({ where }),
       this.prisma.client.transaction.findMany({
@@ -129,7 +136,7 @@ export class TransactionsService {
     householdId: string,
     candidates: ({ categoryId: string; date: Date } | null)[],
   ) {
-    const previousByKey = new Map<string, { categoryId: string; date: Date; status: BudgetStatus | null }>();
+    const previousByKey = new Map<string, { categoryId: string; date: Date; snapshot: BudgetSnapshot | null }>();
     for (const candidate of candidates) {
       if (!candidate) continue;
       const key = `${candidate.categoryId}:${monthFromDate(candidate.date)}`;
@@ -138,7 +145,7 @@ export class TransactionsService {
       previousByKey.set(key, {
         categoryId: candidate.categoryId,
         date: candidate.date,
-        status: snapshot?.status ?? null,
+        snapshot,
       });
     }
     return previousByKey;
@@ -146,10 +153,17 @@ export class TransactionsService {
 
   private async emitExpenseKeys(
     householdId: string,
-    previousByKey: Map<string, { categoryId: string; date: Date; status: BudgetStatus | null }>,
+    previousByKey: Map<string, { categoryId: string; date: Date; snapshot: BudgetSnapshot | null }>,
   ): Promise<void> {
+    const seen = new Set<string>();
     for (const item of previousByKey.values()) {
-      await this.budgetEvents.emitIfCrossed(householdId, item.categoryId, item.date, item.status);
+      await this.budgetEvents.emitIfCrossed(
+        householdId,
+        item.categoryId,
+        item.date,
+        item.snapshot,
+        seen,
+      );
     }
   }
 

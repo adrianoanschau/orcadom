@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   budgetStatus,
   computeBudgetProgress,
+  crossingBudgetIds,
   isBudgetActiveOn,
   monthFromDate,
   monthStart,
@@ -65,5 +66,22 @@ describe('shouldEmitThreshold', () => {
     expect(shouldEmitThreshold('warning', 'on_track')).toBe(false);
     expect(shouldEmitThreshold(null, 'on_track')).toBe(false);
     expect(shouldEmitThreshold(null, null)).toBe(false);
+  });
+});
+
+describe('crossingBudgetIds', () => {
+  it('despesa na filha dispara o limiar do orçamento do pai', () => {
+    const ids = crossingBudgetIds(
+      ['filha', 'pai'],
+      [
+        { categoryId: 'filha', status: null },
+        { categoryId: 'pai', status: 'on_track' },
+      ],
+      new Map([
+        ['filha', null],
+        ['pai', 'exceeded'],
+      ]),
+    );
+    expect(ids).toEqual(['pai']);
   });
 });

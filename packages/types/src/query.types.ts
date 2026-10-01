@@ -4,9 +4,15 @@ export const idParamSchema = z.object({
   id: z.uuid(),
 });
 
+export const includeDescendantsSchema = z
+  .union([z.boolean(), z.literal('true'), z.literal('false')])
+  .optional()
+  .transform((value) => value === undefined || value === true || value === 'true');
+
 export const listTransactionsQuerySchema = z.object({
   accountId: z.uuid().optional(),
   categoryId: z.uuid().optional(),
+  includeDescendants: includeDescendantsSchema,
   from: z.iso.datetime().optional(),
   to: z.iso.datetime().optional(),
   page: z.coerce.number().int().positive().default(1),
@@ -33,6 +39,7 @@ export const listNotificationsQuerySchema = z.object({
   limit: z.coerce.number().int().positive().max(50).default(20),
 });
 
+export type IncludeDescendants = z.infer<typeof includeDescendantsSchema>;
 export type IdParam = z.infer<typeof idParamSchema>;
 export type ListTransactionsQuery = z.infer<typeof listTransactionsQuerySchema>;
 export type DashboardQuery = z.infer<typeof dashboardQuerySchema>;

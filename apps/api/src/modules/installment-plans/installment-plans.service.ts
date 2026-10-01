@@ -72,7 +72,7 @@ export class InstallmentPlansService {
       return created;
     });
 
-    await this.budgetEvents.emitIfCrossed(householdId, dto.categoryId, first.date, previous?.status);
+    await this.budgetEvents.emitIfCrossed(householdId, dto.categoryId, first.date, previous);
     return this.get(householdId, householdMemberId, plan.id);
   }
 

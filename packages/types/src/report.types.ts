@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { includeDescendantsSchema } from './query.types.js';
 
 export const REPORT_SYNC_THRESHOLD = 2000;
 export const REPORT_PDF_WARN_THRESHOLD = 500;
@@ -9,6 +10,7 @@ export const reportStatusSchema = z.enum(['PENDING', 'PROCESSING', 'READY', 'FAI
 export const reportFiltersSchema = z.object({
   accountId: z.uuid().optional(),
   categoryId: z.uuid().optional(),
+  includeDescendants: includeDescendantsSchema,
   from: z.iso.datetime().optional(),
   to: z.iso.datetime().optional(),
 });

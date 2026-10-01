@@ -6,7 +6,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { HouseholdRole, InviteStatus } from '@orcadom/database';
+import { HouseholdRole, InviteStatus, seedSystemCategories } from '@orcadom/database';
 import type { CreateHouseholdDto, CreateHouseholdInviteDto, UpdateHouseholdDto } from '@orcadom/types';
 import { randomBytes } from 'node:crypto';
 import { PrismaService } from '../../common/prisma.service.js';
@@ -19,12 +19,16 @@ export class HouseholdsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async createForUser(userId: string, name: string) {
-    return this.prisma.client.household.create({
-      data: {
-        name,
-        members: { create: { userId, role: HouseholdRole.OWNER } },
-        importAlias: { create: { token: generateImportToken() } },
-      },
+    return this.prisma.client.$transaction(async (tx) => {
+      const household = await tx.household.create({
+        data: {
+          name,
+          members: { create: { userId, role: HouseholdRole.OWNER } },
+          importAlias: { create: { token: generateImportToken() } },
+        },
+      });
+      await seedSystemCategories(tx, household.id);
+      return household;
     });
   }
 

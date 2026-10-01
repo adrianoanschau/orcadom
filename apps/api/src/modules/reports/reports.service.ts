@@ -4,6 +4,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { Prisma, ReportFormat, ReportStatus, TransactionType } from '@orcadom/database';
 import { reportFiltersSchema, type CreateReportDto, type ReportFilters } from '@orcadom/types';
 import { assertAccountAccessible, getAccessibleAccountIds } from '../../common/account-access.js';
+import { categoryIdsForFilter } from '../../common/category-tree.js';
 import { moneyString } from '../../common/money.js';
 import { runObservedJob } from '../../common/observability/run-observed-job.js';
 import { PrismaService } from '../../common/prisma.service.js';
@@ -44,7 +45,7 @@ export class ReportsService {
       householdMemberId,
     );
     const count = await this.prisma.client.transaction.count({
-      where: buildTransactionListWhere(householdId, filters, accessibleIds),
+      where: await this.transactionWhere(householdId, filters, accessibleIds),
     });
     const created = await this.prisma.client.reportRequest.create({
       data: {
@@ -117,7 +118,7 @@ export class ReportsService {
       const accessibleIds = membership
         ? await getAccessibleAccountIds(this.prisma.client, row.householdId, membership.id)
         : [];
-      const where = buildTransactionListWhere(row.householdId, filters, accessibleIds);
+      const where = await this.transactionWhere(row.householdId, filters, accessibleIds);
       const [household, account, category, transactions] = await Promise.all([
         this.prisma.client.household.findUnique({
           where: { id: row.householdId },
@@ -237,6 +238,20 @@ export class ReportsService {
     });
   }
 
+  private async transactionWhere(
+    householdId: string,
+    filters: ReportFilters,
+    accessibleIds: string[],
+  ) {
+    const categoryIds = await categoryIdsForFilter(
+      this.prisma.client,
+      householdId,
+      filters.categoryId,
+      filters.includeDescendants,
+    );
+    return buildTransactionListWhere(householdId, filters, accessibleIds, categoryIds);
+  }
+
   private async assertFilters(
     householdId: string,
     householdMemberId: string,
@@ -264,6 +279,7 @@ export class ReportsService {
 
   private toStoredFilters(dto: CreateReportDto): ReportFilters {
     return {
+      includeDescendants: dto.includeDescendants,
       ...(dto.accountId ? { accountId: dto.accountId } : {}),
       ...(dto.categoryId ? { categoryId: dto.categoryId } : {}),
       ...(dto.from ? { from: dto.from } : {}),
@@ -273,7 +289,7 @@ export class ReportsService {
 
   private parseFilters(value: Prisma.JsonValue): ReportFilters {
     const parsed = reportFiltersSchema.safeParse(value);
-    return parsed.success ? parsed.data : {};
+    return parsed.success ? parsed.data : { includeDescendants: true };
   }
 
   private toReportRow(

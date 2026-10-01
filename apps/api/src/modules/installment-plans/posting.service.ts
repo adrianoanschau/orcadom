@@ -42,12 +42,7 @@ export class PostingService {
           const result = await this.prisma.client.$transaction((tx) => postIfScheduled(tx, row.id));
           if (result !== 'posted') continue;
           posted += 1;
-          await this.budgetEvents.emitIfCrossed(
-            row.householdId,
-            row.categoryId,
-            row.date,
-            previous?.status,
-          );
+          await this.budgetEvents.emitIfCrossed(row.householdId, row.categoryId, row.date, previous);
         } catch (error) {
           captureJobItemError(JOB, error, row.id);
         }

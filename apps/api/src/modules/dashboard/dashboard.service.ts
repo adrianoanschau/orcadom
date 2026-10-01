@@ -6,6 +6,7 @@ import {
 } from '../../common/account-access.js';
 import { moneyString, toDecimal } from '../../common/money.js';
 import { PrismaService } from '../../common/prisma.service.js';
+import { rollupCategoryTotals, type RolledCategory } from './category-rollup.js';
 
 @Injectable()
 export class DashboardService {
@@ -21,7 +22,7 @@ export class DashboardService {
     const accountIds = await getAccessibleAccountIds(this.prisma.client, householdId, householdMemberId);
     const visibleTx = transactionTouchesAccessibleAccounts(accountIds);
 
-    const [income, expense, balance, grouped, scheduled] = await Promise.all([
+    const [income, expense, balance, grouped, scheduled, categories] = await Promise.all([
       this.prisma.client.transaction.aggregate({
         where: { householdId, type: TransactionType.INCOME, date: period, ...visibleTx },
         _sum: { amount: true },
@@ -54,14 +55,18 @@ export class DashboardService {
         },
         _sum: { amount: true },
       }),
+      this.prisma.client.category.findMany({
+        where: { householdId },
+        select: { id: true, name: true, parentId: true },
+      }),
     ]);
 
-    const categoryIds = grouped.flatMap((row) => (row.categoryId ? [row.categoryId] : []));
-    const categories = await this.prisma.client.category.findMany({
-      where: { householdId, id: { in: categoryIds } },
-      select: { id: true, name: true },
-    });
-    const names = new Map(categories.map((category) => [category.id, category.name]));
+    const rolled = rollupCategoryTotals(
+      categories,
+      grouped.flatMap((row) =>
+        row.categoryId ? [{ categoryId: row.categoryId, total: Number(row._sum.amount ?? 0) }] : [],
+      ),
+    );
 
     return {
       month,
@@ -69,13 +74,21 @@ export class DashboardService {
       expense: moneyString(expense._sum.amount ?? toDecimal(0)),
       balance: moneyString(balance._sum.balance ?? toDecimal(0)),
       scheduledCommitments: moneyString(scheduled._sum.amount ?? toDecimal(0)),
-      expensesByCategory: grouped
-        .map((row) => ({
-          categoryId: row.categoryId,
-          name: row.categoryId ? (names.get(row.categoryId) ?? '') : '',
-          total: moneyString(row._sum.amount ?? toDecimal(0)),
-        }))
-        .sort((left, right) => Number(right.total) - Number(left.total)),
+      expensesByCategory: formatRolled(rolled),
     };
   }
+}
+
+function formatRolled(nodes: RolledCategory[]): {
+  categoryId: string;
+  name: string;
+  total: string;
+  children: ReturnType<typeof formatRolled>;
+}[] {
+  return nodes.map((node) => ({
+    categoryId: node.categoryId,
+    name: node.name,
+    total: moneyString(toDecimal(node.total)),
+    children: formatRolled(node.children),
+  }));
 }

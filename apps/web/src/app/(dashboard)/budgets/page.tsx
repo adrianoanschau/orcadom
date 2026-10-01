@@ -130,6 +130,7 @@ export default function BudgetsPage() {
           <BudgetRow
             key={`${category.id}-${byCategory.get(category.id)?.id ?? 'new'}-${byCategory.get(category.id)?.limit ?? ''}`}
             category={category}
+            includesChildren={(categories.data ?? []).some((item) => item.parentId === category.id)}
             budget={byCategory.get(category.id)}
             editable={viewingCurrent}
             pending={save.isPending || remove.isPending}
@@ -150,6 +151,7 @@ export default function BudgetsPage() {
 
 function BudgetRow({
   category,
+  includesChildren,
   budget,
   editable,
   pending,
@@ -157,6 +159,7 @@ function BudgetRow({
   onRemove,
 }: {
   category: Category;
+  includesChildren: boolean;
   budget: BudgetProgress | undefined;
   editable: boolean;
   pending: boolean;
@@ -167,9 +170,17 @@ function BudgetRow({
   const parsed = Number(amount);
 
   return (
-    <li className="rounded-lg bg-surface p-6">
+    <li
+      className="rounded-lg bg-surface p-6"
+      style={{ marginLeft: `${String((category.depth - 1) * 16)}px` }}
+    >
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <CategoryChip name={category.name} color={category.color} />
+        <span>
+          <CategoryChip name={category.name} color={category.color} />
+          {includesChildren ? (
+            <p className="mt-1 text-sm text-ink-soft">inclui subcategorias</p>
+          ) : null}
+        </span>
         {budget && editable ? (
           <Button variant="ghost" disabled={pending} onClick={onRemove}>
             Encerrar

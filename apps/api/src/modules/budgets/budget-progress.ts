@@ -43,6 +43,17 @@ export function computeBudgetProgress(spent: number, limit: number) {
   };
 }
 
+export function crossingBudgetIds(
+  ancestorIds: readonly string[],
+  previous: readonly { categoryId: string; status: BudgetStatus | null }[] | null | undefined,
+  current: ReadonlyMap<string, BudgetStatus | null>,
+): string[] {
+  return ancestorIds.filter((id) => {
+    const prior = previous?.find((level) => level.categoryId === id)?.status ?? null;
+    return shouldEmitThreshold(prior, current.get(id) ?? null);
+  });
+}
+
 export function shouldEmitThreshold(
   previous: BudgetStatus | null | undefined,
   current: BudgetStatus | null | undefined,
