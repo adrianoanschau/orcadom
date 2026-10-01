@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { EmailImportStatus, ImportSource, ImportStatus } from '@orcadom/database';
 import type { EmailImportDto, EmailImportLogsQuery } from '@orcadom/types';
@@ -25,6 +25,9 @@ export class AutomationService {
   ) {}
 
   async ingestEmail(dto: EmailImportDto) {
+    if (!dto.attachment) {
+      throw new BadRequestException('Envie o anexo OFX.');
+    }
     const attachment = decodeAttachment(dto.attachment);
     const attachmentHash = createHash('sha256').update(attachment).digest('hex');
     const recipientAddress = dto.recipientAddress;
