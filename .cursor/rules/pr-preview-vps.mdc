@@ -14,9 +14,11 @@ PR** até a entrega precisar ser testada de ponta a ponta.
 Abrir PR contra `main` não sobe preview. O preview só sobe com a label
 `preview` no PR: aí `preview.yml` publica web e API no VPS
 (`pr-<N>.orcadom.aanschau.tech` e `api-pr-<N>.orcadom.aanschau.tech`).
-Há no máximo 2 previews ao mesmo tempo. Merge em `main` dispara
-`deploy-production.yml` (deploy de produção). Fechar o PR, ou remover a
-label `preview`, apaga o preview.
+Há no máximo 2 previews ao mesmo tempo. Merge em `main` não faz deploy
+de produção: só atualiza o Release PR. Produção sobe quando esse PR é
+mergeado (`tag-release.yml` publica `vX.Y.Z` e chama
+`deploy-production.yml`). Fechar o PR, ou remover a label `preview`,
+apaga o preview.
 
 A label `preview` é para funcionalidade nova, correção observável ou
 fluxo de UI ou API. Não colocar em documentação, regra do Cursor,

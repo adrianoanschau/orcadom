@@ -4,9 +4,10 @@ VPS Hostinger KVM 1 · Ubuntu 24.04 · IP `179.236.230.240` · usuário `deploy`
 App em `/opt/orcadom` (clone do repositório). O servidor **nunca builda**:
 só `docker pull` de `ghcr.io/adrianoanschau/orcadom/{api,web,migrate}`.
 
-> Faça antes: aplique o `PROMPT_CURSOR.md` no repositório e faça merge na
-> `main` com `DEPLOY_ENABLED` **diferente de** `true` nos environments. O
-> primeiro push na `main` publica as imagens `sha-<12>` e `main` no GHCR.
+> Faça antes: merge na `main` com `DEPLOY_ENABLED` **diferente de**
+> `true` no environment `production`. Push em `main` não publica imagem.
+> Quem publica `vX.Y.Z` é o merge do Release PR (`tag-release.yml`). Com
+> o deploy desligado, a tag e as imagens saem e o SSH é pulado.
 
 ---
 
@@ -121,12 +122,13 @@ ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub
 
 ## 5. Primeiro deploy (manual)
 
-Use a imagem do commit em que o clone está (publicada pelo workflow do push
-na `main`):
+Use uma tag de release já publicada no GHCR (`vX.Y.Z`). O clone precisa
+estar no commit dessa tag (`update-repo` faz isso no Actions; num
+primeiro ensaio manual, o checkout já pode ser esse commit):
 
 ```bash
 cd /opt/orcadom
-TAG="sha-$(git rev-parse HEAD | cut -c1-12)"
+TAG="v0.16.0"   # troque pela tag que existe no GHCR
 docker manifest inspect "ghcr.io/adrianoanschau/orcadom/api:$TAG" >/dev/null && echo "imagem ok: $TAG"
 infra/deploy/scripts/deploy-prod.sh "$TAG"
 ```

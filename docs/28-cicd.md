@@ -125,16 +125,15 @@ verdes.
 | `e2e-nightly.yml` | cron diário + `workflow_dispatch` | suíte E2E completa contra Postgres efêmero |
 | `changeset-check.yml` | todo PR contra `main`, exceto o Release PR (`chore: release`) e PRs com label `no-changeset` | exige changeset |
 | `commitlint.yml` | todo PR contra `main` | Conventional Commits |
-| `release.yml` | push em `main` | abre/atualiza o Release PR |
-| `tag-release.yml` | push em `main` cujo commit começa com `chore: release` | tag `vX.Y.Z`, build/push GHCR de api, web e migrate, GitHub Release com as URLs |
-| `deploy-production.yml` | push em `main` ou `workflow_dispatch` | build/push `sha-<12>` e `main`; SSH `update-repo` + `deploy-prod` se `DEPLOY_ENABLED=true` |
-| `preview.yml` | PR contra `main` com a label `preview` (abre, sincroniza, reabre, label); teardown ao fechar ou ao tirar a label | preview web+api em `pr-<N>.orcadom.aanschau.tech`. Pula fork e o Release PR |
-| `deploy.yml` | só `workflow_dispatch` (input `tag`) | rollback: SSH `deploy-prod <tag>` no environment `production` |
+| `release.yml` | push em `main` | abre/atualiza o Release PR com o token do GitHub App (`RELEASE_APP_ID` + `RELEASE_APP_PRIVATE_KEY`). Não faz deploy |
+| `tag-release.yml` | push em `main` em que a versão do `package.json` da raiz mudou | tag `vX.Y.Z` (se ainda não existir), build/push GHCR de api, web e migrate, GitHub Release, e chama o deploy |
+| `deploy-production.yml` | `workflow_call` pelo release, ou `workflow_dispatch` (input `version`, ex. `v0.15.1`) | não builda imagem; SSH `update-repo <sha>` + `deploy-prod vX.Y.Z` se `DEPLOY_ENABLED=true`. O dispatch confere tag e imagens |
+| `preview.yml` | PR contra `main` com a label `preview` (abre, sincroniza, reabre, label); teardown ao fechar ou ao tirar a label | preview web+api em `pr-<N>.orcadom.aanschau.tech`. Pula fork e o Release PR (`changeset-release/main`); o CI desse PR continua no `ci.yml` |
 
-Imagens de release: `ghcr.io/<owner>/<repo>/{api,web,migrate}:vX.Y.Z`
-(também sem o prefixo `v`). O deploy do dia a dia usa `sha-<12>`, não a
-tag de release. Tags `≤ v0.15.1` não têm imagem `migrate` e não servem
-no rollback.
+Imagens de produção: `ghcr.io/<owner>/<repo>/{api,web,migrate}:vX.Y.Z`
+(também sem o prefixo `v`). Push em `main` não publica `sha-<12>` nem
+`:main`. Tags `≤ v0.15.1` não têm imagem `migrate` e não servem no
+rollback.
 
 Não existe host de staging. Se um dia existir, segue o mesmo modelo
 (environment próprio, migration no host, chave SSH com forced command)
@@ -150,21 +149,38 @@ de `preview` é outra: no VPS ela só aceita comandos de preview.
 | `production` | só `main` | `DEPLOY_ENABLED` (`true` liga o deploy; outro valor = aviso e skip) | `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY` (chave prod), `DEPLOY_KNOWN_HOSTS` |
 | `preview` | sem restrição (o job roda em `refs/pull/N/merge`) | `DEPLOY_ENABLED` | `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY` (chave preview), `DEPLOY_KNOWN_HOSTS` |
 
+O Release PR não usa o `GITHUB_TOKEN`. No repositório (Settings →
+Secrets and variables → Actions, não no environment):
+
+| Nome | Tipo | Valor |
+|---|---|---|
+| `RELEASE_APP_ID` | Variable | ID numérico do GitHub App |
+| `RELEASE_APP_PRIVATE_KEY` | Secret | PEM da chave privada do App |
+
+O App precisa de **Contents: Read and write** e **Pull requests: Read
+and write**, instalado neste repositório. Com esse token, a opção
+"Allow GitHub Actions to create and approve pull requests" não entra
+neste fluxo.
+
 Ordem ao ligar produção:
 
 1. Preparar o VPS ([`SERVIDOR.md`](../infra/deploy/SERVIDOR.md)) com
-   `DEPLOY_ENABLED` ainda diferente de `true`, para o primeiro push só
-   publicar imagem.
+   `DEPLOY_ENABLED` ainda diferente de `true`.
 2. Criar o environment `production` (branch só `main`) e `preview`.
 3. Colar host, usuário, chave e `known_hosts`.
-4. Só então `DEPLOY_ENABLED=true` em `production`. O de `preview` pode
-   ir junto, quando o forced command da chave de preview já estiver no
+4. Criar o GitHub App e gravar `RELEASE_APP_ID` / `RELEASE_APP_PRIVATE_KEY`.
+5. O merge do Release PR publica as imagens `vX.Y.Z` mesmo com
+   `DEPLOY_ENABLED` diferente de `true` (o deploy é pulado).
+6. Só então `DEPLOY_ENABLED=true` em `production`. O release seguinte
+   faz o deploy. Para subir uma versão que já está no GHCR, usar
+   **Deploy produção** → Run workflow. O de `preview` pode ir junto,
+   quando o forced command da chave de preview já estiver no
    `authorized_keys`.
 
 Permissões do repositório: Actions → General → Workflow permissions em
-Read and write (já necessário para o Release PR e para publicar no
-GHCR). Nos pacotes que já existirem, Package settings → Manage Actions
-access → Write para este repositório.
+Read and write (necessário para a tag, a GitHub Release e o GHCR; o
+Release PR em si usa o App). Nos pacotes que já existirem, Package
+settings → Manage Actions access → Write para este repositório.
 
 Branch protection em `main`: exigir os checks `build-test` e `e2e-smoke`
 (este `ci.yml`) além de `changeset-check` e `commitlint`.
@@ -211,4 +227,5 @@ domínio e caixa de email próprios — isso continua em
 [`29-staging.md`](./29-staging.md).
 
 Se esse host for criado, o deploy dele repete o modelo de produção com
-outro GitHub Environment. O `deploy.yml` atual não tem matriz staging.
+outro GitHub Environment. O `deploy-production.yml` não tem matriz
+staging.

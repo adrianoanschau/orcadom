@@ -1,40 +1,72 @@
 name: Tag Release
 
+# Roda em todo push na main, mas só publica quando a versão do
+# package.json da raiz mudou nesse push (merge commit, squash ou rebase).
+# A tag vX.Y.Z, as imagens e a GitHub Release são idempotentes: se a tag
+# já existe, o job não falha e não cria outra Release.
+#
+# O deploy entra no mesmo workflow (workflow_call). Tag e Release criadas
+# com GITHUB_TOKEN não disparam outro workflow.
+
 on:
   push:
     branches: [main]
 
+permissions:
+  contents: write
+  packages: write
+
 jobs:
-  tag:
-    if: "startsWith(github.event.head_commit.message, 'chore: release')"
+  prepare:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     outputs:
-      version: ${{ steps.version.outputs.version }}
+      release: ${{ steps.detect.outputs.release }}
+      version: ${{ steps.detect.outputs.version }}
+      tag: ${{ steps.detect.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Lê a versão atual
-        id: version
-        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
-
-      - name: Cria a tag
+      - name: Detecta mudança de versão
+        id: detect
+        env:
+          BEFORE: ${{ github.event.before }}
         run: |
-          version="v${{ steps.version.outputs.version }}"
-          if git ls-remote --tags origin "refs/tags/${version}" | grep -q .; then
-            echo "Tag ${version} já existe — segue para as imagens."
+          set -euo pipefail
+          semver='^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'
+          release=false
+          version="$(jq -r .version package.json)"
+
+          if ! [[ "$version" =~ $semver ]]; then
+            echo "::notice::Versão '${version}' no package.json da raiz não é SemVer. Sem release."
+          elif [[ "$BEFORE" =~ ^0+$ ]]; then
+            echo "::notice::Commit anterior indisponível. Sem release."
           else
-            git tag "${version}"
-            git push origin "${version}"
+            if ! git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+              git fetch --quiet origin "$BEFORE" || true
+            fi
+            if ! git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+              echo "::notice::Commit anterior indisponível. Sem release."
+            else
+              old="$(git show "${BEFORE}:package.json" | jq -r .version)"
+              if [ "$version" = "$old" ]; then
+                echo "Versão inalterada (${version}). Sem release."
+              else
+                release=true
+                echo "version=${version}" >> "$GITHUB_OUTPUT"
+                echo "tag=v${version}" >> "$GITHUB_OUTPUT"
+                echo "Versão ${old} → ${version}."
+              fi
+            fi
           fi
 
+          echo "release=${release}" >> "$GITHUB_OUTPUT"
+
   images:
-    needs: tag
+    needs: prepare
+    if: needs.prepare.outputs.release == 'true'
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
     outputs:
       prefix: ${{ steps.ghcr.outputs.prefix }}
     steps:
@@ -42,7 +74,7 @@ jobs:
 
       - name: Prefixo GHCR
         id: ghcr
-        run: echo "prefix=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+        run: echo "prefix=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-buildx-action@v3
 
@@ -59,8 +91,8 @@ jobs:
           file: apps/api/Dockerfile
           push: true
           tags: |
-            ${{ steps.ghcr.outputs.prefix }}/api:v${{ needs.tag.outputs.version }}
-            ${{ steps.ghcr.outputs.prefix }}/api:${{ needs.tag.outputs.version }}
+            ${{ steps.ghcr.outputs.prefix }}/api:v${{ needs.prepare.outputs.version }}
+            ${{ steps.ghcr.outputs.prefix }}/api:${{ needs.prepare.outputs.version }}
           cache-from: type=gha,scope=api
           cache-to: type=gha,mode=max,scope=api
 
@@ -71,8 +103,8 @@ jobs:
           file: apps/web/Dockerfile
           push: true
           tags: |
-            ${{ steps.ghcr.outputs.prefix }}/web:v${{ needs.tag.outputs.version }}
-            ${{ steps.ghcr.outputs.prefix }}/web:${{ needs.tag.outputs.version }}
+            ${{ steps.ghcr.outputs.prefix }}/web:v${{ needs.prepare.outputs.version }}
+            ${{ steps.ghcr.outputs.prefix }}/web:${{ needs.prepare.outputs.version }}
           cache-from: type=gha,scope=web
           cache-to: type=gha,mode=max,scope=web
 
@@ -83,38 +115,60 @@ jobs:
           file: packages/database/Dockerfile
           push: true
           tags: |
-            ${{ steps.ghcr.outputs.prefix }}/migrate:v${{ needs.tag.outputs.version }}
-            ${{ steps.ghcr.outputs.prefix }}/migrate:${{ needs.tag.outputs.version }}
+            ${{ steps.ghcr.outputs.prefix }}/migrate:v${{ needs.prepare.outputs.version }}
+            ${{ steps.ghcr.outputs.prefix }}/migrate:${{ needs.prepare.outputs.version }}
           cache-from: type=gha,scope=migrate
           cache-to: type=gha,mode=max,scope=migrate
 
-  release:
-    needs: [tag, images]
+  publish:
+    needs: [prepare, images]
+    if: needs.prepare.outputs.release == 'true' && needs.images.result == 'success'
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
 
-      - name: Monta o corpo da Release
+      - name: Cria a tag se ainda não existir
+        env:
+          TAG: ${{ needs.prepare.outputs.tag }}
         run: |
-          prefix="${{ needs.images.outputs.prefix }}"
-          version="${{ needs.tag.outputs.version }}"
+          set -euo pipefail
+          if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
+            echo "Tag ${TAG} já existe — não recria."
+          else
+            git tag "${TAG}"
+            git push origin "${TAG}"
+          fi
+
+      - name: Monta o corpo da Release
+        env:
+          PREFIX: ${{ needs.images.outputs.prefix }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          set -euo pipefail
           {
             echo "## Container images"
             echo
-            echo "- \`${prefix}/api:v${version}\`"
-            echo "- \`${prefix}/web:v${version}\`"
-            echo "- \`${prefix}/migrate:v${version}\`"
+            echo "- \`${PREFIX}/api:v${VERSION}\`"
+            echo "- \`${PREFIX}/web:v${VERSION}\`"
+            echo "- \`${PREFIX}/migrate:v${VERSION}\`"
             echo
             echo "## Changelog"
             echo
             cat CHANGELOG.md
           } > /tmp/release-body.md
 
-      - name: Cria a GitHub Release
+      - name: Cria ou atualiza a GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ needs.tag.outputs.version }}
+          tag_name: ${{ needs.prepare.outputs.tag }}
           body_path: /tmp/release-body.md
           generate_release_notes: false
+
+  deploy:
+    needs: [prepare, images, publish]
+    if: needs.prepare.outputs.release == 'true' && needs.publish.result == 'success'
+    uses: ./.github/workflows/deploy-production.yml
+    with:
+      version: ${{ needs.prepare.outputs.tag }}
+      sha: ${{ github.sha }}
+    secrets: inherit
