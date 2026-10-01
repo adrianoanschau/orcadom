@@ -2,13 +2,7 @@ import { config as loadEnv } from 'dotenv';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import bcrypt from 'bcryptjs';
-
-loadEnv({
-  path: resolve(dirname(fileURLToPath(import.meta.url)), '../../../.env'),
-});
-
-const {
-  prisma,
+import {
   AccountType,
   CategoryType,
   HouseholdRole,
@@ -16,7 +10,13 @@ const {
   Prisma,
   RecurrenceFrequency,
   TransactionType,
-} = await import('../src/index.js');
+} from '../src/generated/prisma/client.js';
+
+loadEnv({
+  path: resolve(dirname(fileURLToPath(import.meta.url)), '../../../.env'),
+});
+
+const { prisma } = await import('../src/index.js');
 
 const STAGING_PASSWORD = 'staging-orcadom';
 const resetAll = process.env.STAGING_SEED_RESET === 'true';
@@ -81,6 +81,17 @@ function addUtcMonths(date: Date, months: number): Date {
 
 function money(value: number | string): Prisma.Decimal {
   return new Prisma.Decimal(value);
+}
+
+function categoryByKey(
+  categories: Map<string, { id: string; name: string; type: CategoryType }>,
+  key: string,
+): { id: string; name: string; type: CategoryType } {
+  const category = categories.get(key);
+  if (!category) {
+    throw new Error(`Categoria ausente no seed de staging: ${key}`);
+  }
+  return category;
 }
 
 async function upsertUser(email: string, name: string, passwordHash: string) {
@@ -213,18 +224,15 @@ async function seedAccounts(householdId: string) {
   return { checking, card, wallet };
 }
 
-async function seedFamilyFinance(
-  householdId: string,
-  userId: string,
-): Promise<void> {
+async function seedFamilyFinance(householdId: string, userId: string): Promise<void> {
   const categories = await seedCategories(householdId);
   const accounts = await seedAccounts(householdId);
-  const alimentation = categories.get('EXPENSE:Alimentação')!;
-  const transport = categories.get('EXPENSE:Transporte')!;
-  const housing = categories.get('EXPENSE:Moradia')!;
-  const leisure = categories.get('EXPENSE:Lazer')!;
-  const salary = categories.get('INCOME:Salário')!;
-  const freelance = categories.get('INCOME:Freelance')!;
+  const alimentation = categoryByKey(categories, 'EXPENSE:Alimentação');
+  const transport = categoryByKey(categories, 'EXPENSE:Transporte');
+  const housing = categoryByKey(categories, 'EXPENSE:Moradia');
+  const leisure = categoryByKey(categories, 'EXPENSE:Lazer');
+  const salary = categoryByKey(categories, 'INCOME:Salário');
+  const freelance = categoryByKey(categories, 'INCOME:Freelance');
 
   const txns: Prisma.TransactionCreateManyInput[] = [];
   for (const offset of [2, 1, 0]) {
@@ -333,7 +341,9 @@ async function seedFamilyFinance(
   const purchaseDate = monthsAgo(1, 3);
   const installmentsCount = 6;
   const totalAmount = money(1800);
-  const base = totalAmount.dividedBy(installmentsCount).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
+  const base = totalAmount
+    .dividedBy(installmentsCount)
+    .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
   const remainder = totalAmount.minus(base.times(installmentsCount));
   const plan = await prisma.installmentPlan.create({
     data: {
@@ -409,8 +419,8 @@ async function seedFamilyFinance(
 async function seedSoloFinance(householdId: string, userId: string): Promise<void> {
   const categories = await seedCategories(householdId);
   const accounts = await seedAccounts(householdId);
-  const alimentation = categories.get('EXPENSE:Alimentação')!;
-  const salary = categories.get('INCOME:Salário')!;
+  const alimentation = categoryByKey(categories, 'EXPENSE:Alimentação');
+  const salary = categoryByKey(categories, 'INCOME:Salário');
 
   await prisma.transaction.createMany({
     data: [
