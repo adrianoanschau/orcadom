@@ -1,7 +1,6 @@
 'use client';
 
 import {
-  Fragment,
   useEffect,
   useId,
   useLayoutEffect,
@@ -12,50 +11,31 @@ import {
   type RefObject,
 } from 'react';
 import { AnchoredPanel, overlayHost } from '@/components/date-fields';
-import { useHousehold } from '@/components/household-provider';
 import { BottomSheet, InModalSheet, controlClass } from '@/components/ui';
 import { useMediaQuery } from '@/hooks/use-media-query';
-import {
-  categoryPath,
-  filterCategoryRows,
-  orderedCategoryRows,
-  readRecentCategoryIds,
-  rememberCategoryId,
-  visibleRecentCategoryIds,
-  writeRecentCategoryIds,
-  type CategoryOption,
-  type CategoryRow,
-  type RecentCategoryStorage,
-} from '@/lib/category-options';
 
-export type { CategoryOption };
-export { categoryPath };
+const DESKTOP_CHOICE_QUERY = '(min-width: 768px)';
 
-const DESKTOP_CATEGORY_QUERY = '(min-width: 768px)';
-
-type PickerRow = CategoryRow & { key: string; kind: 'empty' | 'recent' | 'tree' };
+export interface ChoiceOption {
+  value: string;
+  label: string;
+}
 
 function optionDomId(listId: string, index: number) {
   return `${listId}-option-${String(index)}`;
 }
 
-function safeLocalStorage(): RecentCategoryStorage | null {
-  try {
-    return window.localStorage;
-  } catch {
-    return null;
-  }
-}
-
-function CategoryOptions({
+function ChoiceOptions({
   query,
   onQueryChange,
-  rows,
+  options,
   activeIndex,
   value,
   onPick,
   onActiveIndex,
   listId,
+  searchLabel,
+  listLabel,
   searchRef,
   listRef,
   onSearchKeyDown,
@@ -63,20 +43,20 @@ function CategoryOptions({
 }: {
   query: string;
   onQueryChange: (query: string) => void;
-  rows: readonly PickerRow[];
+  options: readonly ChoiceOption[];
   activeIndex: number;
   value: string;
   onPick: (id: string) => void;
   onActiveIndex: (index: number) => void;
   listId: string;
+  searchLabel: string;
+  listLabel: string;
   searchRef: RefObject<HTMLInputElement | null>;
   listRef: RefObject<HTMLUListElement | null>;
   onSearchKeyDown: (event: ReactKeyboardEvent<HTMLInputElement>) => void;
   className?: string;
 }) {
-  const firstRecent = rows.findIndex((row) => row.kind === 'recent');
-  const hasTree = rows.some((row) => row.kind === 'tree');
-  const activeId = rows[activeIndex] ? optionDomId(listId, activeIndex) : undefined;
+  const activeId = options[activeIndex] ? optionDomId(listId, activeIndex) : undefined;
 
   return (
     <div className={className}>
@@ -84,8 +64,8 @@ function CategoryOptions({
         ref={searchRef}
         className={controlClass}
         value={query}
-        placeholder="Buscar categoria"
-        aria-label="Buscar categoria"
+        placeholder={searchLabel}
+        aria-label={searchLabel}
         role="combobox"
         aria-autocomplete="list"
         aria-expanded="true"
@@ -100,84 +80,74 @@ function CategoryOptions({
         ref={listRef}
         id={listId}
         role="listbox"
-        aria-label="Categorias"
+        aria-label={listLabel}
         className="mt-2 max-h-60 overflow-y-auto overscroll-contain"
       >
-        {rows.map((row, index) => {
-          const selected = row.id === value;
+        {options.map((option, index) => {
+          const selected = option.value === value;
           const active = index === activeIndex;
           return (
-            <Fragment key={row.key}>
-              {index === firstRecent ? (
-                <li
-                  role="presentation"
-                  className="px-3 pt-2 pb-1 text-xs font-medium tracking-wide text-ink-faint uppercase"
-                >
-                  Recentes
-                </li>
-              ) : null}
-              <li>
-                <button
-                  id={optionDomId(listId, index)}
-                  type="button"
-                  role="option"
-                  aria-selected={selected}
-                  tabIndex={-1}
-                  data-option-index={index}
-                  className={`min-h-11 w-full rounded-sm px-3 text-left text-sm ${
-                    selected || active ? 'bg-brand-tint text-brand' : 'hover:bg-surface'
-                  }${active ? ' ring-2 ring-inset ring-brand' : ''}`}
-                  style={
-                    row.kind === 'empty'
-                      ? undefined
-                      : { paddingLeft: `${String(12 + (row.depth - 1) * 12)}px` }
-                  }
-                  onMouseEnter={() => {
-                    onActiveIndex(index);
-                  }}
-                  onPointerDown={(event) => {
-                    event.preventDefault();
-                  }}
-                  onClick={() => {
-                    onPick(row.id);
-                  }}
-                >
-                  <span className="block truncate [direction:rtl]">
-                    <span className="[direction:ltr]">{row.path}</span>
-                  </span>
-                </button>
-              </li>
-            </Fragment>
+            <li key={option.value === '' ? 'empty' : option.value}>
+              <button
+                id={optionDomId(listId, index)}
+                type="button"
+                role="option"
+                aria-selected={selected}
+                tabIndex={-1}
+                data-option-index={index}
+                className={`min-h-11 w-full rounded-sm px-3 text-left text-sm ${
+                  selected || active ? 'bg-brand-tint text-brand' : 'hover:bg-surface'
+                }${active ? ' ring-2 ring-inset ring-brand' : ''}`}
+                onMouseEnter={() => {
+                  onActiveIndex(index);
+                }}
+                onPointerDown={(event) => {
+                  event.preventDefault();
+                }}
+                onClick={() => {
+                  onPick(option.value);
+                }}
+              >
+                {option.label}
+              </button>
+            </li>
           );
         })}
-        {hasTree ? null : (
-          <li className="px-3 py-2 text-sm text-ink-soft">Nenhuma categoria encontrada.</li>
-        )}
+        {options.length === 0 ? (
+          <li className="px-3 py-2 text-sm text-ink-soft">Nenhuma opção encontrada.</li>
+        ) : null}
       </ul>
     </div>
   );
 }
 
-export function CategorySelect({
-  categories,
+export function ChoiceSelect({
+  options,
   value,
   onChange,
+  title,
+  searchLabel,
   emptyLabel = 'Selecione',
   allowEmpty = true,
+  disabled = false,
+  className = '',
+  ariaLabel,
 }: {
-  categories: readonly CategoryOption[];
+  options: readonly ChoiceOption[];
   value: string;
-  onChange: (categoryId: string) => void;
+  onChange: (value: string) => void;
+  title: string;
+  searchLabel: string;
   emptyLabel?: string;
   allowEmpty?: boolean;
+  disabled?: boolean;
+  className?: string;
+  ariaLabel?: string;
 }) {
-  const isDesktop = useMediaQuery(DESKTOP_CATEGORY_QUERY);
-  const { household } = useHousehold();
-  const householdId = household?.id ?? null;
+  const isDesktop = useMediaQuery(DESKTOP_CHOICE_QUERY);
   const [open, setOpen] = useState(false);
   const [insideDialog, setInsideDialog] = useState(false);
   const [query, setQuery] = useState('');
-  const [storedIds, setStoredIds] = useState<string[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -185,52 +155,28 @@ export function CategorySelect({
   const listRef = useRef<HTMLUListElement>(null);
   const restoreFocusRef = useRef(false);
   const listId = useId();
-  const selected = value ? categoryPath(categories, value) : '';
-  const tree = useMemo(() => orderedCategoryRows(categories), [categories]);
-  const knownIds = useMemo(() => new Set(categories.map((category) => category.id)), [categories]);
-  const filtered = useMemo(() => filterCategoryRows(tree, query), [tree, query]);
-  const recentIds = useMemo(
-    () => (query.trim() || !householdId ? [] : visibleRecentCategoryIds(storedIds, knownIds)),
-    [householdId, knownIds, query, storedIds],
-  );
+  const selected = options.find((option) => option.value === value)?.label ?? '';
   const rows = useMemo(() => {
-    const next: PickerRow[] = [];
-    if (allowEmpty) next.push({ key: 'empty', kind: 'empty', id: '', path: emptyLabel, depth: 0 });
-    for (const id of recentIds) {
-      const row = tree.find((item) => item.id === id);
-      if (!row) continue;
-      next.push({ ...row, key: `recent-${id}`, kind: 'recent' });
+    const needle = query.trim().toLocaleLowerCase('pt-BR');
+    const next: ChoiceOption[] = allowEmpty ? [{ value: '', label: emptyLabel }] : [];
+    for (const option of options) {
+      if (needle && !option.label.toLocaleLowerCase('pt-BR').includes(needle)) continue;
+      next.push(option);
     }
-    for (const row of filtered) next.push({ ...row, key: `tree-${row.id}`, kind: 'tree' });
+    if (allowEmpty && needle && !emptyLabel.toLocaleLowerCase('pt-BR').includes(needle)) {
+      return next.slice(1);
+    }
     return next;
-  }, [allowEmpty, emptyLabel, filtered, recentIds, tree]);
+  }, [allowEmpty, emptyLabel, options, query]);
 
   const sheet = open && !isDesktop && !insideDialog;
   const dialogPanel = open && !isDesktop && insideDialog;
   const popover = open && isDesktop;
 
-  useEffect(() => {
-    if (!householdId) {
-      setStoredIds([]);
-      return;
-    }
-    const storage = safeLocalStorage();
-    if (!storage) return;
-    try {
-      const stored = readRecentCategoryIds(storage, householdId);
-      const visible = visibleRecentCategoryIds(stored, knownIds);
-      setStoredIds(visible);
-      if (visible.length !== stored.length) writeRecentCategoryIds(storage, householdId, visible);
-    } catch {
-      setStoredIds([]);
-    }
-  }, [householdId, knownIds]);
-
   useLayoutEffect(() => {
     if (!open) return;
-    const selectedIndex = rows.findIndex((row) => row.id === value);
-    const fallback = rows.findIndex((row) => row.kind !== 'empty');
-    setActiveIndex(selectedIndex >= 0 ? selectedIndex : Math.max(fallback, 0));
+    const selectedIndex = rows.findIndex((row) => row.value === value);
+    setActiveIndex(selectedIndex >= 0 ? selectedIndex : 0);
   }, [open, rows, value]);
 
   useEffect(() => {
@@ -291,6 +237,7 @@ export function CategorySelect({
   }
 
   function toggle() {
+    if (disabled) return;
     if (open) {
       dismiss(true);
       return;
@@ -303,21 +250,6 @@ export function CategorySelect({
 
   function pick(id: string) {
     onChange(id);
-    if (householdId && id) {
-      const storage = safeLocalStorage();
-      if (storage) {
-        try {
-          const next = visibleRecentCategoryIds(
-            rememberCategoryId(readRecentCategoryIds(storage, householdId), id),
-            knownIds,
-          );
-          writeRecentCategoryIds(storage, householdId, next);
-          setStoredIds(next);
-        } catch {
-          // O espaço pode bloquear o localStorage; a escolha segue sem recentes.
-        }
-      }
-    }
     dismiss(true);
   }
 
@@ -337,7 +269,7 @@ export function CategorySelect({
     if (event.key === 'Enter') {
       event.preventDefault();
       const row = rows[activeIndex];
-      if (row) pick(row.id);
+      if (row) pick(row.value);
       return;
     }
     if (event.key === 'Escape') {
@@ -347,17 +279,19 @@ export function CategorySelect({
     }
   }
 
-  const options = (
-    <CategoryOptions
+  const body = (
+    <ChoiceOptions
       className={popover ? '' : 'mt-3'}
       query={query}
       onQueryChange={setQuery}
-      rows={rows}
+      options={rows}
       activeIndex={activeIndex}
       value={value}
       onPick={pick}
       onActiveIndex={setActiveIndex}
       listId={listId}
+      searchLabel={searchLabel}
+      listLabel={title}
       searchRef={searchRef}
       listRef={listRef}
       onSearchKeyDown={onSearchKeyDown}
@@ -369,36 +303,37 @@ export function CategorySelect({
       <button
         ref={triggerRef}
         type="button"
-        className={`${controlClass} flex items-center text-left`}
+        className={`${controlClass} flex items-center text-left ${className}${disabled ? ' opacity-40' : ''}`}
+        aria-label={ariaLabel}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listId}
+        aria-disabled={disabled}
+        disabled={disabled}
         onClick={toggle}
       >
-        <span className="block min-w-0 flex-1 truncate text-left [direction:rtl]">
-          <span className="[direction:ltr]">{selected || emptyLabel}</span>
-        </span>
+        <span className="block min-w-0 flex-1 truncate text-left">{selected || emptyLabel}</span>
       </button>
       {sheet ? (
         <BottomSheet
           open
-          title="Categoria"
+          title={title}
           onClose={() => {
             dismiss(true);
           }}
         >
-          {options}
+          {body}
         </BottomSheet>
       ) : null}
       {dialogPanel ? (
         <InModalSheet
           open
-          title="Categoria"
+          title={title}
           onClose={() => {
             dismiss(true);
           }}
         >
-          {options}
+          {body}
         </InModalSheet>
       ) : null}
       {popover ? (
@@ -406,7 +341,7 @@ export function CategorySelect({
           anchorRef={triggerRef}
           className="rounded-md border border-hairline bg-surface p-3 shadow-sm"
         >
-          {options}
+          {body}
         </AnchoredPanel>
       ) : null}
     </div>

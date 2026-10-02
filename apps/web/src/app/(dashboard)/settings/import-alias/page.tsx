@@ -6,12 +6,12 @@ import { invalidateOnboarding } from '@/hooks/useOnboardingStatus';
 import { ApiError, api } from '@/lib/api';
 import { formatDate } from '@/lib/format';
 import type { Account, BankAccountMapping, EmailImportLog, ImportAlias } from '@/lib/models';
+import { ChoiceSelect } from '@/components/choice-select';
 import {
   Button,
   Field,
   Notice,
   PageHeader,
-  Select,
   StatusBadge,
   controlClass,
   type StatusTone,
@@ -164,19 +164,16 @@ export default function ImportAliasPage() {
             />
           </Field>
           <Field label="Conta">
-            <Select
+            <ChoiceSelect
+              title="Conta"
+              searchLabel="Buscar conta"
+              options={(accounts.data ?? []).map((account) => ({
+                value: account.id,
+                label: account.name,
+              }))}
               value={accountId}
-              onChange={(event) => {
-                setAccountId(event.target.value);
-              }}
-            >
-              <option value="">Selecione</option>
-              {accounts.data?.map((account) => (
-                <option key={account.id} value={account.id}>
-                  {account.name}
-                </option>
-              ))}
-            </Select>
+              onChange={setAccountId}
+            />
           </Field>
           <div className="flex items-end">
             <Button

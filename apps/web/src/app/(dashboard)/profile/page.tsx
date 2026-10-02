@@ -8,7 +8,8 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { Avatar } from '@/components/avatar';
 import { useLocale } from '@/components/locale-provider';
-import { Button, Field, Notice, PageHeader, Select, controlClass } from '@/components/ui';
+import { ChoiceSelect } from '@/components/choice-select';
+import { Button, Field, Notice, PageHeader, controlClass } from '@/components/ui';
 import { ApiError, api } from '@/lib/api';
 import { formatDate } from '@/lib/format';
 import { localeOptions, parseLocalePreference } from '@/lib/locale';
@@ -160,22 +161,23 @@ export default function ProfilePage() {
         <div className="mt-4 space-y-3">
           {localeMessage ? <Notice>{localeMessage}</Notice> : null}
           <Field label="Formato de datas">
-            <Select
-              value={preference}
+            <ChoiceSelect
+              title="Formato de datas"
+              searchLabel="Buscar formato"
+              allowEmpty={false}
               disabled={saveLocale.isPending}
-              onChange={(event) => {
-                const next = parseLocalePreference(event.target.value);
-                setPreference(next);
+              options={localeOptions.map((option) => ({
+                value: option.value,
+                label: option.label,
+              }))}
+              value={preference}
+              onChange={(next) => {
+                const parsed = parseLocalePreference(next);
+                setPreference(parsed);
                 setLocaleMessage(null);
-                saveLocale.mutate(next);
+                saveLocale.mutate(parsed);
               }}
-            >
-              {localeOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </Select>
+            />
           </Field>
           <p className="text-xs text-ink-soft">
             {localeOptions.find((option) => option.value === preference)?.hint}

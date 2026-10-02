@@ -15,6 +15,7 @@ import type {
   ImportPreviewRow,
 } from '@/lib/models';
 import { CategorySelect, categoryPath } from '@/components/category-select';
+import { ChoiceSelect } from '@/components/choice-select';
 import {
   Button,
   ButtonLink,
@@ -22,7 +23,6 @@ import {
   Field,
   Notice,
   PageHeader,
-  Select,
   StatusBadge,
   controlClass,
 } from '@/components/ui';
@@ -242,19 +242,16 @@ function ImportsPageInner() {
           }}
         >
           <Field label="Conta">
-            <Select
+            <ChoiceSelect
+              title="Conta"
+              searchLabel="Buscar conta"
+              options={(accounts.data ?? []).map((account) => ({
+                value: account.id,
+                label: account.name,
+              }))}
               value={accountId}
-              onChange={(event) => {
-                setAccountId(event.target.value);
-              }}
-            >
-              <option value="">Selecione</option>
-              {accounts.data?.map((account) => (
-                <option key={account.id} value={account.id}>
-                  {account.name}
-                </option>
-              ))}
-            </Select>
+              onChange={setAccountId}
+            />
           </Field>
           <Field label="Arquivo">
             <input
@@ -313,19 +310,17 @@ function ImportsPageInner() {
           {!preview.accountId ? (
             <div className="rounded-lg bg-surface p-4">
               <Field label="Conta deste extrato">
-                <Select
+                <ChoiceSelect
+                  title="Conta deste extrato"
+                  searchLabel="Buscar conta"
+                  emptyLabel="Selecione para mapear este banco"
+                  options={(accounts.data ?? []).map((account) => ({
+                    value: account.id,
+                    label: account.name,
+                  }))}
                   value={accountId}
-                  onChange={(event) => {
-                    setAccountId(event.target.value);
-                  }}
-                >
-                  <option value="">Selecione para mapear este banco</option>
-                  {accounts.data?.map((account) => (
-                    <option key={account.id} value={account.id}>
-                      {account.name}
-                    </option>
-                  ))}
-                </Select>
+                  onChange={setAccountId}
+                />
               </Field>
               <p className="mt-2 text-sm text-pending">
                 Este OFX ainda não tem conta mapeada. Ao confirmar, o Orcadom lembra o BANKID/ACCTID
@@ -485,11 +480,7 @@ function ImportCategoryField({
 }) {
   return (
     <>
-      <CategorySelect
-        categories={options}
-        value={draft?.categoryId ?? ''}
-        onChange={onChange}
-      />
+      <CategorySelect categories={options} value={draft?.categoryId ?? ''} onChange={onChange} />
       {row.confidence === 'high' && suggested ? (
         <p className="mt-1 text-sm text-brand">conhecida</p>
       ) : null}

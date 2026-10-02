@@ -12,6 +12,7 @@ import {
 import { useState, type ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
 import { CategorySelect } from '@/components/category-select';
+import { ChoiceSelect } from '@/components/choice-select';
 import { ApiError, api } from '@/lib/api';
 import { humanize } from '@/lib/format';
 import type { Category } from '@/lib/models';
@@ -23,11 +24,10 @@ import {
   Modal,
   Notice,
   PageHeader,
-  Select,
   StatusBadge,
   controlClass,
 } from '@/components/ui';
-import { ChevronIcon, PlusIcon } from '@/components/icons';
+import { PencilIcon, PlusIcon, TrashIcon } from '@/components/icons';
 import { colors } from '@/lib/tokens';
 
 interface CategoryForm {
@@ -53,7 +53,6 @@ export default function CategoriesPage() {
   const [open, setOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<Category | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const form = useForm<CategoryForm>({ defaultValues: emptyForm });
   const parentId = form.watch('parentId');
   const all = categories.data ?? [];
@@ -111,7 +110,9 @@ export default function CategoriesPage() {
       closeForm();
     },
     onError: (caught: unknown) => {
-      setError(caught instanceof ApiError ? caught.message : 'Não foi possível salvar a categoria.');
+      setError(
+        caught instanceof ApiError ? caught.message : 'Não foi possível salvar a categoria.',
+      );
     },
   });
 
@@ -122,7 +123,9 @@ export default function CategoriesPage() {
       setPendingDelete(null);
     },
     onError: (caught: unknown) => {
-      setError(caught instanceof ApiError ? caught.message : 'Não foi possível excluir a categoria.');
+      setError(
+        caught instanceof ApiError ? caught.message : 'Não foi possível excluir a categoria.',
+      );
       setPendingDelete(null);
     },
   });
@@ -161,14 +164,10 @@ export default function CategoriesPage() {
       {categories.data?.length === 0 ? (
         <EmptyState title="Nenhuma categoria ainda">Crie uma de receita ou despesa.</EmptyState>
       ) : null}
-      <div className="mt-6 grid gap-4 sm:grid-cols-2">
+      <div className="mt-6 grid min-w-0 gap-4 lg:grid-cols-2">
         <CategoryColumn
           title="Receita"
           nodes={income}
-          collapsed={collapsed}
-          onToggle={(id) => {
-            setCollapsed((current) => toggleSet(current, id));
-          }}
           onAddChild={openCreate}
           onEdit={(category) => {
             setLockedParent(null);
@@ -190,10 +189,6 @@ export default function CategoriesPage() {
         <CategoryColumn
           title="Despesa"
           nodes={expense}
-          collapsed={collapsed}
-          onToggle={(id) => {
-            setCollapsed((current) => toggleSet(current, id));
-          }}
           onAddChild={openCreate}
           onEdit={(category) => {
             setLockedParent(null);
@@ -237,14 +232,24 @@ export default function CategoriesPage() {
           </Field>
           {editing || lockedParent ? (
             <p className="text-sm text-ink-soft">
-              O tipo permanece {(lockedParent ?? editing)?.type === 'INCOME' ? 'receita' : 'despesa'}.
+              O tipo permanece{' '}
+              {(lockedParent ?? editing)?.type === 'INCOME' ? 'receita' : 'despesa'}.
             </p>
           ) : (
             <Field label="Tipo">
-              <Select {...form.register('type')}>
-                <option value="INCOME">Receita</option>
-                <option value="EXPENSE">Despesa</option>
-              </Select>
+              <ChoiceSelect
+                title="Tipo"
+                searchLabel="Buscar tipo"
+                allowEmpty={false}
+                options={[
+                  { value: 'INCOME', label: 'Receita' },
+                  { value: 'EXPENSE', label: 'Despesa' },
+                ]}
+                value={form.watch('type')}
+                onChange={(next) => {
+                  form.setValue('type', next as 'INCOME' | 'EXPENSE', { shouldDirty: true });
+                }}
+              />
             </Field>
           )}
           {editing ? (
@@ -314,27 +319,23 @@ export default function CategoriesPage() {
 function CategoryColumn({
   title,
   nodes,
-  collapsed,
-  onToggle,
   onAddChild,
   onEdit,
   onDelete,
 }: {
   title: string;
   nodes: CategoryTreeNode<Category>[];
-  collapsed: Set<string>;
-  onToggle: (id: string) => void;
   onAddChild: (category: Category) => void;
   onEdit: (category: Category) => void;
   onDelete: (category: Category) => void;
 }) {
   return (
-    <section className="rounded-lg bg-surface p-6">
+    <section className="min-w-0 rounded-lg bg-surface p-4 sm:p-6">
       <h2 className="font-display text-h2 font-medium">{title}</h2>
       {nodes.length === 0 ? (
         <p className="mt-4 text-sm text-ink-soft">Nenhuma categoria deste tipo.</p>
       ) : (
-        <ul className="mt-2">{nodes.map((node) => renderNode(node))}</ul>
+        <ul className="mt-2 min-w-0">{nodes.map((node) => renderNode(node))}</ul>
       )}
     </section>
   );
@@ -342,33 +343,21 @@ function CategoryColumn({
   function renderNode(node: CategoryTreeNode<Category>): ReactNode {
     const category = node.item;
     const hasChildren = node.children.length > 0;
-    const hidden = collapsed.has(category.id);
     return (
-      <li key={category.id} className="border-b border-hairline last:border-b-0">
-        <div
-          className="flex min-h-11 items-center gap-1"
-          style={{ paddingLeft: `${String((node.depth - 1) * 44)}px` }}
-        >
-          {hasChildren ? (
-            <button
-              type="button"
-              className={`inline-flex size-11 shrink-0 items-center justify-center rounded-pill text-ink-soft hover:bg-surface-sunken ${hidden ? '-rotate-90' : ''}`}
-              aria-expanded={!hidden}
-              aria-label={hidden ? `Expandir ${category.name}` : `Recolher ${category.name}`}
-              onClick={() => {
-                onToggle(category.id);
-              }}
-            >
-              <ChevronIcon />
-            </button>
-          ) : (
-            <span className="size-11 shrink-0" aria-hidden />
-          )}
-          <span className="min-w-0">
-            <CategoryChip name={category.name} color={category.color} />
-          </span>
-          {category.isSystem ? <StatusBadge tone="neutral">Sistema</StatusBadge> : null}
-          <span className="ml-auto flex shrink-0 items-center">
+      <li key={category.id} className="min-w-0 border-b border-hairline last:border-b-0">
+        <div className="flex min-h-11 min-w-0 flex-wrap items-center gap-x-1 gap-y-1">
+          <div
+            className="flex min-w-0 flex-1 items-center gap-2"
+            style={{
+              paddingLeft: node.depth > 1 ? `${String((node.depth - 1) * 16)}px` : undefined,
+            }}
+          >
+            <span className="min-w-0 shrink">
+              <CategoryChip name={category.name} color={category.color} />
+            </span>
+            {category.isSystem ? <StatusBadge tone="neutral">Sistema</StatusBadge> : null}
+          </div>
+          <span className="flex shrink-0 items-center">
             {node.depth < MAX_CATEGORY_DEPTH ? (
               <button
                 type="button"
@@ -386,35 +375,34 @@ function CategoryColumn({
               <>
                 <button
                   type="button"
-                  className="inline-flex min-h-11 items-center rounded-pill px-2 text-sm text-ink-soft hover:bg-surface-sunken hover:text-ink"
+                  className="inline-flex size-11 items-center justify-center rounded-pill text-ink-soft hover:bg-surface-sunken hover:text-ink"
+                  aria-label={`Editar ${category.name}`}
+                  title="Editar"
                   onClick={() => {
                     onEdit(category);
                   }}
                 >
-                  Editar
+                  <PencilIcon />
                 </button>
                 <button
                   type="button"
-                  className="inline-flex min-h-11 items-center rounded-pill px-2 text-sm text-ink-soft hover:bg-surface-sunken hover:text-ink"
+                  className="inline-flex size-11 items-center justify-center rounded-pill text-ink-soft hover:bg-surface-sunken hover:text-ink"
+                  aria-label={`Excluir ${category.name}`}
+                  title="Excluir"
                   onClick={() => {
                     onDelete(category);
                   }}
                 >
-                  Excluir
+                  <TrashIcon />
                 </button>
               </>
             )}
           </span>
         </div>
-        {hasChildren && !hidden ? <ul>{node.children.map((child) => renderNode(child))}</ul> : null}
+        {hasChildren ? (
+          <ul className="min-w-0">{node.children.map((child) => renderNode(child))}</ul>
+        ) : null}
       </li>
     );
   }
-}
-
-function toggleSet(current: Set<string>, id: string): Set<string> {
-  const next = new Set(current);
-  if (next.has(id)) next.delete(id);
-  else next.add(id);
-  return next;
 }
