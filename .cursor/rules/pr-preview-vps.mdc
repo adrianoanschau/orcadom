@@ -8,8 +8,10 @@ alwaysApply: true
 A branch `main` não recebe push direto. O ruleset `proteger-main` exige
 pull request. Nunca fazer `git push` para `main`.
 
-Trabalho fica numa branch de feature. Commit local é livre. **Não abrir
-PR** até a entrega precisar ser testada de ponta a ponta.
+Trabalho acumula em `develop`. A branch de feature sai de `develop`,
+não de `main`, para o PR contra `main` levar junto o que já está nessa
+branch. Commit local é livre. **Não abrir PR** até a entrega precisar
+ser testada de ponta a ponta.
 
 Abrir PR contra `main` não sobe preview. O preview só sobe com a label
 `preview` no PR: aí `preview.yml` publica web e API no VPS
