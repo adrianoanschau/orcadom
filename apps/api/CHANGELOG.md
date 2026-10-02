@@ -1,5 +1,12 @@
 # @orcadom/api
 
+## 0.18.0
+
+### Patch Changes
+
+- @orcadom/database@0.18.0
+  - @orcadom/types@0.18.0
+
 ## 0.17.0
 
 ### Patch Changes
