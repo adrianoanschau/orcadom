@@ -73,6 +73,7 @@ export class AuthService {
         name: dto.name,
         email,
         passwordHash: await bcrypt.hash(dto.password, 10),
+        dateFormatPreference: 'PT_BR',
       },
     });
     await this.households.createForUser(user.id, `Família de ${dto.name}`);
