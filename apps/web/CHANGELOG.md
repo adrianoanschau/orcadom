@@ -1,5 +1,18 @@
 # @orcadom/web
 
+## 0.18.0
+
+### Minor Changes
+
+- ef4a875: A categoria abre em folha no celular e em popover com busca no desktop.
+- 298dae9: Os selects nativos e o calendário de dia abrem em folha no celular e em popover no desktop.
+- 7c12af7: O mês do painel e dos orçamentos não sai da tela: roleta no celular e grade com teclado no desktop.
+- 92eb2dd: O menu Mais no celular fecha pela alça, arrastando, no fundo ou no Esc.
+
+### Patch Changes
+
+- @orcadom/types@0.18.0
+
 ## 0.17.0
 
 ### Minor Changes
