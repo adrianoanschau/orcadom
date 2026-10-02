@@ -221,7 +221,7 @@ function BudgetRow({
               className={`${controlClass} mt-1 tabular-nums`}
             />
           </label>
-          <Button type="submit" disabled={pending || !(parsed > 0)}>
+          <Button offlineLock type="submit" disabled={pending || !(parsed > 0)}>
             {budget ? 'Atualizar' : 'Definir limite'}
           </Button>
         </form>

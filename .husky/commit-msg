@@ -1,1 +1,25 @@
+# Rejeita a mensagem nova e qualquer commit já na branch desde origin/main
+# que quebre o limite de 100 caracteres. O pre-push repete o intervalo.
+
 pnpm exec commitlint --edit "$1"
+
+base_ref=
+if git rev-parse --verify --quiet origin/main >/dev/null; then
+  base_ref=origin/main
+elif git rev-parse --verify --quiet main >/dev/null; then
+  base_ref=main
+else
+  echo "commitlint: não achei origin/main nem main. Rode git fetch origin main." >&2
+  exit 1
+fi
+
+if ! git rev-parse --verify --quiet HEAD >/dev/null; then
+  exit 0
+fi
+
+count=$(git rev-list --count "$base_ref"..HEAD)
+if [ "$count" -eq 0 ]; then
+  exit 0
+fi
+
+pnpm exec commitlint --from "$base_ref" --to HEAD --verbose

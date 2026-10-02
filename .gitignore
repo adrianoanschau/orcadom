@@ -48,6 +48,9 @@ previews/
 .env.image.prev
 .deploy.lock
 
+# Workbox copiado no prebuild para o service worker (apps/web/scripts/write-sw.mjs)
+apps/web/public/workbox-*/
+
 # playwright e2e
 e2e/test-results/
 e2e/playwright-report/

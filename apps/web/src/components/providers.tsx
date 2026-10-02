@@ -10,7 +10,14 @@ export function Providers({ children }: { children: ReactNode }) {
     () =>
       new QueryClient({
         defaultOptions: {
-          queries: { retry: false, refetchOnWindowFocus: false },
+          queries: {
+            retry: false,
+            refetchOnWindowFocus: false,
+            // Roda mesmo offline para o service worker devolver o cache da API.
+            networkMode: 'offlineFirst',
+          },
+          // Não pausa mutação para reenviar depois: escrita offline fica fora deste fluxo.
+          mutations: { networkMode: 'always' },
         },
       }),
   );

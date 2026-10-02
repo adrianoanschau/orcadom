@@ -135,7 +135,7 @@ model User {
   name                 String
   email                String                @unique
   passwordHash         String
-  dateFormatPreference DateFormatPreference  @default(SYSTEM)
+  dateFormatPreference DateFormatPreference  @default(PT_BR)
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
 

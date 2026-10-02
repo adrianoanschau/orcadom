@@ -7,10 +7,11 @@ Toda mensagem de commit precisa seguir
 
     tipo(escopo)?: descrição
 
-O Husky roda o commitlint no hook `commit-msg` — um commit fora do padrão
-é rejeitado localmente. O hook `pre-push` repete a checagem em todos os
-commits desde `origin/main`, o mesmo intervalo do CI (`commitlint.yml`),
-e barra o `git push` se alguma mensagem falhar.
+O Husky roda o commitlint no hook `commit-msg`. A mensagem nova é
+rejeitada se sair do padrão, e o commit nem é criado se algum commit já
+na branch, desde `origin/main`, tiver uma linha com mais de 100
+caracteres. O hook `pre-push` repete essa checagem do intervalo, a mesma
+do CI (`commitlint.yml`), e barra o `git push` se alguma mensagem falhar.
 
 | Tipo       | Quando usar                              |
 | ---------- | ---------------------------------------- |

@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -36,4 +37,20 @@ describe('readReleaseVersion', () => {
     expect(version).toMatch(/^\d+\.\d+\.\d+$/);
     expect(formatAppVersion(version, 'pr.15')).toBe(`${version}-pr.15`);
   });
+});
+
+describe('service worker', () => {
+  it('grava a versão da raiz e não puxa o Workbox do CDN', () => {
+    execFileSync(process.execPath, ['scripts/write-sw.mjs'], { cwd: webDir });
+    const sw = readFileSync(join(webDir, 'public/sw.js'), 'utf8');
+    const version = formatAppVersion(readReleaseVersion(webDir), process.env.APP_VERSION_SUFFIX);
+
+    expect(sw).toContain(`const APP_VERSION = '${version}';`);
+    expect(sw).toContain("const START_URL = '/dashboard';");
+    expect(sw).toContain('CacheableResponsePlugin({ statuses: [200] })');
+    expect(sw).toContain('networkTimeoutSeconds: NETWORK_TIMEOUT_SECONDS');
+    expect(sw).toContain('setCatchHandler');
+    expect(sw).not.toContain('storage.googleapis.com');
+    expect(sw).toContain("importScripts('/workbox-");
+  }, 20000);
 });

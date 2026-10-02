@@ -5,5 +5,7 @@ dist
 coverage
 pnpm-lock.yaml
 packages/database/src/generated
+apps/web/public/sw.js
+apps/web/public/workbox-*/
 .editorconfig
 .prettierignore

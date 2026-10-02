@@ -10,8 +10,9 @@ sugerir** uma mensagem de commit — sem criar o commit, a menos que o
 usuário peça.
 
 A mensagem deve passar no commitlint
-(`@commitlint/config-conventional`), no Husky (`commit-msg`) e de novo
-no `pre-push`, que revisa todo commit desde `origin/main`:
+(`@commitlint/config-conventional`). O Husky (`commit-msg`) revisa a
+mensagem nova e todo commit desde `origin/main` antes de criar o commit.
+O `pre-push` repete esse intervalo:
 
 ```
 tipo(escopo)?: descrição

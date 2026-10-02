@@ -147,7 +147,11 @@ export default function ProfilePage() {
           <Field label="Nome" error={nameForm.formState.errors.name?.message}>
             <input autoComplete="name" className={controlClass} {...nameForm.register('name')} />
           </Field>
-          <Button type="submit" disabled={saveName.isPending || !nameForm.formState.isDirty}>
+          <Button
+            offlineLock
+            type="submit"
+            disabled={saveName.isPending || !nameForm.formState.isDirty}
+          >
             {saveName.isPending ? 'Salvando…' : 'Salvar nome'}
           </Button>
         </form>
@@ -225,7 +229,7 @@ export default function ProfilePage() {
               {...passwordForm.register('confirmPassword')}
             />
           </Field>
-          <Button type="submit" disabled={savePassword.isPending}>
+          <Button offlineLock type="submit" disabled={savePassword.isPending}>
             {savePassword.isPending ? 'Atualizando…' : 'Atualizar senha'}
           </Button>
         </form>

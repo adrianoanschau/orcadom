@@ -115,7 +115,9 @@ export default function SavingsGoalsPage() {
         title="Metas de economia"
         description="Quanto guardar, em qual conta. O progresso soma as transferências para essa conta a partir da data de início."
       >
-        <Button onClick={openCreate}>Nova meta</Button>
+        <Button offlineLock onClick={openCreate}>
+          Nova meta
+        </Button>
       </PageHeader>
 
       {error && !open ? (
@@ -132,7 +134,9 @@ export default function SavingsGoalsPage() {
             contar sozinhas.
           </p>
           <div className="mt-4">
-            <Button onClick={openCreate}>Criar primeira meta</Button>
+            <Button offlineLock onClick={openCreate}>
+              Criar primeira meta
+            </Button>
           </div>
         </EmptyState>
       ) : null}
@@ -280,7 +284,7 @@ export default function SavingsGoalsPage() {
               <Button variant="ghost" type="button" onClick={closeForm}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={save.isPending}>
+              <Button offlineLock type="submit" disabled={save.isPending}>
                 Criar meta
               </Button>
             </div>

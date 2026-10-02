@@ -107,7 +107,7 @@ export default function HouseholdSettingsPage() {
                 setName(event.target.value);
               }}
             />
-            <Button type="submit" disabled={rename.isPending || !name.trim()}>
+            <Button offlineLock type="submit" disabled={rename.isPending || !name.trim()}>
               {rename.isPending ? 'Salvando…' : 'Renomear'}
             </Button>
           </form>

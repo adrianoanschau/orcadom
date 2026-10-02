@@ -130,6 +130,7 @@ export default function SavingsGoalDetailPage() {
             {data.status === 'ACTIVE' ? (
               <>
                 <Button
+                  offlineLock
                   variant="secondary"
                   onClick={() => {
                     form.reset({
@@ -296,7 +297,7 @@ export default function SavingsGoalDetailPage() {
             >
               Cancelar
             </Button>
-            <Button type="submit" disabled={save.isPending}>
+            <Button offlineLock type="submit" disabled={save.isPending}>
               Salvar
             </Button>
           </div>
