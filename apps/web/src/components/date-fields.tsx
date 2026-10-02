@@ -8,11 +8,13 @@ import {
   useState,
   type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
   type ReactNode,
   type RefObject,
+  type TransitionEvent as ReactTransitionEvent,
   type UIEvent,
 } from 'react';
-import { createPortal } from 'react-dom';
+import { createPortal, flushSync } from 'react-dom';
 import { useLocale } from './locale-provider';
 import { formatInputDate, formatInputMonth, weekdayLabels, weekStartsOn } from '@/lib/locale';
 import { currentMonth } from '@/lib/format';
@@ -198,6 +200,226 @@ export function DateInput({
   );
 }
 
+interface MonthCursor {
+  year: number;
+  month: number;
+}
+
+const SWIPE_LOCK_PX = 10;
+const SLIDE_MS = 220;
+
+function shiftCursor(cursor: MonthCursor, delta: number): MonthCursor {
+  const date = new Date(cursor.year, cursor.month + delta, 1);
+  return { year: date.getFullYear(), month: date.getMonth() };
+}
+
+function monthDays(cursor: MonthCursor, weekStart: number) {
+  const first = new Date(cursor.year, cursor.month, 1);
+  const offset = (first.getDay() - weekStart + 7) % 7;
+  return Array.from({ length: 42 }, (_, index) => {
+    const date = new Date(cursor.year, cursor.month, 1 - offset + index);
+    return {
+      key: toDateValue(date.getFullYear(), date.getMonth(), date.getDate()),
+      day: date.getDate(),
+      inMonth: date.getMonth() === cursor.month,
+    };
+  });
+}
+
+function swipeMonthDelta(dx: number, width: number, elapsedMs: number): -1 | 0 | 1 {
+  const distance = Math.abs(dx);
+  const threshold = Math.min(64, Math.max(36, width * 0.2));
+  const velocity = distance / Math.max(elapsedMs, 1);
+  if (distance < threshold && !(distance >= 20 && velocity >= 0.5)) return 0;
+  return dx < 0 ? 1 : -1;
+}
+
+function useCalendarSwipe(cursor: MonthCursor, onCursorChange: (next: MonthCursor) => void) {
+  const reduceMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    startTime: number;
+    axis: 'x' | 'y' | null;
+  } | null>(null);
+  const suppressClick = useRef(false);
+  const generation = useRef(0);
+  const pending = useRef<{ gen: number; delta: -1 | 1; cursor: MonthCursor } | null>(null);
+  const timer = useRef<number | null>(null);
+  const [dragPx, setDragPx] = useState(0);
+  const [headingDelta, setHeadingDelta] = useState<-1 | 0 | 1>(0);
+  const [animate, setAnimate] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      if (timer.current !== null) window.clearTimeout(timer.current);
+    };
+  }, []);
+
+  function clearTimer() {
+    if (timer.current === null) return;
+    window.clearTimeout(timer.current);
+    timer.current = null;
+  }
+
+  function resetVisual() {
+    generation.current += 1;
+    pending.current = null;
+    clearTimer();
+    setAnimate(false);
+    setDragPx(0);
+    setHeadingDelta(0);
+  }
+
+  function finishPending() {
+    const slide = pending.current;
+    if (slide?.gen !== generation.current) return;
+    pending.current = null;
+    clearTimer();
+    setAnimate(false);
+    setHeadingDelta(0);
+    setDragPx(0);
+    onCursorChange(shiftCursor(slide.cursor, slide.delta));
+  }
+
+  function jump(delta: -1 | 1) {
+    const base = pending.current
+      ? shiftCursor(pending.current.cursor, pending.current.delta)
+      : cursor;
+    resetVisual();
+    onCursorChange(shiftCursor(base, delta));
+  }
+
+  function animateDragTo(px: number, heading?: -1 | 0 | 1) {
+    if (reduceMotion) {
+      setAnimate(false);
+      setDragPx(px);
+      if (heading !== undefined) setHeadingDelta(heading);
+      return;
+    }
+    flushSync(() => {
+      setAnimate(true);
+      if (heading !== undefined) setHeadingDelta(heading);
+    });
+    setDragPx(px);
+  }
+
+  function commit(delta: -1 | 1) {
+    if (reduceMotion) {
+      jump(delta);
+      return;
+    }
+    const gen = generation.current + 1;
+    generation.current = gen;
+    pending.current = { gen, delta, cursor };
+    const width = viewportRef.current?.clientWidth ?? 0;
+    clearTimer();
+    animateDragTo(delta === 1 ? -width : width, delta);
+    timer.current = window.setTimeout(() => {
+      finishPending();
+    }, SLIDE_MS + 40);
+  }
+
+  function onPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    if (pending.current) return;
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    if (event.target instanceof Element && event.target.closest('[data-month-nav]')) return;
+    if (animate) {
+      flushSync(() => {
+        setAnimate(false);
+      });
+    }
+    dragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      startTime: event.timeStamp,
+      axis: null,
+    };
+  }
+
+  function onPointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    const drag = dragRef.current;
+    if (drag?.pointerId !== event.pointerId) return;
+    const dx = event.clientX - drag.startX;
+    const dy = event.clientY - drag.startY;
+    if (!drag.axis) {
+      if (Math.abs(dx) < SWIPE_LOCK_PX && Math.abs(dy) < SWIPE_LOCK_PX) return;
+      drag.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+      if (drag.axis === 'y') {
+        dragRef.current = null;
+        return;
+      }
+      try {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      } catch {
+        // The pointer can already be gone; the move listeners still track the gesture.
+      }
+    }
+    if (event.cancelable) event.preventDefault();
+    const width = viewportRef.current?.clientWidth ?? 0;
+    setDragPx(width > 0 ? Math.max(-width, Math.min(width, dx)) : dx);
+  }
+
+  function endDrag(event: ReactPointerEvent<HTMLDivElement>, cancelled: boolean) {
+    const drag = dragRef.current;
+    if (drag?.pointerId !== event.pointerId) return;
+    dragRef.current = null;
+    if (drag.axis !== 'x') return;
+    suppressClick.current = true;
+    window.setTimeout(() => {
+      suppressClick.current = false;
+    }, 0);
+    if (cancelled) {
+      animateDragTo(0);
+      return;
+    }
+    const delta = swipeMonthDelta(
+      event.clientX - drag.startX,
+      viewportRef.current?.clientWidth ?? 0,
+      event.timeStamp - drag.startTime,
+    );
+    if (delta === 0) {
+      animateDragTo(0);
+      return;
+    }
+    commit(delta);
+  }
+
+  function onTransitionEnd(event: ReactTransitionEvent<HTMLDivElement>) {
+    if (event.target !== event.currentTarget || event.propertyName !== 'transform') return;
+    if (pending.current) {
+      finishPending();
+      return;
+    }
+    setAnimate(false);
+  }
+
+  const shown = headingDelta === 0 ? cursor : shiftCursor(cursor, headingDelta);
+
+  return {
+    viewportRef,
+    suppressClick,
+    shown,
+    headingDelta,
+    animate,
+    dragPx,
+    jump,
+    resetVisual,
+    onPointerDown,
+    onPointerMove,
+    onPointerUp: (event: ReactPointerEvent<HTMLDivElement>) => {
+      endDrag(event, false);
+    },
+    onPointerCancel: (event: ReactPointerEvent<HTMLDivElement>) => {
+      endDrag(event, true);
+    },
+    onTransitionEnd,
+  };
+}
+
 function DateCalendar({
   locale,
   value,
@@ -208,84 +430,109 @@ function DateCalendar({
 }: {
   locale: string;
   value: string;
-  cursor: { year: number; month: number };
+  cursor: MonthCursor;
   allowEmpty: boolean;
-  onCursorChange: (next: { year: number; month: number }) => void;
+  onCursorChange: (next: MonthCursor) => void;
   onPick: (value: string) => void;
 }) {
   const weekStart = weekStartsOn(locale);
   const labels = weekdayLabels(locale, weekStart);
-  const first = new Date(cursor.year, cursor.month, 1);
-  const offset = (first.getDay() - weekStart + 7) % 7;
-  const days = Array.from({ length: 42 }, (_, index) => {
-    const date = new Date(cursor.year, cursor.month, 1 - offset + index);
-    return {
-      key: toDateValue(date.getFullYear(), date.getMonth(), date.getDate()),
-      day: date.getDate(),
-      inMonth: date.getMonth() === cursor.month,
-    };
-  });
+  const swipe = useCalendarSwipe(cursor, onCursorChange);
+  const panels = [
+    { slot: 'prev' as const, cursor: shiftCursor(cursor, -1) },
+    { slot: 'current' as const, cursor },
+    { slot: 'next' as const, cursor: shiftCursor(cursor, 1) },
+  ];
 
   return (
     <>
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <NavButton
-          label="Mês anterior"
-          onClick={() => {
-            onCursorChange(
-              cursor.month === 0
-                ? { year: cursor.year - 1, month: 11 }
-                : { year: cursor.year, month: cursor.month - 1 },
-            );
-          }}
-        >
-          ‹
-        </NavButton>
-        <p className="text-sm font-medium capitalize text-ink">
-          {monthLabel(cursor.year, cursor.month, locale)}
-        </p>
-        <NavButton
-          label="Próximo mês"
-          onClick={() => {
-            onCursorChange(
-              cursor.month === 11
-                ? { year: cursor.year + 1, month: 0 }
-                : { year: cursor.year, month: cursor.month + 1 },
-            );
-          }}
-        >
-          ›
-        </NavButton>
-      </div>
-      <div className="grid grid-cols-7 gap-1 text-center text-xs text-ink-faint">
-        {labels.map((label) => (
-          <span key={label} className="py-1 capitalize">
-            {label}
-          </span>
-        ))}
-      </div>
-      <div className="mt-1 grid grid-cols-7 gap-1">
-        {days.map((item) => {
-          const selected = item.key === value;
-          return (
-            <button
-              key={item.key}
-              type="button"
-              className={`min-h-9 rounded-sm text-sm ${selected ? 'bg-brand text-white' : item.inMonth ? 'text-ink hover:bg-surface-sunken' : 'text-ink-faint hover:bg-surface-sunken'}`}
+      <div
+        ref={swipe.viewportRef}
+        className="touch-pan-y select-none overscroll-x-contain"
+        onPointerDown={swipe.onPointerDown}
+        onPointerMove={swipe.onPointerMove}
+        onPointerUp={swipe.onPointerUp}
+        onPointerCancel={swipe.onPointerCancel}
+        onClickCapture={(event) => {
+          if (!swipe.suppressClick.current) return;
+          event.preventDefault();
+          event.stopPropagation();
+        }}
+      >
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <span data-month-nav="">
+            <NavButton
+              label="Mês anterior"
               onClick={() => {
-                onPick(item.key);
+                swipe.jump(-1);
               }}
             >
-              {item.day}
-            </button>
-          );
-        })}
+              ‹
+            </NavButton>
+          </span>
+          <p className="text-sm font-medium capitalize text-ink" aria-live="polite">
+            {monthLabel(swipe.shown.year, swipe.shown.month, locale)}
+          </p>
+          <span data-month-nav="">
+            <NavButton
+              label="Próximo mês"
+              onClick={() => {
+                swipe.jump(1);
+              }}
+            >
+              ›
+            </NavButton>
+          </span>
+        </div>
+        <div className="grid grid-cols-7 gap-1 text-center text-xs text-ink-faint">
+          {labels.map((label) => (
+            <span key={label} className="py-1 capitalize">
+              {label}
+            </span>
+          ))}
+        </div>
+        <div className="mt-1 overflow-x-hidden">
+          <div
+            className="flex w-[300%]"
+            style={{
+              transform: `translate3d(calc(-33.333333% + ${String(swipe.dragPx)}px), 0, 0)`,
+              transition: swipe.animate ? `transform ${String(SLIDE_MS)}ms ease-out` : 'none',
+            }}
+            onTransitionEnd={swipe.onTransitionEnd}
+          >
+            {panels.map((panel, index) => (
+              <div
+                key={panel.slot}
+                className="grid w-1/3 shrink-0 grid-cols-7 gap-1"
+                inert={index !== 1 + swipe.headingDelta}
+              >
+                {monthDays(panel.cursor, weekStart).map((item) => {
+                  const selected = item.key === value;
+                  return (
+                    <button
+                      key={item.key}
+                      type="button"
+                      className={`min-h-9 rounded-sm text-sm ${selected ? 'bg-brand text-white' : item.inMonth ? 'text-ink hover:bg-surface-sunken' : 'text-ink-faint hover:bg-surface-sunken'}`}
+                      onClick={() => {
+                        swipe.resetVisual();
+                        onPick(item.key);
+                      }}
+                    >
+                      {item.day}
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
       {allowEmpty ? (
         <button
           type="button"
           className="mt-2 w-full rounded-sm py-2 text-sm text-ink-soft hover:bg-surface-sunken"
           onClick={() => {
+            swipe.resetVisual();
             onPick('');
           }}
         >
