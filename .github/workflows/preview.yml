@@ -92,7 +92,7 @@ jobs:
       issues: write
     steps:
       - name: Comenta o limite no PR
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const marker = '<!-- orcadom-preview -->';
@@ -153,7 +153,7 @@ jobs:
             echo "::notice::DEPLOY_ENABLED não é true no environment preview — preview pulado."
           fi
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: steps.guard.outputs.enabled == 'true'
 
       - name: Prefixo e tag
@@ -165,10 +165,10 @@ jobs:
           echo "prefix=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
           echo "tag=pr-${PR_NUMBER}-${HEAD_SHA:0:7}" >> "$GITHUB_OUTPUT"
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
         if: steps.guard.outputs.enabled == 'true'
 
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@v4
         if: steps.guard.outputs.enabled == 'true'
         with:
           registry: ghcr.io
@@ -177,7 +177,7 @@ jobs:
 
       - name: Build e push da API
         if: steps.guard.outputs.enabled == 'true'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: apps/api/Dockerfile
@@ -190,7 +190,7 @@ jobs:
 
       - name: Build e push do web
         if: steps.guard.outputs.enabled == 'true'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: apps/web/Dockerfile
@@ -205,7 +205,7 @@ jobs:
 
       - name: Build e push do migrate
         if: steps.guard.outputs.enabled == 'true'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: packages/database/Dockerfile
@@ -279,7 +279,7 @@ jobs:
 
       - name: Comenta o limite no PR
         if: steps.preview.outputs.limited == 'true'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const marker = '<!-- orcadom-preview -->';
@@ -317,7 +317,7 @@ jobs:
 
       - name: Comenta a URL do preview
         if: steps.guard.outputs.enabled == 'true' && steps.preview.outputs.limited == 'false'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         env:
           IMAGE_TAG: ${{ needs.build.outputs.tag }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
@@ -415,7 +415,7 @@ jobs:
 
       - name: Comenta que o preview foi removido
         if: steps.guard.outputs.enabled == 'true'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const marker = '<!-- orcadom-preview -->';
