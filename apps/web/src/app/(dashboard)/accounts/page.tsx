@@ -126,7 +126,9 @@ export default function AccountsPage() {
   return (
     <section>
       <PageHeader title="Contas">
-        <Button onClick={openCreate}>Nova conta</Button>
+        <Button offlineLock onClick={openCreate}>
+          Nova conta
+        </Button>
       </PageHeader>
       {error && !open && !restricting ? (
         <div className="mt-4">
@@ -150,6 +152,7 @@ export default function AccountsPage() {
             restricted={account.isRestricted}
           >
             <Button
+              offlineLock
               variant="secondary"
               onClick={() => {
                 setEditing(account);
@@ -246,7 +249,7 @@ export default function AccountsPage() {
             <Button variant="ghost" onClick={closeForm}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={save.isPending}>
+            <Button offlineLock type="submit" disabled={save.isPending}>
               {save.isPending ? 'Salvando…' : 'Salvar'}
             </Button>
           </div>

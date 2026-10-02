@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
+const publicPaths = new Set(['/offline']);
+
 const protectedPrefixes = [
   '/dashboard',
   '/accounts',
@@ -17,6 +19,8 @@ const protectedPrefixes = [
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  if (publicPaths.has(pathname)) return NextResponse.next();
+
   const hasSession = Boolean(
     request.cookies.get('accessToken') ?? request.cookies.get('refreshToken'),
   );

@@ -9,6 +9,7 @@ import {
   type ReactNode,
   type SelectHTMLAttributes,
 } from 'react';
+import { OFFLINE_WRITE_HINT, useOnlineStatus } from '@/hooks/use-online-status';
 import { createPortal } from 'react-dom';
 import { Drawer } from 'vaul';
 import { formatMoney } from '@/lib/format';
@@ -23,6 +24,8 @@ import { CloseIcon } from './icons';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'ghost';
+  /** Desliga criar/editar enquanto o aparelho está offline e explica no título. */
+  offlineLock?: boolean;
 }
 
 const buttonVariants = {
@@ -38,14 +41,27 @@ export function Button({
   variant = 'primary',
   className = '',
   type = 'button',
+  offlineLock = false,
+  disabled,
+  title,
   ...props
 }: ButtonProps) {
-  return (
+  const online = useOnlineStatus();
+  const locked = offlineLock && !online;
+  const button = (
     <button
       type={type}
+      disabled={Boolean(disabled) || locked}
+      title={locked ? undefined : title}
       className={`${buttonClass} ${buttonVariants[variant]} ${className}`}
       {...props}
     />
+  );
+  if (!locked) return button;
+  return (
+    <span title={OFFLINE_WRITE_HINT} className="inline-flex">
+      {button}
+    </span>
   );
 }
 
@@ -53,15 +69,29 @@ export function ButtonLink({
   href,
   variant = 'primary',
   className = '',
+  offlineLock = false,
   children,
 }: {
   href: string;
   variant?: 'primary' | 'secondary' | 'ghost';
   className?: string;
+  offlineLock?: boolean;
   children: ReactNode;
 }) {
+  const online = useOnlineStatus();
+  const locked = offlineLock && !online;
+  const classes = `${buttonClass} ${buttonVariants[variant]} ${className}`;
+  if (locked) {
+    return (
+      <span title={OFFLINE_WRITE_HINT} className="inline-flex">
+        <span aria-disabled="true" className={`${classes} cursor-not-allowed opacity-60`}>
+          {children}
+        </span>
+      </span>
+    );
+  }
   return (
-    <Link href={href} className={`${buttonClass} ${buttonVariants[variant]} ${className}`}>
+    <Link href={href} className={classes}>
       {children}
     </Link>
   );

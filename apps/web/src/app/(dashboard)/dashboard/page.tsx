@@ -99,11 +99,13 @@ export default function DashboardPage() {
             <EmptyState title="Nenhum movimento neste mês">
               <p>Crie uma conta, uma categoria e o primeiro lançamento para ver os números aqui.</p>
               <div className="mt-4 flex flex-wrap gap-2">
-                <ButtonLink href="/accounts">Criar conta</ButtonLink>
+                <ButtonLink offlineLock href="/accounts">
+                  Criar conta
+                </ButtonLink>
                 <ButtonLink href="/categories" variant="secondary">
                   Categorias
                 </ButtonLink>
-                <ButtonLink href="/transactions" variant="ghost">
+                <ButtonLink offlineLock href="/transactions" variant="ghost">
                   Lançar
                 </ButtonLink>
               </div>

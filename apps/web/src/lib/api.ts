@@ -1,3 +1,5 @@
+import { clearFinancialCaches } from '@/lib/pwa';
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -63,8 +65,7 @@ export async function api<T>(path: string, init: RequestInit = {}, retry = true)
       credentials: 'include',
     });
     if (refresh.ok) return api<T>(path, init, false);
-    await fetch(`${baseUrl}/auth/logout`, { method: 'POST', credentials: 'include' });
-    window.location.assign('/login');
+    await endSession();
     return new Promise<T>(() => undefined);
   }
 
@@ -106,8 +107,7 @@ export async function apiBlob(
       credentials: 'include',
     });
     if (refresh.ok) return apiBlob(path, init, false);
-    await fetch(`${baseUrl}/auth/logout`, { method: 'POST', credentials: 'include' });
-    window.location.assign('/login');
+    await endSession();
     return new Promise<{ blob: Blob; fileName: string | null }>(() => undefined);
   }
 
@@ -128,6 +128,16 @@ export async function apiBlob(
     blob: await response.blob(),
     fileName: fileNameFromDisposition(response.headers.get('content-disposition')),
   };
+}
+
+async function endSession(): Promise<void> {
+  try {
+    await fetch(`${baseUrl}/auth/logout`, { method: 'POST', credentials: 'include' });
+  } catch {
+    // Sem rede o servidor não revoga a sessão; o aparelho mesmo assim esquece os dados.
+  }
+  await clearFinancialCaches();
+  window.location.assign('/login');
 }
 
 function fileNameFromDisposition(header: string | null): string | null {

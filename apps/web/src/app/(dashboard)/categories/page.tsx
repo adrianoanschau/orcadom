@@ -10,6 +10,7 @@ import {
   type CategoryTreeNode,
 } from '@orcadom/types';
 import { useState, type ReactNode } from 'react';
+import { OFFLINE_WRITE_HINT, useOnlineStatus } from '@/hooks/use-online-status';
 import { useForm } from 'react-hook-form';
 import { CategorySelect } from '@/components/category-select';
 import { ChoiceSelect } from '@/components/choice-select';
@@ -148,6 +149,7 @@ export default function CategoriesPage() {
     <section>
       <PageHeader title="Categorias">
         <Button
+          offlineLock
           onClick={() => {
             openCreate();
           }}
@@ -275,7 +277,7 @@ export default function CategoriesPage() {
             <Button variant="ghost" onClick={closeForm}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={save.isPending}>
+            <Button offlineLock type="submit" disabled={save.isPending}>
               {save.isPending ? 'Salvando…' : 'Salvar'}
             </Button>
           </div>
@@ -329,6 +331,7 @@ function CategoryColumn({
   onEdit: (category: Category) => void;
   onDelete: (category: Category) => void;
 }) {
+  const online = useOnlineStatus();
   return (
     <section className="min-w-0 rounded-lg bg-surface p-4 sm:p-6">
       <h2 className="font-display text-h2 font-medium">{title}</h2>
@@ -361,9 +364,10 @@ function CategoryColumn({
             {node.depth < MAX_CATEGORY_DEPTH ? (
               <button
                 type="button"
-                className="inline-flex size-11 items-center justify-center rounded-pill text-ink-soft hover:bg-surface-sunken hover:text-brand"
+                disabled={!online}
+                className="inline-flex size-11 items-center justify-center rounded-pill text-ink-soft hover:bg-surface-sunken hover:text-brand disabled:pointer-events-auto disabled:cursor-not-allowed disabled:opacity-60"
                 aria-label={`Adicionar subcategoria em ${category.name}`}
-                title="Adicionar subcategoria"
+                title={online ? 'Adicionar subcategoria' : OFFLINE_WRITE_HINT}
                 onClick={() => {
                   onAddChild(category);
                 }}
@@ -375,9 +379,10 @@ function CategoryColumn({
               <>
                 <button
                   type="button"
-                  className="inline-flex size-11 items-center justify-center rounded-pill text-ink-soft hover:bg-surface-sunken hover:text-ink"
+                  disabled={!online}
+                  className="inline-flex size-11 items-center justify-center rounded-pill text-ink-soft hover:bg-surface-sunken hover:text-ink disabled:pointer-events-auto disabled:cursor-not-allowed disabled:opacity-60"
                   aria-label={`Editar ${category.name}`}
-                  title="Editar"
+                  title={online ? 'Editar' : OFFLINE_WRITE_HINT}
                   onClick={() => {
                     onEdit(category);
                   }}

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useId, useRef, useState } from 'react';
 import { api, setActiveHouseholdId } from '@/lib/api';
+import { clearFinancialCaches } from '@/lib/pwa';
 import type { PublicUser } from '@/lib/models';
 import { Avatar } from './avatar';
 import { ChevronIcon } from './icons';
@@ -36,7 +37,9 @@ export function UserMenu({
     void api('/auth/logout', { method: 'POST' }).finally(() => {
       setActiveHouseholdId(null);
       queryClient.clear();
-      window.location.assign('/login');
+      void clearFinancialCaches().finally(() => {
+        window.location.assign('/login');
+      });
     });
   }
 

@@ -170,6 +170,7 @@ export default function RecurringPage() {
         description="Aluguel, assinatura, salário. O sistema gera cada ocorrência sozinho."
       >
         <Button
+          offlineLock
           onClick={() => {
             setEditing(null);
             form.reset({ ...emptyForm, startDate: todayInput() });
@@ -221,6 +222,7 @@ export default function RecurringPage() {
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button
+                  offlineLock
                   variant="secondary"
                   onClick={() => {
                     setEditing(item);
@@ -399,7 +401,7 @@ export default function RecurringPage() {
             <Button variant="ghost" onClick={closeForm}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={save.isPending}>
+            <Button offlineLock type="submit" disabled={save.isPending}>
               {save.isPending ? 'Salvando…' : 'Salvar'}
             </Button>
           </div>

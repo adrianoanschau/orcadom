@@ -108,6 +108,7 @@ function WelcomeModal({ open, onCreatePath }: { open: boolean; onCreatePath: str
       <p className="mt-3 text-sm text-ink-soft">Comece pela primeira conta financeira.</p>
       <div className="mt-5 flex justify-end">
         <Button
+          offlineLock
           onClick={() => {
             setClosed(true);
             router.push(onCreatePath);

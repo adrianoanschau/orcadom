@@ -214,7 +214,9 @@ export default function TransactionsPage() {
         >
           Exportar
         </Button>
-        <Button onClick={openCreate}>Novo lançamento</Button>
+        <Button offlineLock onClick={openCreate}>
+          Novo lançamento
+        </Button>
       </PageHeader>
 
       <form
@@ -323,6 +325,7 @@ export default function TransactionsPage() {
               <StatusBadge tone="brand">Importado</StatusBadge>
             ) : null}
             <Button
+              offlineLock
               variant="secondary"
               onClick={() => {
                 setEditing(transaction);
@@ -511,7 +514,7 @@ export default function TransactionsPage() {
             <Button variant="ghost" onClick={closeForm}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={save.isPending}>
+            <Button offlineLock type="submit" disabled={save.isPending}>
               {save.isPending ? 'Salvando…' : 'Salvar'}
             </Button>
           </div>
