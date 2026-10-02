@@ -188,7 +188,9 @@ Todos com exemplo visual no HTML de referência. Implementação em
   `expense`, `pending`. `BudgetProgressBar` é composição (barra + badge).
   Parcelamento usa o mesmo `ProgressBar` com tom `brand`.
 - **Modal** — abaixo de `md`, folha de tela cheia; a partir de `md`,
-  diálogo centralizado. Sempre com botão de fechar.
+  diálogo centralizado. Sempre com botão de fechar. A folha do menu Mais
+  e os seletores de mês e categoria no celular seguem outro padrão (alça,
+  sem o x), em [`36-folha-inferior-seletores.md`](./36-folha-inferior-seletores.md).
 
 ## Responsividade
 
