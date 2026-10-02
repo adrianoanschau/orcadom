@@ -1,5 +1,15 @@
 # @orcadom/web
 
+## 0.19.0
+
+### Minor Changes
+
+- d76c1ac: Abre o app offline com o layout, os últimos dados vistos e aviso de somente leitura.
+
+### Patch Changes
+
+- @orcadom/types@0.19.0
+
 ## 0.18.0
 
 ### Minor Changes
