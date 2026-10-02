@@ -5,6 +5,7 @@ import { createSavingsGoalSchema } from '@orcadom/types';
 import Link from 'next/link';
 import { useCallback, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { ChoiceSelect } from '@/components/choice-select';
 import { DateInput } from '@/components/date-fields';
 import {
   Button,
@@ -15,12 +16,18 @@ import {
   Notice,
   PageHeader,
   ProgressBar,
-  Select,
   StatusBadge,
   controlClass,
 } from '@/components/ui';
 import { ApiError, api } from '@/lib/api';
-import { dateToNoonIso, daysUntilLabel, formatDate, formatMoney, humanize, todayInput } from '@/lib/format';
+import {
+  dateToNoonIso,
+  daysUntilLabel,
+  formatDate,
+  formatMoney,
+  humanize,
+  todayInput,
+} from '@/lib/format';
 import { invalidateOnboarding } from '@/hooks/useOnboardingStatus';
 import { useOpenFromQuery } from '@/lib/use-open-from-query';
 import { savingsGoalStatusLabels } from '@/lib/labels';
@@ -120,11 +127,12 @@ export default function SavingsGoalsPage() {
 
       {!goals.isLoading && (goals.data ?? []).length === 0 ? (
         <EmptyState title="Nenhuma meta ainda">
-          <p>Defina um valor a guardar e vincule a uma conta. Transferências para essa conta passam a contar sozinhas.</p>
+          <p>
+            Defina um valor a guardar e vincule a uma conta. Transferências para essa conta passam a
+            contar sozinhas.
+          </p>
           <div className="mt-4">
-            <Button onClick={openCreate}>
-              Criar primeira meta
-            </Button>
+            <Button onClick={openCreate}>Criar primeira meta</Button>
           </div>
         </EmptyState>
       ) : null}
@@ -145,7 +153,10 @@ export default function SavingsGoalsPage() {
               <li key={goal.id} className="rounded-lg bg-surface p-6">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <Link href={`/savings-goals/${goal.id}`} className="font-display text-h2 font-medium text-ink">
+                    <Link
+                      href={`/savings-goals/${goal.id}`}
+                      className="font-display text-h2 font-medium text-ink"
+                    >
                       {goal.name}
                     </Link>
                     <p className="mt-1 text-sm text-ink-soft">
@@ -167,7 +178,10 @@ export default function SavingsGoalsPage() {
           <ul className="mt-4 space-y-3">
             {abandoned.map((goal) => (
               <li key={goal.id} className="rounded-lg bg-surface p-6">
-                <Link href={`/savings-goals/${goal.id}`} className="font-display text-h2 font-medium text-ink">
+                <Link
+                  href={`/savings-goals/${goal.id}`}
+                  className="font-display text-h2 font-medium text-ink"
+                >
                   {goal.name}
                 </Link>
                 <p className="mt-1 text-sm text-ink-soft">
@@ -202,7 +216,11 @@ export default function SavingsGoalsPage() {
             }}
           >
             <Field label="Nome">
-              <input {...form.register('name')} className={controlClass} placeholder="Viagem, reserva, reforma…" />
+              <input
+                {...form.register('name')}
+                className={controlClass}
+                placeholder="Viagem, reserva, reforma…"
+              />
             </Field>
             <Field label="Valor alvo">
               <input
@@ -215,14 +233,19 @@ export default function SavingsGoalsPage() {
               />
             </Field>
             <Field label="Conta vinculada">
-              <Select {...form.register('accountId')}>
-                <option value="">Escolha a conta</option>
-                {(accounts.data ?? []).map((account) => (
-                  <option key={account.id} value={account.id}>
-                    {account.name}
-                  </option>
-                ))}
-              </Select>
+              <ChoiceSelect
+                title="Conta vinculada"
+                searchLabel="Buscar conta"
+                emptyLabel="Escolha a conta"
+                options={(accounts.data ?? []).map((account) => ({
+                  value: account.id,
+                  label: account.name,
+                }))}
+                value={form.watch('accountId')}
+                onChange={(accountId) => {
+                  form.setValue('accountId', accountId, { shouldDirty: true });
+                }}
+              />
             </Field>
             <p className="text-sm text-ink-soft">
               Prefira uma conta só para esta meta. Se ela também for usada no dia a dia, o progresso
@@ -234,7 +257,10 @@ export default function SavingsGoalsPage() {
                   allowEmpty
                   value={form.watch('targetDate')}
                   onChange={(targetDate) => {
-                    form.setValue('targetDate', targetDate, { shouldDirty: true, shouldValidate: true });
+                    form.setValue('targetDate', targetDate, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    });
                   }}
                 />
               </Field>
@@ -242,7 +268,10 @@ export default function SavingsGoalsPage() {
                 <DateInput
                   value={form.watch('startDate')}
                   onChange={(startDate) => {
-                    form.setValue('startDate', startDate, { shouldDirty: true, shouldValidate: true });
+                    form.setValue('startDate', startDate, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    });
                   }}
                 />
               </Field>
@@ -267,7 +296,10 @@ function GoalCard({ goal }: { goal: SavingsGoal }) {
     <li className="rounded-lg bg-surface p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <Link href={`/savings-goals/${goal.id}`} className="font-display text-h2 font-medium text-ink">
+          <Link
+            href={`/savings-goals/${goal.id}`}
+            className="font-display text-h2 font-medium text-ink"
+          >
             {goal.name}
           </Link>
           <p className="mt-1 text-sm text-ink-soft">

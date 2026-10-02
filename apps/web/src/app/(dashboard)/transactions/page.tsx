@@ -12,6 +12,7 @@ import { dateToNoonIso, formatDate, humanize, todayInput } from '@/lib/format';
 import { transactionTypeLabels, type TransactionType } from '@/lib/labels';
 import type { Account, Category, Transaction, TransactionPage } from '@/lib/models';
 import { CategorySelect, categoryPath } from '@/components/category-select';
+import { ChoiceSelect } from '@/components/choice-select';
 import { DateInput } from '@/components/date-fields';
 import { EntityAudit } from '@/components/entity-audit';
 import { ExportReportPanel } from '@/components/export-report-panel';
@@ -23,7 +24,6 @@ import {
   Modal,
   Notice,
   PageHeader,
-  Select,
   StatusBadge,
   TransactionRow,
   controlClass,
@@ -93,6 +93,14 @@ export default function TransactionsPage() {
   });
 
   const names = new Map((accounts.data ?? []).map((account) => [account.id, account.name]));
+  const accountChoices = (accounts.data ?? []).map((account) => ({
+    value: account.id,
+    label: account.name,
+  }));
+  const typeChoices = Object.entries(transactionTypeLabels).map(([value, label]) => ({
+    value,
+    label,
+  }));
   const categoryNames = new Map(
     (categories.data ?? []).map((category) => [category.id, category.name]),
   );
@@ -217,19 +225,16 @@ export default function TransactionsPage() {
         }}
       >
         <Field label="Conta">
-          <Select
+          <ChoiceSelect
+            title="Conta"
+            searchLabel="Buscar conta"
+            emptyLabel="Todas"
+            options={accountChoices}
             value={draft.accountId}
-            onChange={(event) => {
-              setDraft({ ...draft, accountId: event.target.value });
+            onChange={(accountId) => {
+              setDraft({ ...draft, accountId });
             }}
-          >
-            <option value="">Todas</option>
-            {accounts.data?.map((account) => (
-              <option key={account.id} value={account.id}>
-                {account.name}
-              </option>
-            ))}
-          </Select>
+          />
         </Field>
         <Field label="Categoria">
           <CategorySelect
@@ -417,13 +422,16 @@ export default function TransactionsPage() {
             </Field>
           </div>
           <Field label="Tipo">
-            <Select {...form.register('type')}>
-              {Object.entries(transactionTypeLabels).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </Select>
+            <ChoiceSelect
+              title="Tipo"
+              searchLabel="Buscar tipo"
+              allowEmpty={false}
+              options={typeChoices}
+              value={type}
+              onChange={(next) => {
+                form.setValue('type', next as TransactionType, { shouldDirty: true });
+              }}
+            />
           </Field>
           {type === 'EXPENSE' && !editing ? (
             <label className="flex items-center gap-2 text-sm text-ink">
@@ -453,37 +461,40 @@ export default function TransactionsPage() {
           {type === 'TRANSFER' ? (
             <>
               <Field label="Conta de origem">
-                <Select {...form.register('fromAccountId')}>
-                  <option value="">Selecione</option>
-                  {accounts.data?.map((account) => (
-                    <option key={account.id} value={account.id}>
-                      {account.name}
-                    </option>
-                  ))}
-                </Select>
+                <ChoiceSelect
+                  title="Conta de origem"
+                  searchLabel="Buscar conta"
+                  options={accountChoices}
+                  value={form.watch('fromAccountId')}
+                  onChange={(fromAccountId) => {
+                    form.setValue('fromAccountId', fromAccountId, { shouldDirty: true });
+                  }}
+                />
               </Field>
               <Field label="Conta de destino">
-                <Select {...form.register('toAccountId')}>
-                  <option value="">Selecione</option>
-                  {accounts.data?.map((account) => (
-                    <option key={account.id} value={account.id}>
-                      {account.name}
-                    </option>
-                  ))}
-                </Select>
+                <ChoiceSelect
+                  title="Conta de destino"
+                  searchLabel="Buscar conta"
+                  options={accountChoices}
+                  value={form.watch('toAccountId')}
+                  onChange={(toAccountId) => {
+                    form.setValue('toAccountId', toAccountId, { shouldDirty: true });
+                  }}
+                />
               </Field>
             </>
           ) : (
             <>
               <Field label="Conta">
-                <Select {...form.register('accountId')}>
-                  <option value="">Selecione</option>
-                  {accounts.data?.map((account) => (
-                    <option key={account.id} value={account.id}>
-                      {account.name}
-                    </option>
-                  ))}
-                </Select>
+                <ChoiceSelect
+                  title="Conta"
+                  searchLabel="Buscar conta"
+                  options={accountChoices}
+                  value={form.watch('accountId')}
+                  onChange={(accountId) => {
+                    form.setValue('accountId', accountId, { shouldDirty: true });
+                  }}
+                />
               </Field>
               <Field label="Categoria">
                 <CategorySelect

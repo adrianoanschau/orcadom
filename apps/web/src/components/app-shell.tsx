@@ -8,7 +8,8 @@ import { HomeIcon, ImportIcon, LedgerIcon, MoreIcon } from './icons';
 import { isMoreActive, isNavActive, moreNav, primaryNav } from './nav';
 import { NotificationBell } from './notification-bell';
 import { PwaBanners } from './pwa-banners';
-import { BottomSheet, navigateAfterBottomSheet, Select } from './ui';
+import { ChoiceSelect } from './choice-select';
+import { BottomSheet, navigateAfterBottomSheet } from './ui';
 import { AppVersion } from './app-version';
 import { UserMenu } from './user-menu';
 
@@ -234,20 +235,19 @@ function HouseholdSwitcher({ compact = false }: { compact?: boolean }) {
 
   if (households.length > 1) {
     return (
-      <Select
-        aria-label="Espaço ativo"
+      <ChoiceSelect
+        title="Espaço"
+        searchLabel="Buscar espaço"
+        ariaLabel="Espaço ativo"
+        allowEmpty={false}
         className={compact ? 'min-w-0 max-w-[9.5rem]' : 'w-full'}
+        options={households.map((item) => ({
+          value: item.id,
+          label: item.name,
+        }))}
         value={household?.id ?? ''}
-        onChange={(event) => {
-          setHouseholdId(event.target.value);
-        }}
-      >
-        {households.map((item) => (
-          <option key={item.id} value={item.id}>
-            {item.name}
-          </option>
-        ))}
-      </Select>
+        onChange={setHouseholdId}
+      />
     );
   }
 

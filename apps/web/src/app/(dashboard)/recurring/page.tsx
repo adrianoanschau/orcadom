@@ -5,6 +5,7 @@ import { createRecurringTransactionSchema, updateRecurringTransactionSchema } fr
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { CategorySelect } from '@/components/category-select';
+import { ChoiceSelect } from '@/components/choice-select';
 import { DateInput } from '@/components/date-fields';
 import {
   Button,
@@ -13,7 +14,6 @@ import {
   Modal,
   Notice,
   PageHeader,
-  Select,
   StatusBadge,
   controlClass,
 } from '@/components/ui';
@@ -303,22 +303,37 @@ export default function RecurringPage() {
               </p>
             ) : (
               <Field label="Tipo">
-                <Select {...form.register('type')}>
-                  <option value="EXPENSE">Despesa</option>
-                  <option value="INCOME">Receita</option>
-                </Select>
+                <ChoiceSelect
+                  title="Tipo"
+                  searchLabel="Buscar tipo"
+                  allowEmpty={false}
+                  options={[
+                    { value: 'EXPENSE', label: 'Despesa' },
+                    { value: 'INCOME', label: 'Receita' },
+                  ]}
+                  value={type}
+                  onChange={(next) => {
+                    form.setValue('type', next as 'INCOME' | 'EXPENSE', { shouldDirty: true });
+                  }}
+                />
               </Field>
             )}
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <Field label="Frequência">
-              <Select {...form.register('frequency')}>
-                {Object.entries(recurrenceFrequencyLabels).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </Select>
+              <ChoiceSelect
+                title="Frequência"
+                searchLabel="Buscar frequência"
+                allowEmpty={false}
+                options={Object.entries(recurrenceFrequencyLabels).map(([value, label]) => ({
+                  value,
+                  label,
+                }))}
+                value={frequency}
+                onChange={(next) => {
+                  form.setValue('frequency', next as RecurrenceFrequency, { shouldDirty: true });
+                }}
+              />
             </Field>
             {frequency === 'MONTHLY' ? (
               <Field label="Dia do mês">
@@ -339,7 +354,10 @@ export default function RecurringPage() {
                 <DateInput
                   value={form.watch('startDate')}
                   onChange={(startDate) => {
-                    form.setValue('startDate', startDate, { shouldDirty: true, shouldValidate: true });
+                    form.setValue('startDate', startDate, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    });
                   }}
                 />
               </Field>
@@ -355,14 +373,18 @@ export default function RecurringPage() {
             </Field>
           </div>
           <Field label="Conta">
-            <Select {...form.register('accountId')}>
-              <option value="">Selecione</option>
-              {accounts.data?.map((account) => (
-                <option key={account.id} value={account.id}>
-                  {account.name}
-                </option>
-              ))}
-            </Select>
+            <ChoiceSelect
+              title="Conta"
+              searchLabel="Buscar conta"
+              options={(accounts.data ?? []).map((account) => ({
+                value: account.id,
+                label: account.name,
+              }))}
+              value={form.watch('accountId')}
+              onChange={(accountId) => {
+                form.setValue('accountId', accountId, { shouldDirty: true });
+              }}
+            />
           </Field>
           <Field label="Categoria">
             <CategorySelect

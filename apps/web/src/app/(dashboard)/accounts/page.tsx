@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createAccountSchema, restrictAccountSchema, updateAccountSchema } from '@orcadom/types';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { ChoiceSelect } from '@/components/choice-select';
 import { EntityAudit } from '@/components/entity-audit';
 import { useHousehold } from '@/components/household-provider';
 import {
@@ -14,14 +15,18 @@ import {
   Modal,
   Notice,
   PageHeader,
-  Select,
   controlClass,
 } from '@/components/ui';
 import { invalidateOnboarding } from '@/hooks/useOnboardingStatus';
 import { ApiError, api } from '@/lib/api';
 import { humanize } from '@/lib/format';
 import { accountTypeLabels, type AccountType } from '@/lib/labels';
-import type { Account, AccountAccessResponse, HouseholdMembersResponse, PublicUser } from '@/lib/models';
+import type {
+  Account,
+  AccountAccessResponse,
+  HouseholdMembersResponse,
+  PublicUser,
+} from '@/lib/models';
 import { colors } from '@/lib/tokens';
 import { useOpenFromQuery } from '@/lib/use-open-from-query';
 
@@ -204,13 +209,19 @@ export default function AccountsPage() {
           ) : (
             <>
               <Field label="Tipo">
-                <Select {...form.register('type')}>
-                  {Object.entries(accountTypeLabels).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </Select>
+                <ChoiceSelect
+                  title="Tipo"
+                  searchLabel="Buscar tipo"
+                  allowEmpty={false}
+                  options={Object.entries(accountTypeLabels).map(([value, label]) => ({
+                    value,
+                    label,
+                  }))}
+                  value={form.watch('type')}
+                  onChange={(next) => {
+                    form.setValue('type', next as AccountType, { shouldDirty: true });
+                  }}
+                />
               </Field>
               <Field label="Saldo inicial">
                 <input
@@ -347,7 +358,10 @@ function RestrictAccountModal({
       if (!account) throw new ApiError('Conta não encontrada.', 404);
       const parsed = restrictAccountSchema.safeParse({ householdMemberIds: selected });
       if (!parsed.success) {
-        throw new ApiError(humanize(parsed.error.issues[0]?.message ?? 'Selecione ao menos um membro.'), 400);
+        throw new ApiError(
+          humanize(parsed.error.issues[0]?.message ?? 'Selecione ao menos um membro.'),
+          400,
+        );
       }
       return api(`/accounts/${account.id}/restrict`, {
         method: 'PATCH',
@@ -375,7 +389,11 @@ function RestrictAccountModal({
       onClose();
     },
     onError: (caught: unknown) => {
-      onError(caught instanceof ApiError ? caught.message : 'Não foi possível tornar a conta compartilhada.');
+      onError(
+        caught instanceof ApiError
+          ? caught.message
+          : 'Não foi possível tornar a conta compartilhada.',
+      );
     },
   });
 
