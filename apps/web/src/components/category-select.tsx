@@ -9,13 +9,11 @@ import {
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
-  type ReactNode,
   type RefObject,
 } from 'react';
-import { createPortal } from 'react-dom';
-import { AnchoredPanel } from '@/components/date-fields';
+import { AnchoredPanel, overlayHost } from '@/components/date-fields';
 import { useHousehold } from '@/components/household-provider';
-import { BottomSheet, controlClass } from '@/components/ui';
+import { BottomSheet, InModalSheet, controlClass } from '@/components/ui';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import {
   categoryPath,
@@ -160,43 +158,6 @@ function CategoryOptions({
   );
 }
 
-function CategoryDialogSheet({
-  dialog,
-  onClose,
-  children,
-}: {
-  dialog: HTMLDialogElement;
-  onClose: () => void;
-  children: ReactNode;
-}) {
-  return createPortal(
-    <>
-      <div className="fixed inset-0 z-40" onClick={onClose} />
-      <div
-        className="fixed inset-x-0 bottom-0 z-50 flex flex-col rounded-t-lg border-t border-hairline bg-surface text-ink shadow-sm outline-none"
-        style={{
-          colorScheme: 'light',
-          maxHeight: 'min(85dvh, calc(100dvh - env(safe-area-inset-top)))',
-        }}
-      >
-        <button
-          type="button"
-          aria-label="Fechar"
-          className="flex min-h-11 w-full shrink-0 items-center justify-center"
-          onClick={onClose}
-        >
-          <span className="h-1 w-9 rounded-pill bg-hairline" aria-hidden />
-        </button>
-        <p className="px-5 font-display text-h2 font-medium">Categoria</p>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
-          {children}
-        </div>
-      </div>
-    </>,
-    dialog,
-  );
-}
-
 export function CategorySelect({
   categories,
   value,
@@ -220,7 +181,6 @@ export function CategorySelect({
   const [activeIndex, setActiveIndex] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const dialogRef = useRef<HTMLDialogElement | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const restoreFocusRef = useRef(false);
@@ -299,7 +259,10 @@ export function CategorySelect({
   useEffect(() => {
     if (!open || !isDesktop) return;
     const onPointer = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+      const target = event.target as Node;
+      if (rootRef.current?.contains(target)) return;
+      if (target instanceof Element && target.closest('[data-orcadom-panel]')) return;
+      setOpen(false);
     };
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
@@ -317,20 +280,6 @@ export function CategorySelect({
   }, [open, isDesktop]);
 
   useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!open || !dialog) return;
-    const onCancel = (event: Event) => {
-      event.preventDefault();
-      restoreFocusRef.current = true;
-      setOpen(false);
-    };
-    dialog.addEventListener('cancel', onCancel);
-    return () => {
-      dialog.removeEventListener('cancel', onCancel);
-    };
-  }, [open, insideDialog]);
-
-  useEffect(() => {
     if (open || !restoreFocusRef.current) return;
     restoreFocusRef.current = false;
     triggerRef.current?.focus({ preventScroll: true });
@@ -346,9 +295,8 @@ export function CategorySelect({
       dismiss(true);
       return;
     }
-    const dialog = rootRef.current?.closest('dialog');
-    dialogRef.current = dialog instanceof HTMLDialogElement && dialog.open ? dialog : null;
-    setInsideDialog(dialogRef.current !== null);
+    const host = overlayHost(rootRef.current);
+    setInsideDialog(Boolean(host && host !== document.body));
     setQuery('');
     setOpen(true);
   }
@@ -442,15 +390,16 @@ export function CategorySelect({
           {options}
         </BottomSheet>
       ) : null}
-      {dialogPanel && dialogRef.current ? (
-        <CategoryDialogSheet
-          dialog={dialogRef.current}
+      {dialogPanel ? (
+        <InModalSheet
+          open
+          title="Categoria"
           onClose={() => {
             dismiss(true);
           }}
         >
           {options}
-        </CategoryDialogSheet>
+        </InModalSheet>
       ) : null}
       {popover ? (
         <AnchoredPanel
