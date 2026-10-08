@@ -182,15 +182,17 @@ Todos com exemplo visual no HTML de referência. Implementação em
 - **Badge de status** — `StatusBadge` com tons `neutral`, `brand`,
   `income`, `expense`, `transfer`, `pending`. Usado para orçamento
   (No ritmo / Atenção / Estourado), importação (duplicata, conhecida,
-  conta não mapeada), recorrência (Ativa / Pausada), papel no espaço e
-  histórico de email. Não criar badges ad-hoc por feature.
+  conta não mapeada, conta a pagar sugerida, já lançado), recorrência
+  (Ativa / Pausada), conta a pagar (A pagar / Vence em breve / Atrasada /
+  Paga), papel no espaço e histórico de email. Não criar badges ad-hoc por feature.
 - **Barra de progresso** — `ProgressBar` com tons `brand`, `income`,
   `expense`, `pending`. `BudgetProgressBar` é composição (barra + badge).
-  Parcelamento usa o mesmo `ProgressBar` com tom `brand`.
+  Parcelamento e contas a pagar do mês usam o mesmo `ProgressBar` com tom
+  `brand`.
 - **Modal** — abaixo de `md`, folha de tela cheia; a partir de `md`,
   diálogo centralizado. Sempre com botão de fechar. A folha do menu Mais
   e os seletores de mês e categoria no celular seguem outro padrão (alça,
-  sem o x), em [`36-folha-inferior-seletores.md`](./36-folha-inferior-seletores.md).
+  sem o x), em [`34-folha-inferior-seletores.md`](./34-folha-inferior-seletores.md).
 
 ## Responsividade
 

@@ -260,6 +260,9 @@ chamando `POST /installment-plans` em vez de `POST /transactions`.
   corrente para zerar ou reduzir esse saldo) fica fora de escopo — é uma
   feature relacionada, não coberta aqui, que deveria ser avaliada depois
   como uma extensão do módulo de transferências já existente.
+  **Atualização ([`35`](./35-contas-a-pagar.md), seção 6.4):** uma conta a
+  pagar com `targetAccountId` apontando para o cartão gera a `TRANSFER` do
+  pagamento da fatura. O ciclo de fechamento continua fora de escopo.
 - **Idempotência do job de postagem é essencial.** Se o cron rodar duas
   vezes para a mesma parcela (reinício do processo, execução sobreposta),
   sem a revalidação de status dentro da transação (seção 5.1) o saldo

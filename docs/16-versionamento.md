@@ -36,7 +36,7 @@ schema mais profunda do projeto até aqui, **não precisa** forçar a versão
 seguindo a régua da seção 4.
 
 `1.0.0` é reservado para o marco já definido em `15-roadmap-v1.md`: quando
-os 14 itens do roadmap estiverem completos, o projeto sai do "em
+os 15 itens do roadmap estiverem completos, o projeto sai do "em
 desenvolvimento inicial" e passa a valer a disciplina completa de SemVer
 (seção 2, sem a exceção da 2.1) — a partir daí, sim, uma mudança
 incompatível exige `MAJOR`.
@@ -77,9 +77,21 @@ não muda:
 | `0.14.0` | App Mobile como PWA |
 | `0.15.0` | Permissão Granular por Conta |
 | — | Observabilidade, Backup, CI/CD, Staging, Testes E2E, Rate Limiting — ver seção 4.1 |
-| `0.16.0` | Integração Open Finance |
-| `0.17.0` | Insights Automáticos |
+| a definir | Contas a Pagar + conciliação com a importação (`35`, `36`) |
+| a definir | Integração Open Finance (`37`) |
+| a definir | Insights Automáticos (`38`) |
 | **`1.0.0`** | **Marco de conclusão do roadmap — release estável** |
+
+> **Atualização (outubro de 2026):** a coluna de versão a partir de
+> `0.16.0` era planejamento e já divergiu do publicado. `main` está em
+> `0.19.0`, e essa release contém os documentos **até o 34** (folha
+> inferior e seletores). O número da release **não corresponde** ao número
+> do documento: o Release PR acumula changesets e calcula a versão, e uma
+> release pode juntar vários documentos ou nenhum. Por isso Contas a Pagar
+> (`35`) com a conciliação da importação (`36`), Open Finance (`37`) e
+> Insights (`38`) aparecem como "a definir": entram como `MINOR` no número
+> que o Release PR calcular. A tabela vale, daqui em diante, como
+> **ordem** de entrega, não como numeração.
 
 ### 4.1 — Itens de infraestrutura não incrementam `MINOR`
 
