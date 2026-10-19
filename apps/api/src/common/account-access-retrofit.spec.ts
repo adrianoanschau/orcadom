@@ -7,6 +7,7 @@ const apiRoot = resolve(import.meta.dirname, '../..');
 const ACCOUNT_SCOPED_SOURCES = [
   'src/modules/accounts/accounts.service.ts',
   'src/modules/transactions/transactions.service.ts',
+  'src/modules/bills/bills.service.ts',
   'src/modules/dashboard/dashboard.service.ts',
   'src/modules/installment-plans/installment-plans.service.ts',
   'src/modules/recurring-transactions/recurring-transactions.service.ts',

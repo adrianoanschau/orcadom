@@ -570,7 +570,7 @@ label `preview`. Não implementar as outras fases no mesmo PR.
 ### Fase 1
 
 ```text
-Implemente a fase 1 de docs/36-folha-inferior-seletores.md
+Implemente a fase 1 de docs/34-folha-inferior-seletores.md
 (seções 3, 4, 8 "Fase 1", 9 "Fase 1" e 11).
 
 Crie BottomSheet em apps/web/src/components/ui.tsx com vaul, nos tokens
@@ -594,7 +594,7 @@ não faz parte deste PR.
 ### Fase 2
 
 ```text
-Implemente a fase 2 de docs/36-folha-inferior-seletores.md
+Implemente a fase 2 de docs/34-folha-inferior-seletores.md
 (seções 5, 8 "Fase 2", 9 "Fase 2" e 11). A fase 1 já está em main:
 use o BottomSheet de apps/web/src/components/ui.tsx.
 
@@ -620,7 +620,7 @@ uma única 0.18.0. Não altere a versão na mão.
 ### Fase 3
 
 ```text
-Implemente a fase 3 de docs/36-folha-inferior-seletores.md
+Implemente a fase 3 de docs/34-folha-inferior-seletores.md
 (seções 6, 8 "Fase 3", 9 "Fase 3", 10 e 11). As fases 1 e 2 já estão
 em main: reutilize BottomSheet, useMediaQuery e AnchoredPanel.
 

@@ -65,6 +65,22 @@ enum RecurrenceFrequency {
   YEARLY
 }
 
+enum RecurrenceMode {
+  AUTO_POST
+  BILL
+}
+
+enum BillStatus {
+  PENDING
+  PAID
+  CANCELED
+}
+
+enum BillSettlement {
+  GENERATED
+  LINKED
+}
+
 enum NotificationType {
   BUDGET_WARNING
   BUDGET_EXCEEDED
@@ -204,6 +220,7 @@ model Household {
   auditLogs             AuditLog[]
   savingsGoals          SavingsGoal[]
   reportRequests        ReportRequest[]
+  bills                 Bill[]
 
   @@map("households")
 }
@@ -268,6 +285,9 @@ model Account {
   recurringTransactions RecurringTransaction[]
   savingsGoals          SavingsGoal[]
   accountAccess         AccountAccess[]
+  billsPaying           Bill[]                 @relation("BillPayingAccount")
+  billsTarget           Bill[]                 @relation("BillTargetAccount")
+  recurringBillTargets  RecurringTransaction[] @relation("RecurringBillTarget")
 
   @@index([householdId])
   @@map("accounts")
@@ -308,6 +328,7 @@ model Category {
   budgets               Budget[]
   installmentPlans      InstallmentPlan[]
   recurringTransactions RecurringTransaction[]
+  bills                 Bill[]
 
   // Raízes com o mesmo nome: índice parcial categories_root_name_type_key na migration.
   @@unique([householdId, parentId, name, type])
@@ -355,7 +376,10 @@ model Transaction {
   recurringTransactionId String?
   recurringTransaction   RecurringTransaction? @relation(fields: [recurringTransactionId], references: [id], onDelete: SetNull)
 
+  bill Bill?
+
   @@unique([accountId, externalId])
+  @@unique([fromAccountId, externalId])
   @@unique([recurringTransactionId, date])
   @@index([householdId, date])
   @@index([userId, date])
@@ -408,10 +432,51 @@ model RecurringTransaction {
   categoryId String?
   category   Category? @relation(fields: [categoryId], references: [id])
 
+  mode RecurrenceMode @default(AUTO_POST)
+
+  targetAccountId String?
+  targetAccount   Account? @relation("RecurringBillTarget", fields: [targetAccountId], references: [id], onDelete: Restrict)
+
   occurrences Transaction[]
+  bills       Bill[]
 
   @@index([householdId, active])
   @@map("recurring_transactions")
+}
+
+model Bill {
+  id          String     @id @default(uuid())
+  description String
+  amount      Decimal    @db.Decimal(12, 2)
+  dueDate     DateTime   @db.Date
+  status      BillStatus @default(PENDING)
+  notes       String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  accountId String?
+  account   Account? @relation("BillPayingAccount", fields: [accountId], references: [id], onDelete: SetNull)
+
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  targetAccountId String?
+  targetAccount   Account? @relation("BillTargetAccount", fields: [targetAccountId], references: [id], onDelete: Restrict)
+
+  recurringTransactionId String?
+  recurringTransaction   RecurringTransaction? @relation(fields: [recurringTransactionId], references: [id], onDelete: SetNull)
+
+  transactionId String?         @unique
+  transaction   Transaction?    @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+  settlement    BillSettlement?
+
+  @@unique([recurringTransactionId, dueDate])
+  @@index([householdId, dueDate])
+  @@index([householdId, status, dueDate])
+  @@map("bills")
 }
 
 model ImportBatch {
@@ -420,9 +485,10 @@ model ImportBatch {
   format        ImportFormat
   source        ImportSource @default(MANUAL)
   status        ImportStatus @default(PENDING)
-  totalRows     Int
-  importedRows  Int          @default(0)
-  duplicateRows Int          @default(0)
+  totalRows      Int
+  importedRows   Int          @default(0)
+  duplicateRows  Int          @default(0)
+  reconciledRows Int          @default(0)
   bankId        String?
   acctId        String?
   preview       Json?

@@ -62,6 +62,15 @@ export class AccountsService {
     if (goals > 0) {
       throw new ConflictException('A conta está vinculada a uma meta de economia e não pode ser excluída.');
     }
+    const bills = await this.prisma.client.bill.count({
+      where: { householdId, targetAccountId: id },
+    });
+    const recurringTargets = await this.prisma.client.recurringTransaction.count({
+      where: { householdId, targetAccountId: id },
+    });
+    if (bills + recurringTargets > 0) {
+      throw new ConflictException('Há contas a pagar apontando para esta conta.');
+    }
     await this.prisma.client.account.delete({ where: { id } });
   }
 

@@ -6,6 +6,14 @@
 > mesma infraestrutura, só trocando **quem gera** a próxima parcela
 > agendada.
 
+> **Atualização — Contas a Pagar ([`35`](./35-contas-a-pagar.md)):**
+> `RecurringTransaction` ganha `mode` (`AUTO_POST` | `BILL`) e
+> `targetAccountId`. Em modo `BILL`, o job gera uma `Bill` pendente em vez
+> de uma `Transaction` (horizonte de 30 dias, em laço), e `DELETE` cancela
+> as contas futuras. **Tudo o que este documento descreve é o modo
+> `AUTO_POST`, que permanece inalterado** e é o padrão de toda recorrência
+> existente.
+
 ## 1. Objetivo
 
 Permitir cadastrar um lançamento que se repete (aluguel, assinatura de

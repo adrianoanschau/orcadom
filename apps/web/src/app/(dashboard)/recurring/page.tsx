@@ -32,6 +32,7 @@ interface RecurringForm {
   endDate: string;
   accountId: string;
   categoryId: string;
+  mode: 'AUTO_POST' | 'BILL';
 }
 
 const emptyForm: RecurringForm = {
@@ -44,6 +45,7 @@ const emptyForm: RecurringForm = {
   endDate: '',
   accountId: '',
   categoryId: '',
+  mode: 'AUTO_POST',
 };
 
 export default function RecurringPage() {
@@ -55,6 +57,7 @@ export default function RecurringPage() {
   const form = useForm<RecurringForm>({ defaultValues: emptyForm });
   const type = form.watch('type');
   const frequency = form.watch('frequency');
+  const mode = form.watch('mode');
 
   const accounts = useQuery({ queryKey: ['accounts'], queryFn: () => api<Account[]>('/accounts') });
   const categories = useQuery({
@@ -114,6 +117,7 @@ export default function RecurringPage() {
         endDate: values.endDate ? dateToNoonIso(values.endDate) : undefined,
         accountId: values.accountId || undefined,
         categoryId: values.categoryId || undefined,
+        mode: values.type === 'EXPENSE' ? values.mode : 'AUTO_POST',
       });
       if (!parsed.success) {
         throw new ApiError(humanize(parsed.error.issues[0]?.message ?? 'Valor inválido.'), 400);
@@ -388,6 +392,28 @@ export default function RecurringPage() {
               }}
             />
           </Field>
+          {type === 'EXPENSE' && !editing ? (
+            <Field label="Como lançar?">
+              <ChoiceSelect
+                title="Como lançar"
+                searchLabel="Buscar modo"
+                allowEmpty={false}
+                options={[
+                  { value: 'AUTO_POST', label: 'Lançar sozinho na data' },
+                  { value: 'BILL', label: 'Criar conta a pagar para eu confirmar' },
+                ]}
+                value={mode}
+                onChange={(next) => {
+                  form.setValue('mode', next as 'AUTO_POST' | 'BILL', { shouldDirty: true });
+                }}
+              />
+              <span className="mt-1 block text-sm text-ink-soft">
+                {mode === 'BILL'
+                  ? 'Débito automático não: você confirma o pagamento e o saldo só muda nessa hora.'
+                  : 'Na data, o lançamento entra sozinho, sem uma confirmação.'}
+              </span>
+            </Field>
+          ) : null}
           <Field label="Categoria">
             <CategorySelect
               categories={visibleCategories}

@@ -31,6 +31,9 @@ interface DraftRow {
   lineId: string;
   categoryId: string;
   include: boolean;
+  action: 'IMPORT' | 'SKIP' | 'LINK_TRANSACTION' | 'PAY_BILL';
+  transactionId?: string;
+  billId?: string;
 }
 
 export default function ImportsPage() {
@@ -49,6 +52,7 @@ function ImportsPageInner() {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [drafts, setDrafts] = useState<DraftRow[]>([]);
+  const [conflicts, setConflicts] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const accounts = useQuery({ queryKey: ['accounts'], queryFn: () => api<Account[]>('/accounts') });
@@ -67,19 +71,29 @@ function ImportsPageInner() {
   );
 
   const selected = drafts.filter((draft) => draft.include);
-  const missingCategory = selected.some((draft) => !draft.categoryId);
+  const missingCategory = selected.some(
+    (draft) => draft.action === 'IMPORT' && !draft.categoryId,
+  );
   const needsAccount = Boolean(preview && !preview.accountId && !accountId);
 
   function applyPreview(data: ImportPreview) {
     setPreview(data);
     setAccountId(data.accountId ?? '');
     setDrafts(
-      data.rows.map((row) => ({
-        lineId: row.lineId,
-        categoryId: row.confidence === 'high' ? (row.suggestedCategoryId ?? '') : '',
-        include: !row.isDuplicate,
-      })),
+      data.rows.map((row) => {
+        const suggested = row.reconciliation?.suggestedAction ?? 'IMPORT';
+        const match = row.reconciliation?.matches[0];
+        return {
+          lineId: row.lineId,
+          categoryId: row.confidence === 'high' ? (row.suggestedCategoryId ?? '') : '',
+          include: !row.isDuplicate && suggested !== 'SKIP',
+          action: row.isDuplicate ? 'SKIP' : suggested,
+          transactionId: match?.transactionId,
+          billId: match?.billId,
+        };
+      }),
     );
+    setConflicts([]);
     setError(null);
   }
 
@@ -120,7 +134,13 @@ function ImportsPageInner() {
         method: 'POST',
         body: JSON.stringify({
           accountId: preview.accountId ?? accountId,
-          rows: selected.map((draft) => ({ lineId: draft.lineId, categoryId: draft.categoryId })),
+          rows: selected.map((draft) => ({
+            lineId: draft.lineId,
+            action: draft.action,
+            categoryId: draft.categoryId || undefined,
+            transactionId: draft.transactionId,
+            billId: draft.billId,
+          })),
         }),
       });
     },
@@ -134,6 +154,7 @@ function ImportsPageInner() {
       router.push(`/transactions?accountId=${result.accountId}`);
     },
     onError: (caught: unknown) => {
+      setConflicts(conflictIdsFrom(caught));
       setError(
         caught instanceof ApiError ? caught.message : 'Não foi possível confirmar a importação.',
       );
@@ -161,6 +182,7 @@ function ImportsPageInner() {
   });
 
   function updateDraft(lineId: string, patch: Partial<DraftRow>) {
+    setConflicts((current) => current.filter((id) => id !== lineId));
     setDrafts((current) =>
       current.map((draft) => (draft.lineId === lineId ? { ...draft, ...patch } : draft)),
     );
@@ -281,6 +303,18 @@ function ImportsPageInner() {
                 duplicatas
                 {preview.bankId ? ` · ${preview.bankId}/${preview.acctId ?? '—'}` : ''}
               </p>
+              <p className="mt-1 text-sm text-ink-soft">
+                {String(drafts.filter((draft) => draft.include && draft.action === 'IMPORT').length)}{' '}
+                novas ·{' '}
+                {String(drafts.filter((draft) => draft.include && draft.action === 'PAY_BILL').length)}{' '}
+                contas ·{' '}
+                {String(
+                  drafts.filter((draft) => draft.include && draft.action === 'LINK_TRANSACTION').length,
+                )}{' '}
+                vinculadas ·{' '}
+                {String(drafts.filter((draft) => !draft.include || draft.action === 'SKIP').length)}{' '}
+                ignoradas
+              </p>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button
@@ -339,7 +373,10 @@ function ImportsPageInner() {
                 (category) => category.type === row.type,
               );
               return (
-                <li key={row.lineId} className="rounded-lg bg-surface p-4">
+                <li
+                  key={row.lineId}
+                  className={`rounded-lg bg-surface p-4 ${conflicts.includes(row.lineId) ? 'ring-1 ring-expense' : ''}`}
+                >
                   <div className="flex items-start justify-between gap-3">
                     <label className="flex min-h-11 min-w-0 items-start gap-3 text-ink">
                       <input
@@ -367,12 +404,32 @@ function ImportsPageInner() {
                     </p>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
+                    {conflicts.includes(row.lineId) ? (
+                      <StatusBadge tone="expense">revisar</StatusBadge>
+                    ) : null}
                     {row.isDuplicate ? (
                       <StatusBadge tone="pending">possível duplicata</StatusBadge>
-                    ) : null}
+                    ) : (
+                      <ReconciliationBadge row={row} />
+                    )}
                     {row.confidence === 'high' && suggested ? (
                       <StatusBadge tone="brand">conhecida</StatusBadge>
                     ) : null}
+                    <ReconciliationSelect
+                      row={row}
+                      action={draft?.action ?? 'IMPORT'}
+                      onChange={(action) => {
+                        const match = row.reconciliation?.matches.find((item) =>
+                          action === 'PAY_BILL' ? item.kind === 'BILL' : item.kind !== 'BILL',
+                        );
+                        updateDraft(row.lineId, {
+                          action,
+                          include: action !== 'SKIP',
+                          billId: match?.billId,
+                          transactionId: match?.transactionId,
+                        });
+                      }}
+                    />
                   </div>
                   <div className="mt-3">
                     <ImportCategoryField
@@ -397,6 +454,7 @@ function ImportsPageInner() {
                   <th className="px-4 py-3 font-medium">Incluir</th>
                   <th className="px-4 py-3 font-medium">Data</th>
                   <th className="px-4 py-3 font-medium">Descrição</th>
+                  <th className="px-4 py-3 font-medium">O que fazer</th>
                   <th className="px-4 py-3 font-medium">Valor</th>
                   <th className="px-4 py-3 font-medium">Categoria</th>
                 </tr>
@@ -411,7 +469,10 @@ function ImportsPageInner() {
                     (category) => category.type === row.type,
                   );
                   return (
-                    <tr key={row.lineId} className="border-b border-hairline last:border-b-0">
+                    <tr
+                      key={row.lineId}
+                      className={`border-b border-hairline last:border-b-0 ${conflicts.includes(row.lineId) ? 'bg-expense/10' : ''}`}
+                    >
                       <td className="px-4 py-3 align-top">
                         <input
                           type="checkbox"
@@ -433,6 +494,33 @@ function ImportsPageInner() {
                       </td>
                       <td className="px-4 py-3 align-top">
                         <p className="text-ink">{row.description}</p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {conflicts.includes(row.lineId) ? (
+                            <StatusBadge tone="expense">revisar</StatusBadge>
+                          ) : null}
+                          {row.isDuplicate ? (
+                            <StatusBadge tone="pending">possível duplicata</StatusBadge>
+                          ) : (
+                            <ReconciliationBadge row={row} />
+                          )}
+                        </div>
+                      </td>
+                      <td className="min-w-44 px-4 py-3 align-top">
+                        <ReconciliationSelect
+                          row={row}
+                          action={draft?.action ?? 'IMPORT'}
+                          onChange={(action) => {
+                            const match = row.reconciliation?.matches.find((item) =>
+                              action === 'PAY_BILL' ? item.kind === 'BILL' : item.kind !== 'BILL',
+                            );
+                            updateDraft(row.lineId, {
+                              action,
+                              include: action !== 'SKIP',
+                              billId: match?.billId,
+                              transactionId: match?.transactionId,
+                            });
+                          }}
+                        />
                       </td>
                       <td
                         className={`px-4 py-3 align-top text-right font-bold tabular-nums ${
@@ -462,6 +550,68 @@ function ImportsPageInner() {
         </div>
       ) : null}
     </section>
+  );
+}
+
+function conflictIdsFrom(error: unknown): string[] {
+  if (!(error instanceof ApiError) || !error.body || typeof error.body !== 'object') return [];
+  if (!('rowIds' in error.body)) return [];
+  const rowIds = error.body.rowIds;
+  return Array.isArray(rowIds) ? rowIds.filter((id): id is string => typeof id === 'string') : [];
+}
+
+function ReconciliationBadge({ row }: { row: ImportPreviewRow }) {
+  const match = row.reconciliation?.matches[0];
+  if (!match) return null;
+  if (match.kind === 'BILL') return <StatusBadge tone="brand">Conta a pagar</StatusBadge>;
+  if (match.kind === 'TRANSFER_MIRROR') return <StatusBadge tone="transfer">Espelho de transferência</StatusBadge>;
+  return <StatusBadge tone="pending">Já lançado</StatusBadge>;
+}
+
+function ReconciliationSelect({
+  row,
+  action,
+  onChange,
+}: {
+  row: ImportPreviewRow;
+  action: DraftRow['action'];
+  onChange: (action: DraftRow['action']) => void;
+}) {
+  const matches = row.reconciliation?.matches ?? [];
+  if (row.isDuplicate || matches.length === 0) return null;
+  const options = [
+    { value: 'IMPORT', label: 'Importar como nova' },
+    ...matches.map((match) => ({
+      value: match.kind === 'BILL' ? 'PAY_BILL' : match.kind === 'TRANSFER_MIRROR' ? 'SKIP' : 'LINK_TRANSACTION',
+      label:
+        match.kind === 'BILL'
+          ? `Pagar "${match.description}"`
+          : match.kind === 'TRANSFER_MIRROR'
+            ? 'Ignorar'
+            : `Vincular a "${match.description}"`,
+    })),
+  ];
+  const unique = options.filter((option, index) => options.findIndex((item) => item.value === option.value) === index);
+  return (
+    <label className="mt-2 block min-w-52 text-sm">
+      <span className="sr-only">Resolução de {row.description}</span>
+      <select
+        className={controlClass}
+        value={action}
+        onChange={(event) => {
+          onChange(event.target.value as DraftRow['action']);
+        }}
+      >
+        {unique.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      {row.reconciliation?.suggestedAction === 'IMPORT' && matches.length > 0 ? (
+        <span className="mt-1 block text-ink-soft">Parece o pagamento de {matches[0]?.description}. Escolha vincular para conciliar.</span>
+      ) : null}
+    </label>
   );
 }
 

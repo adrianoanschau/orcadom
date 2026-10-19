@@ -1,4 +1,4 @@
-# Orçadom
+# Orcadom
 
 [![Release](https://img.shields.io/github/v/release/adrianoanschau/orcadom?sort=semver)](https://github.com/adrianoanschau/orcadom/releases/latest)
 
@@ -81,3 +81,4 @@ A pasta [`/docs`](./docs) concentra o desenho do produto. Os documentos de entra
 - [Versionamento — SemVer e Rotina de Releases](./docs/16-versionamento.md)
 - [CI/CD](./docs/28-cicd.md)
 - [Deploy no VPS e previews de PR](./docs/32-deploy-vps-previews.md)
+- [Modelo de infraestrutura](./docs/REL-modelo-infraestrutura.md)

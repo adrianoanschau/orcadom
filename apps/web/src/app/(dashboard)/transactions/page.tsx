@@ -324,6 +324,10 @@ export default function TransactionsPage() {
             {transaction.source === 'IMPORTED' ? (
               <StatusBadge tone="brand">Importado</StatusBadge>
             ) : null}
+            {transaction.billId ? <StatusBadge tone="neutral">Conta paga</StatusBadge> : null}
+            {transaction.source === 'MANUAL' && transaction.externalId ? (
+              <StatusBadge tone="neutral">Conciliado</StatusBadge>
+            ) : null}
             <Button
               offlineLock
               variant="secondary"
@@ -531,6 +535,7 @@ export default function TransactionsPage() {
       >
         <p className="text-sm text-ink-soft">
           Excluir {pendingDelete?.description}? O saldo das contas é recalculado.
+          {pendingDelete?.billId ? ' A conta a pagar vinculada volta a pendente.' : ''}
         </p>
         <div className="mt-4 flex justify-end gap-2">
           <Button

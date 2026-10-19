@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { PostingStatus, TransactionType } from '@orcadom/database';
+import { PostingStatus, Prisma, TransactionSource, TransactionType } from '@orcadom/database';
 import type { CreateTransactionDto, ListTransactionsQuery } from '@orcadom/types';
 import {
   assertAccountAccessible,
@@ -17,6 +17,31 @@ import { BudgetEventsService, type BudgetSnapshot } from '../budgets/budget-even
 import { monthFromDate } from '../budgets/budget-progress.js';
 import { SavingsGoalsService } from '../savings-goals/savings-goals.service.js';
 
+export type TransactionWriter = Prisma.TransactionClient;
+
+export interface TransactionWriteExtras {
+  source?: 'MANUAL' | 'IMPORTED';
+  externalId?: string | null;
+  importBatchId?: string | null;
+  memorySource?: string;
+  recurringTransactionId?: string;
+  postingStatus?: 'POSTED' | 'SCHEDULED';
+}
+
+export type PendingDomainEvent =
+  | {
+      name: 'budget.threshold_crossed';
+      householdId: string;
+      categoryId: string;
+      date: string;
+      previous: BudgetSnapshot | null;
+    }
+  | {
+      name: 'savings-goal.check';
+      householdId: string;
+      accountId: string;
+    };
+
 @Injectable()
 export class TransactionsService {
   constructor(
@@ -33,26 +58,53 @@ export class TransactionsService {
     dto: CreateTransactionDto,
   ) {
     await this.assertReferences(householdId, householdMemberId, dto);
+    const { transaction, events } = await this.prisma.client.$transaction((tx) =>
+      this.createWithin(tx as Prisma.TransactionClient, householdId, userId, dto),
+    );
+    await this.flushEvents(events);
+    return this.toResponse(transaction, new Set(await this.accessibleIds(householdId, householdMemberId)));
+  }
+
+  async createWithin(
+    tx: TransactionWriter,
+    householdId: string,
+    userId: string,
+    dto: CreateTransactionDto,
+    extras: TransactionWriteExtras = {},
+  ): Promise<{ transaction: Awaited<ReturnType<TransactionWriter['transaction']['create']>>; events: PendingDomainEvent[] }> {
     const date = new Date(dto.date);
     const previous =
       dto.type === TransactionType.EXPENSE
         ? await this.budgetEvents.snapshot(householdId, dto.categoryId, date)
         : null;
-    const created = await this.prisma.client.$transaction(async (tx) => {
-      const transaction = await tx.transaction.create({ data: this.toData(householdId, userId, dto) });
-      await applyBalance(tx, transaction, 1);
-      if (transaction.categoryId && transaction.type !== TransactionType.TRANSFER) {
-        await this.categoryMemory.upsert(householdId, transaction.description, transaction.categoryId, tx);
-      }
-      return transaction;
+    const transaction = await tx.transaction.create({
+      data: this.toData(householdId, userId, dto, extras),
     });
-    if (dto.type === TransactionType.EXPENSE) {
-      await this.budgetEvents.emitIfCrossed(householdId, dto.categoryId, date, previous);
+    if ((extras.postingStatus ?? PostingStatus.POSTED) !== PostingStatus.SCHEDULED) {
+      await applyBalance(tx, transaction, 1);
     }
-    if (dto.type === TransactionType.TRANSFER) {
-      await this.savingsGoals.completeIfReached(householdId, dto.toAccountId);
+    const memoryDescription = extras.memorySource ?? transaction.description;
+    if (transaction.categoryId && transaction.type !== TransactionType.TRANSFER) {
+      await this.categoryMemory.upsert(householdId, memoryDescription, transaction.categoryId, tx);
     }
-    return this.toResponse(created, new Set(await this.accessibleIds(householdId, householdMemberId)));
+    return { transaction, events: this.pendingEvents(householdId, dto, date, previous) };
+  }
+
+  async flushEvents(events: readonly PendingDomainEvent[]): Promise<void> {
+    const seen = new Set<string>();
+    for (const event of events) {
+      if (event.name === 'budget.threshold_crossed') {
+        await this.budgetEvents.emitIfCrossed(
+          event.householdId,
+          event.categoryId,
+          new Date(event.date),
+          event.previous,
+          seen,
+        );
+        continue;
+      }
+      await this.savingsGoals.completeIfReached(event.householdId, event.accountId);
+    }
   }
 
   async list(householdId: string, householdMemberId: string, query: ListTransactionsQuery) {
@@ -68,6 +120,7 @@ export class TransactionsService {
       this.prisma.client.transaction.count({ where }),
       this.prisma.client.transaction.findMany({
         where,
+        include: { bill: { select: { id: true, settlement: true } } },
         orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
         skip: (query.page - 1) * query.limit,
         take: query.limit,
@@ -89,6 +142,13 @@ export class TransactionsService {
     dto: CreateTransactionDto,
   ) {
     const current = await this.findOwned(householdId, householdMemberId, id);
+    const linkedBill = await this.prisma.client.bill.findFirst({
+      where: { transactionId: current.id },
+      select: { id: true },
+    });
+    if (linkedBill && dto.type !== current.type) {
+      throw new BadRequestException('O tipo de um lançamento ligado a uma conta a pagar não pode mudar.');
+    }
     await this.assertReferences(householdId, householdMemberId, dto);
     const nextDate = new Date(dto.date);
     const previousByKey = await this.snapshotExpenseKeys(householdId, [
@@ -124,12 +184,53 @@ export class TransactionsService {
 
   async remove(householdId: string, householdMemberId: string, id: string): Promise<void> {
     const current = await this.findOwned(householdId, householdMemberId, id);
-    await this.prisma.client.$transaction(async (tx) => {
-      if (current.postingStatus !== PostingStatus.SCHEDULED) {
-        await applyBalance(tx, current, -1);
-      }
-      await tx.transaction.delete({ where: { id } });
-    });
+    const { events } = await this.prisma.client.$transaction((tx) =>
+      this.deleteWithin(tx as Prisma.TransactionClient, current),
+    );
+    await this.flushEvents(events);
+  }
+
+  async deleteWithin(
+    tx: TransactionWriter,
+    current: {
+      id: string;
+      householdId: string;
+      type: string;
+      amount: Prisma.Decimal;
+      date: Date;
+      accountId: string | null;
+      categoryId: string | null;
+      fromAccountId: string | null;
+      toAccountId: string | null;
+      postingStatus: string;
+    },
+  ): Promise<{ events: PendingDomainEvent[] }> {
+    const previous =
+      current.type === TransactionType.EXPENSE
+        ? await this.budgetEvents.snapshot(current.householdId, current.categoryId, current.date)
+        : null;
+    if (current.postingStatus !== PostingStatus.SCHEDULED) {
+      await applyBalance(tx, current, -1);
+    }
+    const linked = await tx.bill.findFirst({ where: { transactionId: current.id }, select: { id: true } });
+    if (linked) {
+      await tx.bill.update({
+        where: { id: linked.id },
+        data: { status: 'PENDING', transactionId: null, settlement: null },
+      });
+    }
+    await tx.transaction.delete({ where: { id: current.id } });
+    const events: PendingDomainEvent[] = [];
+    if (current.type === TransactionType.EXPENSE && current.categoryId) {
+      events.push({
+        name: 'budget.threshold_crossed',
+        householdId: current.householdId,
+        categoryId: current.categoryId,
+        date: current.date.toISOString(),
+        previous,
+      });
+    }
+    return { events };
   }
 
   private async snapshotExpenseKeys(
@@ -203,7 +304,35 @@ export class TransactionsService {
     return getAccessibleAccountIds(this.prisma.client, householdId, householdMemberId);
   }
 
-  private toData(householdId: string, userId: string, dto: CreateTransactionDto) {
+  private pendingEvents(
+    householdId: string,
+    dto: CreateTransactionDto,
+    date: Date,
+    previous: BudgetSnapshot | null,
+  ): PendingDomainEvent[] {
+    if (dto.type === TransactionType.EXPENSE && dto.categoryId) {
+      return [
+        {
+          name: 'budget.threshold_crossed',
+          householdId,
+          categoryId: dto.categoryId,
+          date: date.toISOString(),
+          previous,
+        },
+      ];
+    }
+    if (dto.type === TransactionType.TRANSFER && dto.toAccountId) {
+      return [{ name: 'savings-goal.check', householdId, accountId: dto.toAccountId }];
+    }
+    return [];
+  }
+
+  private toData(
+    householdId: string,
+    userId: string,
+    dto: CreateTransactionDto,
+    extras: TransactionWriteExtras = {},
+  ) {
     const transfer = dto.type === TransactionType.TRANSFER;
     return {
       householdId,
@@ -216,6 +345,12 @@ export class TransactionsService {
       categoryId: transfer ? null : (dto.categoryId ?? null),
       fromAccountId: transfer ? (dto.fromAccountId ?? null) : null,
       toAccountId: transfer ? (dto.toAccountId ?? null) : null,
+      source: extras.source === 'IMPORTED' ? TransactionSource.IMPORTED : TransactionSource.MANUAL,
+      externalId: extras.externalId ?? null,
+      importBatchId: extras.importBatchId ?? null,
+      recurringTransactionId: extras.recurringTransactionId ?? null,
+      postingStatus:
+        extras.postingStatus === 'SCHEDULED' ? PostingStatus.SCHEDULED : PostingStatus.POSTED,
     };
   }
 
@@ -249,6 +384,7 @@ export class TransactionsService {
       recurringTransactionId?: string | null;
       createdAt: Date;
       updatedAt: Date;
+      bill?: { id: string; settlement: string | null } | null;
     },
     accessibleIds: ReadonlySet<string>,
   ) {
@@ -268,6 +404,8 @@ export class TransactionsService {
       installmentPlanId: transaction.installmentPlanId ?? null,
       installmentNumber: transaction.installmentNumber ?? null,
       recurringTransactionId: transaction.recurringTransactionId ?? null,
+      billId: transaction.bill?.id ?? null,
+      billSettlement: transaction.bill?.settlement ?? null,
       createdAt: transaction.createdAt.toISOString(),
       updatedAt: transaction.updatedAt.toISOString(),
     };

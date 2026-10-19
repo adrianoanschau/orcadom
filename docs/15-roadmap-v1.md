@@ -11,6 +11,12 @@ importância — features de produto e itens de infraestrutura estão
 intercalados de propósito, para não deixar a aplicação acumular dívida de
 produção enquanto todas as features de negócio são construídas primeiro.
 
+**Exceção:** o item 15 (Contas a Pagar) foi acrescentado depois, com o
+roadmap já fechado. A numeração é só identificador — renumerar os itens
+existentes quebraria as referências "item N" espalhadas pelos demais
+documentos. Sua posição de **execução** é logo depois do item 3
+(Onboarding); o diagrama do fim do documento mostra isso.
+
 ---
 
 ## 1. Revisão de Design de Interface e UX — ✅ já implementado
@@ -319,6 +325,39 @@ completo e menos dependente de o usuário lembrar de encaminhar extrato.
 
 ---
 
+## 15. Contas a Pagar e Conciliação com a Importação
+
+**Objetivo:** um checklist de contas do mês — o que vence, o que está
+pago, o que está atrasado. Marcar uma conta como paga cria sozinho o
+lançamento correspondente. Detalhado em
+[`35-contas-a-pagar.md`](./35-contas-a-pagar.md); a parte que impede a
+duplicação com a importação de extrato está em
+[`36-importacao-conciliacao-contas-a-pagar.md`](./36-importacao-conciliacao-contas-a-pagar.md).
+
+**Por que entra, e por que nesta posição de execução:** pedido depois do
+roadmap fechado. Só depende do domínio já existente (transações,
+recorrência, household, permissão por conta), muda o dia a dia mais do que
+Exportar ou PWA, e por isso executa logo depois do Onboarding (item 3),
+antes de Exportar Relatórios. A conciliação com a importação **não é
+opcional**: sem ela, marcar uma conta como paga e importar o extrato gera
+dois lançamentos para o mesmo débito — por isso as duas entregas vão no
+mesmo Release PR.
+
+**Escopo aproximado:**
+- `Bill` (conta a pagar) sem efeito financeiro até ser paga; pagar cria a
+  `Transaction` pelo mesmo serviço de `POST /transactions`.
+- Desfazer pagamento; fatura de cartão paga como transferência, não
+  despesa.
+- Recorrência em modo `BILL` (reaproveita o motor de `12`).
+- Tela `/bills` e card no painel.
+- Importação: o preview concilia linhas com lançamentos existentes e
+  contas pendentes; a confirmação ganha as ações vincular e pagar conta.
+
+**Impacto na 1.0:** passa a fazer parte do critério — a 1.0 exige os 15
+itens.
+
+---
+
 ## Resumo da sequência e dependências
 
 ```
@@ -330,6 +369,10 @@ Metas de Economia ─────────────────── impl
         ▼
 Onboarding para Novos Usuários ──────── depende da IA/navegação já revisada;
         │                                já incorpora Metas como passo do roteiro
+        ▼
+Contas a Pagar + Conciliação (15) ───── só depende do domínio existente; a
+        │                                conciliação fecha a duplicação com
+        │                                a importação (07/08)
         ▼
 Exportar Relatórios ────────────┐
 App Mobile (PWA) ────────────────┤ (produto — pouca dependência de infra)
@@ -347,5 +390,5 @@ Integração Open Finance ── depende de toda a infraestrutura acima
 Insights Automáticos ────── depende de Open Finance (dado mais completo)
 ```
 
-Quando terminarmos de detalhar e implementar os 14 itens acima, a
+Quando terminarmos de detalhar e implementar os 15 itens acima, a
 aplicação chega à **versão 1.0**.

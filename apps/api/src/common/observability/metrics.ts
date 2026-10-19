@@ -45,6 +45,27 @@ export function recordAutomationIngest(status: string): void {
   automationIngestTotal.inc({ status });
 }
 
+export const importReconciliationTotal = new Counter({
+  name: 'import_reconciliation_total',
+  help: 'Linhas de importação resolvidas por ação e confiança',
+  labelNames: ['action', 'confidence'] as const,
+  registers: [metricsRegistry],
+});
+
+export const importReconciliationConflictTotal = new Counter({
+  name: 'import_reconciliation_conflict_total',
+  help: 'Confirmações de importação recusadas porque a ligação mudou',
+  registers: [metricsRegistry],
+});
+
+export function recordImportReconciliation(action: string, confidence: string): void {
+  importReconciliationTotal.inc({ action, confidence });
+}
+
+export function recordImportReconciliationConflict(): void {
+  importReconciliationConflictTotal.inc();
+}
+
 export function observeHttpRequest(
   method: string,
   route: string,

@@ -8,5 +8,6 @@ import { TransactionsService } from './transactions.service.js';
   imports: [BudgetsModule, SavingsGoalsModule],
   controllers: [TransactionsController],
   providers: [TransactionsService],
+  exports: [TransactionsService],
 })
 export class TransactionsModule {}

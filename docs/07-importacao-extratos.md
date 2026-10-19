@@ -238,6 +238,16 @@ parseado associado ao `batchId` (cache em memória, arquivo temporário, ou
 Redis se o projeto já tiver esse serviço), gravando no Postgres apenas na
 confirmação. Isso evita rotina de limpeza de batches abandonados no banco.
 
+> **Atualização — Contas a Pagar
+> ([`36`](./36-importacao-conciliacao-contas-a-pagar.md)):** a
+> deduplicação deixa de ser só por `externalId`. O preview passa a cruzar
+> cada linha com lançamentos já existentes que ainda não têm `externalId`
+> (inclusive os gerados por "marcar como paga" em
+> [`35`](./35-contas-a-pagar.md)) e com contas a pagar pendentes, e a
+> confirmação ganha as ações `LINK_TRANSACTION` e `PAY_BILL`. Sem isso,
+> pagar pelo checklist e importar o extrato gera dois lançamentos para o
+> mesmo débito. A regra "importação nunca grava direto" continua valendo.
+
 ## 6. Frontend
 
 Tela nova em `/imports`:
@@ -305,3 +315,9 @@ aprender com os lançamentos manuais feitos antes da primeira importação.
   `occurrences` antes de tratar uma sugestão como `high` — não é bloqueante
   para o MVP desta feature, mas deve ficar registrado como melhoria
   conhecida.
+
+- **Duplicata contra lançamento manual não era detectada.** `externalId`
+  só reconhece linhas já importadas; um lançamento digitado à mão (ou
+  gerado ao marcar uma conta como paga) cobre o mesmo débito sem ser
+  reconhecido. Tratado em
+  [`36`](./36-importacao-conciliacao-contas-a-pagar.md).

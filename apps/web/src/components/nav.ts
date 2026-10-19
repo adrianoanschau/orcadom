@@ -31,6 +31,7 @@ export const moreNav: NavGroup[] = [
     items: [
       { href: '/installments', label: 'Parcelas' },
       { href: '/recurring', label: 'Recorrentes' },
+      { href: '/bills', label: 'Contas a pagar' },
     ],
   },
   {

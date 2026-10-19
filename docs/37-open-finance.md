@@ -39,7 +39,10 @@ enum ImportSource {
 
 Isso significa que toda a lógica de deduplicação, categorização por
 memória, e revisão humana antes de confirmar já funciona sem
-modificação — só a etapa de "de onde vêm os dados" muda.
+modificação — só a etapa de "de onde vêm os dados" muda. A conciliação com
+lançamentos existentes e com contas a pagar
+([`36`](./36-importacao-conciliacao-contas-a-pagar.md)) também roda no
+preview, qualquer que seja a origem.
 
 ## 4. Modelagem de Dados (preliminar)
 
