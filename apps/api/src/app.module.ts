@@ -35,6 +35,7 @@ import { ReportsModule } from './modules/reports/reports.module.js';
 import { HouseholdsModule } from './modules/households/households.module.js';
 import { OnboardingModule } from './modules/onboarding/onboarding.module.js';
 import { SavingsGoalsModule } from './modules/savings-goals/savings-goals.module.js';
+import { BillsModule } from './modules/bills/bills.module.js';
 import { TransactionsModule } from './modules/transactions/transactions.module.js';
 
 const cronImports = process.env.CRON_DISABLED === 'true' ? [] : [ScheduleModule.forRoot()];
@@ -58,6 +59,7 @@ const cronImports = process.env.CRON_DISABLED === 'true' ? [] : [ScheduleModule.
     AccountsModule,
     CategoriesModule,
     TransactionsModule,
+    BillsModule,
     InstallmentPlansModule,
     RecurringTransactionsModule,
     ReportsModule,

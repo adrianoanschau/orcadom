@@ -12,6 +12,7 @@ export const AUDITED_MODELS = [
   'HouseholdMember',
   'SavingsGoal',
   'ReportRequest',
+  'Bill',
 ] as const;
 
 export type AuditedModel = (typeof AUDITED_MODELS)[number];
@@ -43,6 +44,10 @@ const FIELD_LABELS: Record<string, string> = {
   startDate: 'início',
   completedAt: 'conclusão',
   format: 'formato',
+  dueDate: 'vencimento',
+  settlement: 'acerto',
+  notes: 'observação',
+  mode: 'modo',
 };
 
 const MONEY_FIELDS = new Set(['amount', 'balance', 'totalAmount', 'targetAmount']);
@@ -59,16 +64,20 @@ const VALUE_LABELS: Record<string, Record<string, string>> = {
   },
   postingStatus: { SCHEDULED: 'agendada', POSTED: 'postada' },
   frequency: { WEEKLY: 'semanal', MONTHLY: 'mensal', YEARLY: 'anual' },
+  format: { PDF: 'PDF', XLSX: 'Excel' },
   status: {
     ACTIVE: 'ativa',
     COMPLETED: 'concluída',
     ABANDONED: 'abandonada',
     PENDING: 'pendente',
+    PAID: 'paga',
+    CANCELED: 'cancelada',
     PROCESSING: 'processando',
     READY: 'pronto',
     FAILED: 'falhou',
   },
-  format: { PDF: 'PDF', XLSX: 'Excel' },
+  settlement: { GENERATED: 'gerado', LINKED: 'vinculado' },
+  mode: { AUTO_POST: 'lançar sozinho', BILL: 'conta a pagar' },
 };
 
 export interface AuditWriteInput {
@@ -179,7 +188,24 @@ export function formatAuditHeadline(input: {
   action: AuditAction;
   source: AuditSource;
   actorName: string | null;
+  entityType?: string;
+  description?: string | null;
+  amount?: string | null;
+  status?: string | null;
 }): string {
+  if (
+    input.entityType === 'Bill' &&
+    input.action === 'UPDATE' &&
+    input.status === 'PAID' &&
+    input.source === 'USER'
+  ) {
+    const who = input.actorName ?? 'um membro';
+    const detail = [input.description, input.amount ? `R$ ${input.amount}` : null].filter(Boolean).join(', ');
+    return detail ? `Conta paga por ${who} — ${detail}` : `Conta paga por ${who}`;
+  }
+  if (input.entityType === 'Transaction' && input.action === 'UPDATE' && input.status === 'RECONCILED') {
+    return input.actorName ? `Conciliado com o extrato por ${input.actorName}` : 'Conciliado com o extrato';
+  }
   const verb =
     input.action === 'CREATE' ? 'Criado' : input.action === 'UPDATE' ? 'Editado' : 'Removido';
   if (input.source === 'USER') {

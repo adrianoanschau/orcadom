@@ -1,12 +1,13 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { HouseholdRole, PostingStatus, TransactionType } from '@orcadom/database';
+import { AccountType, HouseholdRole, PostingStatus, Prisma, RecurrenceMode, TransactionType } from '@orcadom/database';
 import type {
   CreateRecurringTransactionDto,
   UpdateRecurringTransactionDto,
 } from '@orcadom/types';
 import { accessibleAccountWhere, assertAccountAccessible } from '../../common/account-access.js';
 import { captureJobItemError, runObservedJob } from '../../common/observability/run-observed-job.js';
+import { addDaysKey, BILL_GENERATION_HORIZON_DAYS, noonUtcFromKey, todayKeyInSaoPaulo } from '../../common/calendar.js';
 import { applyBalance } from '../../common/balance.js';
 import { moneyString, toDecimal } from '../../common/money.js';
 import { PrismaService } from '../../common/prisma.service.js';
@@ -27,8 +28,13 @@ export class RecurringTransactionsService {
   ) {}
 
   async create(householdId: string, householdMemberId: string, dto: CreateRecurringTransactionDto) {
+    const mode = dto.mode ?? 'AUTO_POST';
     await this.assertAccount(householdId, householdMemberId, dto.accountId);
-    await this.assertCategory(householdId, dto.categoryId, dto.type);
+    if (dto.targetAccountId) {
+      await this.assertAccount(householdId, householdMemberId, dto.targetAccountId);
+      await this.assertCard(householdId, dto.targetAccountId);
+    }
+    if (dto.categoryId) await this.assertCategory(householdId, dto.categoryId, dto.type);
     const startDate = new Date(dto.startDate);
     const created = await this.prisma.client.recurringTransaction.create({
       data: {
@@ -41,7 +47,9 @@ export class RecurringTransactionsService {
         startDate,
         endDate: dto.endDate ? new Date(dto.endDate) : null,
         accountId: dto.accountId,
-        categoryId: dto.categoryId,
+        categoryId: dto.targetAccountId ? null : (dto.categoryId ?? null),
+        mode,
+        targetAccountId: dto.targetAccountId ?? null,
       },
     });
     await this.generateFor(created.id);
@@ -54,7 +62,9 @@ export class RecurringTransactionsService {
       include: {
         account: { select: { name: true } },
         category: { select: { name: true } },
+        targetAccount: { select: { name: true } },
         occurrences: { select: { date: true }, orderBy: { date: 'desc' }, take: 1 },
+        bills: { select: { dueDate: true }, orderBy: { dueDate: 'desc' }, take: 1 },
       },
       orderBy: [{ active: 'desc' }, { createdAt: 'desc' }],
     });
@@ -85,6 +95,8 @@ export class RecurringTransactionsService {
         ...(dto.endDate !== undefined ? { endDate: dto.endDate ? new Date(dto.endDate) : null } : {}),
         ...(dto.accountId !== undefined ? { accountId: dto.accountId } : {}),
         ...(dto.categoryId !== undefined ? { categoryId: dto.categoryId } : {}),
+        ...(dto.mode !== undefined ? { mode: dto.mode } : {}),
+        ...(dto.targetAccountId !== undefined ? { targetAccountId: dto.targetAccountId } : {}),
       },
     });
     return this.get(householdId, householdMemberId, id);
@@ -111,6 +123,24 @@ export class RecurringTransactionsService {
 
   async remove(householdId: string, householdMemberId: string, id: string): Promise<void> {
     const current = await this.findOwned(householdId, householdMemberId, id);
+    if (current.mode === RecurrenceMode.BILL) {
+      const today = noonUtcFromKey(todayKeyInSaoPaulo());
+      await this.prisma.client.$transaction(async (tx) => {
+        await tx.bill.updateMany({
+          where: {
+            recurringTransactionId: current.id,
+            status: 'PENDING',
+            dueDate: { gt: today },
+          },
+          data: { status: 'CANCELED' },
+        });
+        await tx.recurringTransaction.update({
+          where: { id: current.id },
+          data: { active: false },
+        });
+      });
+      return;
+    }
     await this.prisma.client.$transaction(async (tx) => {
       await tx.transaction.deleteMany({
         where: {
@@ -125,7 +155,7 @@ export class RecurringTransactionsService {
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT, { timeZone: 'America/Sao_Paulo' })
   async generateDueRecurringOccurrences(): Promise<number> {
     return runObservedJob('recurring_generate', 'CRON_RECURRING', async () => {
-      const horizon = recurrenceHorizon();
+      const horizon = noonUtcFromKey(addDaysKey(todayKeyInSaoPaulo(), BILL_GENERATION_HORIZON_DAYS));
       const active = await this.prisma.client.recurringTransaction.findMany({
         where: {
           active: true,
@@ -148,9 +178,13 @@ export class RecurringTransactionsService {
   private async generateFor(id: string): Promise<number> {
     const recurring = await this.prisma.client.recurringTransaction.findUnique({
       where: { id },
-      include: { occurrences: { select: { date: true }, orderBy: { date: 'desc' }, take: 1 } },
+      include: {
+        occurrences: { select: { date: true }, orderBy: { date: 'desc' }, take: 1 },
+        bills: { select: { dueDate: true }, orderBy: { dueDate: 'desc' }, take: 1 },
+      },
     });
     if (!recurring?.active) return 0;
+    if (recurring.mode === RecurrenceMode.BILL) return this.generateBills(recurring);
 
     const last = recurring.occurrences[0]?.date ?? null;
     const dates = occurrenceDatesUntil(toRule(recurring), last, recurrenceHorizon());
@@ -200,6 +234,47 @@ export class RecurringTransactionsService {
     return created;
   }
 
+  private async generateBills(recurring: {
+    id: string;
+    householdId: string;
+    description: string;
+    amount: Prisma.Decimal;
+    accountId: string;
+    categoryId: string | null;
+    targetAccountId: string | null;
+    endDate: Date | null;
+    frequency: string;
+    dayOfMonth: number | null;
+    startDate: Date;
+    bills: { dueDate: Date }[];
+  }): Promise<number> {
+    const horizon = noonUtcFromKey(addDaysKey(todayKeyInSaoPaulo(), BILL_GENERATION_HORIZON_DAYS));
+    const last = recurring.bills[0]?.dueDate ?? null;
+    const dates = occurrenceDatesUntil(toRule(recurring), last, horizon);
+    let created = 0;
+    for (const dueDate of dates) {
+      try {
+        await this.prisma.client.bill.create({
+          data: {
+            householdId: recurring.householdId,
+            description: recurring.description,
+            amount: recurring.amount,
+            dueDate,
+            accountId: recurring.accountId,
+            categoryId: recurring.categoryId,
+            targetAccountId: recurring.targetAccountId,
+            recurringTransactionId: recurring.id,
+          },
+        });
+        created += 1;
+      } catch (error) {
+        if (isUniqueViolation(error)) continue;
+        captureJobItemError('recurring_generate', error, recurring.id);
+      }
+    }
+    return created;
+  }
+
   private async findOwned(householdId: string, householdMemberId: string, id: string) {
     const row = await this.prisma.client.recurringTransaction.findFirst({
       where: { id, householdId, account: accessibleAccountWhere(householdId, householdMemberId) },
@@ -207,6 +282,8 @@ export class RecurringTransactionsService {
         account: { select: { name: true } },
         category: { select: { name: true } },
         occurrences: { select: { date: true }, orderBy: { date: 'desc' }, take: 1 },
+        bills: { select: { dueDate: true }, orderBy: { dueDate: 'desc' }, take: 1 },
+        targetAccount: { select: { name: true } },
       },
     });
     if (!row) {
@@ -234,6 +311,13 @@ export class RecurringTransactionsService {
     await assertAccountAccessible(this.prisma.client, householdId, householdMemberId, accountId);
   }
 
+  private async assertCard(householdId: string, accountId: string): Promise<void> {
+    const account = await this.prisma.client.account.findFirst({ where: { id: accountId, householdId } });
+    if (account?.type !== AccountType.CREDIT_CARD) {
+      throw new BadRequestException('A fatura precisa apontar para uma conta de cartão.');
+    }
+  }
+
   private async assertCategory(householdId: string, categoryId: string, type: string): Promise<void> {
     const category = await this.prisma.client.category.findFirst({ where: { id: categoryId, householdId } });
     if (!category) {
@@ -256,11 +340,16 @@ export class RecurringTransactionsService {
     active: boolean;
     accountId: string;
     categoryId: string | null;
+    mode: string;
+    targetAccountId: string | null;
     account: { name: string };
     category: { name: string } | null;
+    targetAccount?: { name: string } | null;
     occurrences: { date: Date }[];
+    bills?: { dueDate: Date }[];
   }) {
-    const last = row.occurrences[0]?.date ?? null;
+    const last =
+      row.mode === 'BILL' ? (row.bills?.[0]?.dueDate ?? null) : (row.occurrences[0]?.date ?? null);
     const computed = last && last.getTime() > Date.now() ? last : calculateNextOccurrenceDate(toRule(row), last);
     const ended = row.endDate ? startOfToday().getTime() > startOfUtcDaySafe(row.endDate) : false;
     const nextOccurrence =
@@ -281,6 +370,9 @@ export class RecurringTransactionsService {
       accountName: row.account.name,
       categoryId: row.categoryId,
       categoryName: row.category?.name ?? null,
+      mode: row.mode,
+      targetAccountId: row.targetAccountId,
+      targetAccountName: row.targetAccount?.name ?? null,
       nextOccurrence,
     };
   }

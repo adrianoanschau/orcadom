@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { api } from '@/lib/api';
 import { currentMonth, daysUntil, daysUntilLabel, formatMoney } from '@/lib/format';
-import type { BudgetList, DashboardSummary, ExpenseByCategory, SavingsGoal } from '@/lib/models';
+import type { BillSummary, BudgetList, DashboardSummary, ExpenseByCategory, SavingsGoal } from '@/lib/models';
 import { MonthInput } from '@/components/date-fields';
 import { OnboardingChecklist } from '@/components/onboarding-checklist';
 import {
@@ -16,6 +16,7 @@ import {
   PageHeader,
   ProgressBar,
   StatCard,
+  StatusBadge,
 } from '@/components/ui';
 
 export default function DashboardPage() {
@@ -27,6 +28,10 @@ export default function DashboardPage() {
   const budgets = useQuery({
     queryKey: ['budgets', month],
     queryFn: () => api<BudgetList>(`/budgets?month=${month}`),
+  });
+  const bills = useQuery({
+    queryKey: ['bills', 'summary', month],
+    queryFn: () => api<BillSummary>(`/bills/summary?month=${month}`),
   });
   const goals = useQuery({
     queryKey: ['savings-goals'],
@@ -94,6 +99,19 @@ export default function DashboardPage() {
                 Ver planos
               </Link>
             </p>
+          ) : null}
+          {bills.data && bills.data.totalCount > 0 ? (
+            <Link href="/bills" className="mt-4 block rounded-lg bg-surface p-6">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="font-display text-h2 font-medium">Contas a pagar</h2>
+                {bills.data.overdueCount > 0 ? (
+                  <StatusBadge tone="expense">{bills.data.overdueCount} atrasadas</StatusBadge>
+                ) : null}
+              </div>
+              <p className="mt-2 text-sm text-ink-soft">
+                {bills.data.pendingCount} pendentes · {formatMoney(bills.data.remainingAmount)}
+              </p>
+            </Link>
           ) : null}
           {empty ? (
             <EmptyState title="Nenhum movimento neste mês">

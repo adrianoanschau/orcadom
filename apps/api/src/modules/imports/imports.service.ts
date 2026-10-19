@@ -1,19 +1,20 @@
 import {
   BadRequestException,
+  ConflictException,
   GoneException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { ImportSource, ImportStatus, Prisma, TransactionSource } from '@orcadom/database';
+import { BillStatus, ImportSource, ImportStatus, PostingStatus, Prisma } from '@orcadom/database';
 import type { ConfirmImportDto } from '@orcadom/types';
 import { randomUUID } from 'node:crypto';
-import { accessibleAccountWhere, assertAccountAccessible } from '../../common/account-access.js';
-import { applyBalance } from '../../common/balance.js';
+import { accessibleAccountWhere, assertAccountAccessible, getAccessibleAccountIds } from '../../common/account-access.js';
+import { addDaysKey, noonUtcFromKey, utcDateKey } from '../../common/calendar.js';
 import { CategoryMemoryService } from '../../common/category-memory.service.js';
 import { moneyString, toDecimal } from '../../common/money.js';
 import { PrismaService } from '../../common/prisma.service.js';
-import { BudgetEventsService, type BudgetSnapshot } from '../budgets/budget-events.service.js';
-import { monthFromDate } from '../budgets/budget-progress.js';
+import { recordImportReconciliation, recordImportReconciliationConflict } from '../../common/observability/metrics.js';
+import { TransactionsService } from '../transactions/transactions.service.js';
 import {
   hydratePreviewRows,
   ImportPreviewStore,
@@ -24,6 +25,15 @@ import {
 } from './import-preview.store.js';
 import { parseCsv } from './parsers/csv.js';
 import { parseOfx } from './parsers/ofx.js';
+import {
+  BILL_MATCH_WIDE,
+  matchImportRows,
+  RECONCILE_TX_DAYS,
+  type MatchBillCandidate,
+  type MatchLine,
+  type MatchTransactionCandidate,
+  type RowReconciliation,
+} from './match-import-rows.js';
 import { decodeStatementText, detectFormat, type ParsedStatementRow } from './parsers/shared.js';
 
 interface UploadedFile {
@@ -40,6 +50,7 @@ export interface CreatePendingBatchInput {
   status: ImportStatus;
   bankId?: string | null;
   acctId?: string | null;
+  householdMemberId?: string;
   rows: ParsedStatementRow[];
 }
 
@@ -49,7 +60,7 @@ export class ImportsService {
     private readonly prisma: PrismaService,
     private readonly store: ImportPreviewStore,
     private readonly categoryMemory: CategoryMemoryService,
-    private readonly budgetEvents: BudgetEventsService,
+    private readonly transactions: TransactionsService,
   ) {}
 
   async upload(
@@ -83,6 +94,7 @@ export class ImportsService {
 
     return this.createPendingBatch({
       householdId,
+      householdMemberId,
       accountId,
       fileName: file.originalname || `extrato.${format.toLowerCase()}`,
       format,
@@ -128,7 +140,7 @@ export class ImportsService {
       rows,
     });
 
-    return this.toPreview(batch, rows, input.householdId);
+    return this.toPreview(batch, rows, input.householdId, input.householdMemberId);
   }
 
   async listOpen(householdId: string, householdMemberId: string) {
@@ -175,7 +187,7 @@ export class ImportsService {
     if (stored.accountId) {
       await this.markDuplicates(householdId, stored.accountId, stored.rows);
     }
-    return this.toPreview(batch, stored.rows, householdId);
+    return this.toPreview(batch, stored.rows, householdId, householdMemberId);
   }
 
   async confirm(
@@ -216,49 +228,168 @@ export class ImportsService {
       if (!storedRow) {
         throw new BadRequestException('Uma das linhas da prévia não foi encontrada.');
       }
-      return { ...storedRow, categoryId: row.categoryId };
+      return {
+        ...storedRow,
+        action: row.action ?? ('IMPORT' as const),
+        categoryId: row.categoryId,
+        transactionId: row.transactionId,
+        billId: row.billId,
+      };
     });
 
     await this.assertCategories(
       householdId,
-      selected.map((row) => ({ categoryId: row.categoryId, type: row.type })),
+      selected.flatMap((row) =>
+        row.action === 'IMPORT' && row.categoryId
+          ? [{ categoryId: row.categoryId, type: row.type }]
+          : [],
+      ),
     );
 
-    const previousByKey = new Map<string, { categoryId: string; date: Date; snapshot: BudgetSnapshot | null }>();
-    for (const row of selected) {
-      if (row.type !== 'EXPENSE') continue;
-      const key = `${row.categoryId}:${monthFromDate(row.date)}`;
-      if (previousByKey.has(key)) continue;
-      const snapshot = await this.budgetEvents.snapshot(householdId, row.categoryId, row.date);
-      previousByKey.set(key, {
-        categoryId: row.categoryId,
-        date: row.date,
-        snapshot,
-      });
-    }
+    const confirmed = await this.prisma.client.$transaction(async (raw) => {
+      const tx = raw as Prisma.TransactionClient;
+      const billIds = selected
+        .flatMap((row) => (row.action === 'PAY_BILL' && row.billId ? [row.billId] : []))
+        .sort();
+      const transactionIds = selected
+        .flatMap((row) => (row.action === 'LINK_TRANSACTION' && row.transactionId ? [row.transactionId] : []))
+        .sort();
+      for (const billId of billIds) {
+        await tx.$queryRaw`SELECT id FROM bills WHERE id = ${billId} AND "householdId" = ${householdId} FOR UPDATE`;
+      }
+      for (const transactionId of transactionIds) {
+        await tx.$queryRaw`SELECT id FROM transactions WHERE id = ${transactionId} AND "householdId" = ${householdId} FOR UPDATE`;
+      }
 
-    const imported = await this.prisma.client.$transaction(async (tx) => {
-      let count = 0;
+      const reconciliation = await this.reconciliationFor(
+        householdId,
+        householdMemberId,
+        accountId,
+        stored.rows,
+      );
+      const conflicts = selected
+        .filter((row) => !this.decisionStillValid(reconciliation.get(row.lineId), row))
+        .map((row) => row.lineId);
+      if (conflicts.length > 0) {
+        recordImportReconciliationConflict();
+        throw new ConflictException({
+          code: 'RECONCILIATION_CONFLICT',
+          rowIds: conflicts,
+          message: 'Algumas linhas mudaram. Revise as marcadas e confirme de novo.',
+        });
+      }
+
+      let importedRows = 0;
+      let skippedRows = 0;
+      let reconciledRows = 0;
+      const events = [];
+      const resolutions: { action: string; confidence: string }[] = [];
       for (const row of selected) {
+        if (row.action === 'SKIP' || row.isDuplicate) {
+          skippedRows += 1;
+          resolutions.push({ action: row.isDuplicate ? 'SKIP' : row.action, confidence: 'none' });
+          continue;
+        }
+        if (row.action === 'LINK_TRANSACTION' && row.transactionId) {
+          const current = await tx.transaction.findFirst({
+            where: { id: row.transactionId, householdId, externalId: null },
+          });
+          if (!current) {
+            recordImportReconciliationConflict();
+            throw new ConflictException({
+              code: 'RECONCILIATION_CONFLICT',
+              rowIds: [row.lineId],
+              message: 'Algumas linhas mudaram. Revise as marcadas e confirme de novo.',
+            });
+          }
+          await tx.transaction.update({
+            where: { id: current.id },
+            data: { externalId: row.externalId, importBatchId: batch.id },
+          });
+          if (current.categoryId) {
+            await this.categoryMemory.upsert(householdId, row.description, current.categoryId, tx);
+          }
+          reconciledRows += 1;
+          resolutions.push({ action: 'LINK_TRANSACTION', confidence: 'high' });
+          continue;
+        }
+        if (row.action === 'PAY_BILL' && row.billId) {
+          const bill = await tx.bill.findFirst({ where: { id: row.billId, householdId, status: BillStatus.PENDING } });
+          if (!bill) {
+            recordImportReconciliationConflict();
+            throw new ConflictException({
+              code: 'RECONCILIATION_CONFLICT',
+              rowIds: [row.lineId],
+              message: 'Algumas linhas mudaram. Revise as marcadas e confirme de novo.',
+            });
+          }
+          const paid = bill.targetAccountId
+            ? await this.transactions.createWithin(
+                tx,
+                householdId,
+                userId,
+                {
+                  description: bill.description,
+                  amount: row.amount,
+                  type: 'TRANSFER',
+                  date: row.date.toISOString(),
+                  fromAccountId: accountId,
+                  toAccountId: bill.targetAccountId,
+                },
+                {
+                  source: 'IMPORTED',
+                  externalId: row.externalId,
+                  importBatchId: batch.id,
+                  memorySource: row.description,
+                },
+              )
+            : await this.transactions.createWithin(
+                tx,
+                householdId,
+                userId,
+                {
+                  description: bill.description,
+                  amount: row.amount,
+                  type: 'EXPENSE',
+                  date: row.date.toISOString(),
+                  accountId,
+                  categoryId: row.categoryId ?? bill.categoryId ?? undefined,
+                },
+                {
+                  source: 'IMPORTED',
+                  externalId: row.externalId,
+                  importBatchId: batch.id,
+                  memorySource: row.description,
+                },
+              );
+          await tx.bill.update({
+            where: { id: bill.id },
+            data: { status: BillStatus.PAID, transactionId: paid.transaction.id, settlement: 'LINKED' },
+          });
+          events.push(...paid.events);
+          importedRows += 1;
+          resolutions.push({ action: 'PAY_BILL', confidence: 'high' });
+          continue;
+        }
+        if (!row.categoryId) throw new BadRequestException('Categoria é obrigatória.');
         const externalId = await this.uniqueExternalId(tx, accountId, row.externalId);
-        const transaction = await tx.transaction.create({
-          data: {
-            householdId,
-            userId,
-            accountId,
-            importBatchId: batch.id,
-            source: TransactionSource.IMPORTED,
-            externalId,
+        const created = await this.transactions.createWithin(
+          tx,
+          householdId,
+          userId,
+          {
             description: row.description,
-            amount: toDecimal(row.amount),
+            amount: row.amount,
             type: row.type,
-            date: row.date,
+            date: row.date.toISOString(),
+            accountId,
             categoryId: row.categoryId,
           },
-        });
-        await applyBalance(tx, transaction, 1);
-        await this.categoryMemory.upsert(householdId, transaction.description, row.categoryId, tx);
-        count += 1;
+          { source: 'IMPORTED', externalId, importBatchId: batch.id },
+        );
+        events.push(...created.events);
+        importedRows += 1;
+        resolutions.push({ action: 'IMPORT', confidence: 'none' });
       }
 
       await tx.importBatch.update({
@@ -266,24 +397,27 @@ export class ImportsService {
         data: {
           accountId,
           status: ImportStatus.CONFIRMED,
-          importedRows: count,
+          importedRows,
+          duplicateRows: skippedRows,
+          reconciledRows,
           confirmedAt: new Date(),
           preview: Prisma.DbNull,
         },
       });
-      return count;
+      return { importedRows, skippedRows, reconciledRows, events, resolutions };
     });
 
     this.store.delete(batchId);
-    const seen = new Set<string>();
-    for (const item of previousByKey.values()) {
-      await this.budgetEvents.emitIfCrossed(householdId, item.categoryId, item.date, item.snapshot, seen);
+    for (const resolution of confirmed.resolutions) {
+      recordImportReconciliation(resolution.action, resolution.confidence);
     }
+    await this.transactions.flushEvents(confirmed.events);
     return {
       id: batch.id,
       accountId,
-      importedRows: imported,
-      skippedRows: stored.rows.length - imported,
+      importedRows: confirmed.importedRows,
+      skippedRows: confirmed.skippedRows,
+      reconciledRows: confirmed.reconciledRows,
     };
   }
 
@@ -394,6 +528,110 @@ export class ImportsService {
     }
   }
 
+  private decisionStillValid(
+    reconciliation: RowReconciliation | undefined,
+    row: {
+      action: string;
+      transactionId?: string;
+      billId?: string;
+      isDuplicate: boolean;
+    },
+  ): boolean {
+    if (row.action === 'IMPORT' || row.action === 'SKIP') return true;
+    if (row.isDuplicate) return false;
+    const matches = reconciliation?.matches ?? [];
+    if (row.action === 'LINK_TRANSACTION') {
+      return matches.some(
+        (match) => match.kind !== 'BILL' && match.transactionId === row.transactionId,
+      );
+    }
+    if (row.action === 'PAY_BILL') {
+      return matches.some((match) => match.kind === 'BILL' && match.billId === row.billId);
+    }
+    return false;
+  }
+
+  private async reconciliationFor(
+    householdId: string,
+    householdMemberId: string,
+    accountId: string,
+    rows: StoredImportRow[],
+  ) {
+    const fresh = rows.filter((row) => !row.isDuplicate);
+    if (fresh.length === 0) return new Map<string, RowReconciliation>();
+    const accessible = await getAccessibleAccountIds(this.prisma.client, householdId, householdMemberId);
+    if (!accessible.includes(accountId)) return new Map<string, RowReconciliation>();
+    const dates = fresh.map((row) => utcDateKey(row.date));
+    const earliest = dates.reduce((left, right) => (left < right ? left : right));
+    const latest = dates.reduce((left, right) => (left > right ? left : right));
+    const visible = new Set(accessible);
+    const transactions = await this.prisma.client.transaction.findMany({
+      where: {
+        householdId,
+        externalId: null,
+        postingStatus: PostingStatus.POSTED,
+        date: {
+          gte: noonUtcFromKey(addDaysKey(earliest, -RECONCILE_TX_DAYS)),
+          lte: noonUtcFromKey(addDaysKey(latest, RECONCILE_TX_DAYS)),
+        },
+        OR: [{ accountId }, { fromAccountId: accountId }, { toAccountId: accountId }],
+      },
+      include: { bill: { select: { id: true, description: true } } },
+    });
+    const bills = await this.prisma.client.bill.findMany({
+      where: {
+        householdId,
+        status: BillStatus.PENDING,
+        dueDate: {
+          gte: noonUtcFromKey(addDaysKey(earliest, -BILL_MATCH_WIDE.before)),
+          lte: noonUtcFromKey(addDaysKey(latest, BILL_MATCH_WIDE.after)),
+        },
+        AND: [
+          { OR: [{ accountId: null }, { accountId }] },
+          { OR: [{ targetAccountId: null }, { targetAccountId: { in: accessible } }] },
+        ],
+      },
+    });
+    const txCandidates: MatchTransactionCandidate[] = transactions.flatMap((row) => {
+      const touched = [row.accountId, row.fromAccountId, row.toAccountId].filter(
+        (id): id is string => Boolean(id),
+      );
+      if (touched.some((id) => !visible.has(id))) return [];
+      return [
+        {
+          id: row.id,
+          date: utcDateKey(row.date),
+          amount: Number(row.amount),
+          type: row.type,
+          description: row.description,
+          accountId: row.accountId,
+          fromAccountId: row.fromAccountId,
+          toAccountId: row.toAccountId,
+          billId: row.bill?.id ?? null,
+          billDescription: row.bill?.description ?? null,
+        },
+      ];
+    });
+    const billCandidates: MatchBillCandidate[] = bills
+      .filter((row) => row.accountId === null || visible.has(row.accountId))
+      .filter((row) => row.targetAccountId === null || visible.has(row.targetAccountId))
+      .map((row) => ({
+        id: row.id,
+        description: row.description,
+        dueDate: utcDateKey(row.dueDate),
+        amount: Number(row.amount),
+        targetAccountId: row.targetAccountId,
+      }));
+    const lines: MatchLine[] = fresh.map((row) => ({
+      lineId: row.lineId,
+      date: utcDateKey(row.date),
+      amount: row.amount,
+      direction: row.type === 'INCOME' ? 'in' : 'out',
+      description: row.description,
+    }));
+    return matchImportRows(lines, txCandidates, billCandidates, accountId);
+  }
+
   private async findOwnedBatch(householdId: string, householdMemberId: string, id: string) {
     const batch = await this.prisma.client.importBatch.findFirst({
       where: {
@@ -425,11 +663,16 @@ export class ImportsService {
     },
     rows: StoredImportRow[],
     householdId: string,
+    householdMemberId?: string,
   ) {
     const suggestions = await this.categoryMemory.suggestAll(
       householdId,
       rows.map((row) => row.description),
     );
+    const reconciliation =
+      batch.accountId === null || !householdMemberId
+        ? new Map<string, RowReconciliation>()
+        : await this.reconciliationFor(householdId, householdMemberId, batch.accountId, rows);
     const previewRows = rows.map((row, index) => {
       const suggestion = suggestions[index] ?? null;
       return {
@@ -443,6 +686,9 @@ export class ImportsService {
         confidence: suggestion?.confidence ?? null,
         suggestionSource: suggestion?.source ?? null,
         isDuplicate: row.isDuplicate,
+        reconciliation: row.isDuplicate
+          ? { matches: [], suggestedAction: 'SKIP' as const }
+          : (reconciliation.get(row.lineId) ?? { matches: [], suggestedAction: 'IMPORT' as const }),
       };
     });
 

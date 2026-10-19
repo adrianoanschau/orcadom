@@ -53,6 +53,15 @@ export class AuditLogsService {
           action: item.action,
           source: item.source,
           actorName: item.actorUser?.name ?? null,
+          entityType: item.entityType,
+          description: textField(after, 'description') ?? textField(before, 'description'),
+          amount: textField(after, 'amount') ?? textField(before, 'amount'),
+          status:
+            item.entityType === 'Bill'
+              ? textField(after, 'status')
+              : externalIdAppeared(before, after)
+                ? 'RECONCILED'
+                : null,
         }),
         changes: formatAuditChanges(item.action, before, after, asRecord(item.metadata)),
         createdAt: item.createdAt.toISOString(),
@@ -68,7 +77,7 @@ export class AuditLogsService {
     if (hiddenAccounts.length === 0) return {};
 
     const hidden = hiddenAccounts.map((row) => row.id);
-    const [transactions, plans, recurrences, goals, batches] = await Promise.all([
+    const [transactions, plans, recurrences, goals, batches, bills] = await Promise.all([
       this.prisma.client.transaction.findMany({
         where: { householdId, NOT: transactionTouchesAccessibleAccounts(accessibleIds) },
         select: { id: true },
@@ -89,6 +98,13 @@ export class AuditLogsService {
         where: { householdId, accountId: { in: hidden } },
         select: { id: true },
       }),
+      this.prisma.client.bill.findMany({
+        where: {
+          householdId,
+          OR: [{ accountId: { in: hidden } }, { targetAccountId: { in: hidden } }],
+        },
+        select: { id: true },
+      }),
     ]);
 
     const exclusions = [
@@ -98,6 +114,7 @@ export class AuditLogsService {
       { entityType: 'RecurringTransaction', entityId: { in: recurrences.map((row) => row.id) } },
       { entityType: 'SavingsGoal', entityId: { in: goals.map((row) => row.id) } },
       { entityType: 'ImportBatch', entityId: { in: batches.map((row) => row.id) } },
+      { entityType: 'Bill', entityId: { in: bills.map((row) => row.id) } },
     ].filter((clause) => Array.isArray(clause.entityId.in) && clause.entityId.in.length > 0);
 
     if (exclusions.length === 0) return {};
@@ -108,4 +125,18 @@ export class AuditLogsService {
 function asRecord(value: Prisma.JsonValue): Record<string, unknown> | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   return value;
+}
+
+function textField(record: Record<string, unknown> | null, key: string): string | null {
+  const value = record?.[key];
+  if (typeof value === 'string' && value.length > 0) return value;
+  if (typeof value === 'number') return value.toFixed(2);
+  return null;
+}
+
+function externalIdAppeared(
+  before: Record<string, unknown> | null,
+  after: Record<string, unknown> | null,
+): boolean {
+  return (before?.externalId == null || before.externalId === '') && typeof after?.externalId === 'string';
 }

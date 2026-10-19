@@ -45,6 +45,8 @@ export interface Transaction {
   installmentPlanId?: string | null;
   installmentNumber?: number | null;
   recurringTransactionId?: string | null;
+  billId?: string | null;
+  billSettlement?: 'GENERATED' | 'LINKED' | null;
 }
 
 export interface TransactionPage {
@@ -112,7 +114,56 @@ export interface RecurringTransaction {
   accountName: string;
   categoryId: string | null;
   categoryName: string | null;
+  mode?: 'AUTO_POST' | 'BILL';
+  targetAccountId?: string | null;
+  targetAccountName?: string | null;
   nextOccurrence: string | null;
+}
+
+export interface BillItem {
+  id: string;
+  description: string;
+  amount: string;
+  dueDate: string;
+  status: 'PENDING' | 'PAID' | 'CANCELED';
+  settlement: 'GENERATED' | 'LINKED' | null;
+  notes: string | null;
+  accountId: string | null;
+  accountName: string | null;
+  categoryId: string | null;
+  categoryName: string | null;
+  categoryColor: string | null;
+  targetAccountId: string | null;
+  targetAccountName: string | null;
+  recurringTransactionId: string | null;
+  display: { label: string; tone: 'neutral' | 'income' | 'expense' | 'pending'; daysUntilDue: number };
+  payment: {
+    transactionId: string;
+    amount: string;
+    date: string;
+    source: 'MANUAL' | 'IMPORTED';
+    description: string;
+  } | null;
+}
+
+export interface BillSummary {
+  month: string;
+  paidCount: number;
+  pendingCount: number;
+  overdueCount: number;
+  totalCount: number;
+  pendingAmount: string;
+  overdueAmount: string;
+  remainingAmount: string;
+}
+
+export interface BillMatchCandidate {
+  transactionId: string;
+  description: string;
+  amount: string;
+  date: string;
+  source: 'MANUAL' | 'IMPORTED';
+  matchConfidence: 'high' | 'low';
 }
 
 export interface ImportPreviewRow {
@@ -126,6 +177,20 @@ export interface ImportPreviewRow {
   confidence: 'high' | 'low' | null;
   suggestionSource: 'memory' | 'similarity' | null;
   isDuplicate: boolean;
+  reconciliation?: {
+    suggestedAction: 'IMPORT' | 'SKIP' | 'LINK_TRANSACTION' | 'PAY_BILL';
+    matches: {
+      kind: 'TRANSACTION' | 'BILL' | 'TRANSFER_MIRROR';
+      transactionId?: string;
+      billId?: string;
+      description: string;
+      date?: string;
+      dueDate?: string;
+      amount?: string;
+      billAmount?: string;
+      matchConfidence: 'high' | 'low';
+    }[];
+  };
 }
 
 export interface ImportPreview {

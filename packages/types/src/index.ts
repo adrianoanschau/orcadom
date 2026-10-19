@@ -84,6 +84,20 @@ export {
 } from './email-import.types.js';
 export { createInstallmentPlanSchema, type CreateInstallmentPlanDto } from './installment.types.js';
 export {
+  billSummaryQuerySchema,
+  createBillSchema,
+  linkBillTransactionSchema,
+  listBillsQuerySchema,
+  payBillSchema,
+  updateBillSchema,
+  type BillSummaryQuery,
+  type CreateBillDto,
+  type LinkBillTransactionDto,
+  type ListBillsQuery,
+  type PayBillDto,
+  type UpdateBillDto,
+} from './bill.types.js';
+export {
   createRecurringTransactionSchema,
   updateRecurringTransactionSchema,
   type CreateRecurringTransactionDto,

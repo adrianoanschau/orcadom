@@ -40,6 +40,26 @@ describe('formatAuditHeadline', () => {
     expect(
       formatAuditHeadline({ action: 'UPDATE', source: 'CRON_INSTALLMENT', actorName: 'Ana' }),
     ).toBe('Editado pelo job de parcelas');
+    expect(
+      formatAuditHeadline({
+        action: 'UPDATE',
+        source: 'USER',
+        actorName: 'Ana',
+        entityType: 'Bill',
+        status: 'PAID',
+        description: 'Condomínio',
+        amount: '600,00',
+      }),
+    ).toBe('Conta paga por Ana — Condomínio, R$ 600,00');
+    expect(
+      formatAuditHeadline({
+        action: 'UPDATE',
+        source: 'USER',
+        actorName: 'Ana',
+        entityType: 'Transaction',
+        status: 'RECONCILED',
+      }),
+    ).toBe('Conciliado com o extrato por Ana');
   });
 });
 
