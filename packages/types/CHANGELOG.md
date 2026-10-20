@@ -1,5 +1,11 @@
 # @orcadom/types
 
+## 0.20.0
+
+### Minor Changes
+
+- c0409cf: Checklist de contas a pagar: marcar como paga cria o lançamento. Na importação, o extrato oferece pagar a conta ou vincular o lançamento em vez de duplicar.
+
 ## 0.19.0
 
 No changes in this release.
