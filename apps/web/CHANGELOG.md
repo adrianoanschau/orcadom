@@ -1,5 +1,15 @@
 # @orcadom/web
 
+## 0.20.2
+
+### Patch Changes
+
+- 9ea8245: O CSV do Sicredi, com valores no formato R$, passa a ser lido na importação.
+- 9ea8245: Na importação do extrato do cartão, a entrada do pagamento pode ser vinculada à transferência que já pagou a fatura.
+- Updated dependencies [9ea8245]
+- Updated dependencies [9ea8245]
+  - @orcadom/types@0.20.2
+
 ## 0.20.1
 
 ### Patch Changes
