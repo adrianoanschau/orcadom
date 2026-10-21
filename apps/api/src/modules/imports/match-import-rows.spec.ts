@@ -93,6 +93,32 @@ describe('conciliação da importação', () => {
     });
   });
 
+  it('deixa o pagamento manual do cartão como espelho ainda não vinculado', () => {
+    const mirror: MatchTransactionCandidate = {
+      id: 'transfer',
+      date: '2026-10-12',
+      amount: 600,
+      type: 'TRANSFER',
+      description: 'Fatura Nubank',
+      accountId: null,
+      fromAccountId: account,
+      toAccountId: 'card',
+      billId: null,
+      billDescription: null,
+      linked: false,
+    };
+    const result = matchImportRows(
+      [line({ lineId: 'card-line', direction: 'in', description: 'PAGAMENTO RECEBIDO' })],
+      [mirror],
+      [],
+      'card',
+    );
+    expect(result.get('card-line')).toMatchObject({
+      suggestedAction: 'IMPORT',
+      matches: [{ kind: 'TRANSFER_MIRROR', matchConfidence: 'low', linked: false, transactionId: 'transfer' }],
+    });
+  });
+
   it('cada candidato casa com no máximo uma linha', () => {
     const bills: MatchBillCandidate[] = [
       { id: 'only', description: 'Internet', dueDate: '2026-10-10', amount: 100, targetAccountId: null },

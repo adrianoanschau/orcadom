@@ -72,6 +72,7 @@ export type RowMatch =
       description: string;
       date: string;
       amount: string;
+      linked: boolean;
       matchConfidence: MatchConfidence;
     }
   | {
@@ -213,6 +214,7 @@ function candidatesFor(
       description: candidate.description,
       date: candidate.date,
       amount: money(candidate.amount),
+      linked: Boolean(candidate.linked),
       matchConfidence: high ? 'high' : 'low',
     });
   }

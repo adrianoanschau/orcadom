@@ -185,6 +185,7 @@ export interface ImportPreviewRow {
       billId?: string;
       accountId?: string;
       accountName?: string;
+      linked?: boolean;
       description: string;
       date?: string;
       dueDate?: string;
