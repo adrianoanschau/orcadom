@@ -15,10 +15,11 @@ export const confirmImportSchema = z.object({
       z
         .object({
           lineId: z.uuid(),
-          action: z.enum(['IMPORT', 'SKIP', 'LINK_TRANSACTION', 'PAY_BILL']).optional(),
+          action: z.enum(['IMPORT', 'SKIP', 'LINK_TRANSACTION', 'PAY_BILL', 'RECORD_TRANSFER']).optional(),
           categoryId: z.uuid().optional(),
           transactionId: z.uuid().optional(),
           billId: z.uuid().optional(),
+          counterAccountId: z.uuid().optional(),
         })
         .superRefine((value, context) => {
           const action = value.action ?? 'IMPORT';
@@ -41,6 +42,13 @@ export const confirmImportSchema = z.object({
               code: 'custom',
               path: ['billId'],
               message: 'Informe a conta a pagar.',
+            });
+          }
+          if (action === 'RECORD_TRANSFER' && !value.counterAccountId) {
+            context.addIssue({
+              code: 'custom',
+              path: ['counterAccountId'],
+              message: 'Informe a outra conta da transferência.',
             });
           }
         }),

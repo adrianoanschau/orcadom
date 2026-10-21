@@ -178,11 +178,13 @@ export interface ImportPreviewRow {
   suggestionSource: 'memory' | 'similarity' | null;
   isDuplicate: boolean;
   reconciliation?: {
-    suggestedAction: 'IMPORT' | 'SKIP' | 'LINK_TRANSACTION' | 'PAY_BILL';
+    suggestedAction: 'IMPORT' | 'SKIP' | 'LINK_TRANSACTION' | 'PAY_BILL' | 'RECORD_TRANSFER';
     matches: {
-      kind: 'TRANSACTION' | 'BILL' | 'TRANSFER_MIRROR';
+      kind: 'TRANSACTION' | 'BILL' | 'TRANSFER_MIRROR' | 'OWN_TRANSFER';
       transactionId?: string;
       billId?: string;
+      accountId?: string;
+      accountName?: string;
       description: string;
       date?: string;
       dueDate?: string;

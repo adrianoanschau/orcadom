@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { BillStatus, ImportSource, ImportStatus, PostingStatus, Prisma } from '@orcadom/database';
+import { BillStatus, ImportSource, ImportStatus, PostingStatus, Prisma, TransactionType } from '@orcadom/database';
 import type { ConfirmImportDto } from '@orcadom/types';
 import { randomUUID } from 'node:crypto';
 import { accessibleAccountWhere, assertAccountAccessible, getAccessibleAccountIds } from '../../common/account-access.js';
@@ -30,6 +30,7 @@ import {
   matchImportRows,
   RECONCILE_TX_DAYS,
   type MatchBillCandidate,
+  type MatchCounterparty,
   type MatchLine,
   type MatchTransactionCandidate,
   type RowReconciliation,
@@ -234,6 +235,7 @@ export class ImportsService {
         categoryId: row.categoryId,
         transactionId: row.transactionId,
         billId: row.billId,
+        counterAccountId: row.counterAccountId,
       };
     });
 
@@ -252,7 +254,11 @@ export class ImportsService {
         .flatMap((row) => (row.action === 'PAY_BILL' && row.billId ? [row.billId] : []))
         .sort();
       const transactionIds = selected
-        .flatMap((row) => (row.action === 'LINK_TRANSACTION' && row.transactionId ? [row.transactionId] : []))
+        .flatMap((row) =>
+          (row.action === 'LINK_TRANSACTION' || row.action === 'RECORD_TRANSFER') && row.transactionId
+            ? [row.transactionId]
+            : [],
+        )
         .sort();
       for (const billId of billIds) {
         await tx.$queryRaw`SELECT id FROM bills WHERE id = ${billId} AND "householdId" = ${householdId} FOR UPDATE`;
@@ -311,6 +317,22 @@ export class ImportsService {
           }
           reconciledRows += 1;
           resolutions.push({ action: 'LINK_TRANSACTION', confidence: 'high' });
+          continue;
+        }
+        if (row.action === 'RECORD_TRANSFER' && row.counterAccountId) {
+          const turned = await this.recordTransfer(tx, householdId, householdMemberId, userId, accountId, batch.id, {
+            lineId: row.lineId,
+            transactionId: row.transactionId,
+            counterAccountId: row.counterAccountId,
+            amount: row.amount,
+            externalId: row.externalId,
+            type: row.type,
+            description: row.description,
+            date: row.date,
+          });
+          events.push(...turned);
+          importedRows += 1;
+          resolutions.push({ action: 'RECORD_TRANSFER', confidence: 'high' });
           continue;
         }
         if (row.action === 'PAY_BILL' && row.billId) {
@@ -473,8 +495,8 @@ export class ImportsService {
     const existing = await this.prisma.client.transaction.findMany({
       where: {
         householdId,
-        accountId,
         externalId: { in: rows.map((row) => row.externalId) },
+        OR: [{ accountId }, { fromAccountId: accountId }, { toAccountId: accountId }],
       },
       select: { externalId: true },
     });
@@ -528,18 +550,119 @@ export class ImportsService {
     }
   }
 
+  private async recordTransfer(
+    tx: Prisma.TransactionClient,
+    householdId: string,
+    householdMemberId: string,
+    userId: string,
+    accountId: string,
+    batchId: string,
+    row: {
+      lineId: string;
+      transactionId?: string;
+      counterAccountId: string;
+      amount: number;
+      externalId: string;
+      type: string;
+      description: string;
+      date: Date;
+    },
+  ) {
+    const conflict = () => {
+      recordImportReconciliationConflict();
+      return new ConflictException({
+        code: 'RECONCILIATION_CONFLICT',
+        rowIds: [row.lineId],
+        message: 'Algumas linhas mudaram. Revise as marcadas e confirme de novo.',
+      });
+    };
+    await assertAccountAccessible(this.prisma.client, householdId, householdMemberId, row.counterAccountId);
+    await assertAccountAccessible(this.prisma.client, householdId, householdMemberId, accountId);
+    const incoming = row.type === 'INCOME';
+    const fromAccountId = incoming ? row.counterAccountId : accountId;
+    const toAccountId = incoming ? accountId : row.counterAccountId;
+    if (fromAccountId === toAccountId) throw conflict();
+    if (!row.transactionId) {
+      const created = await this.transactions.createWithin(
+        tx,
+        householdId,
+        userId,
+        {
+          description: row.description,
+          amount: row.amount,
+          type: 'TRANSFER',
+          date: row.date.toISOString(),
+          fromAccountId,
+          toAccountId,
+        },
+        { source: 'IMPORTED', externalId: row.externalId, importBatchId: batchId },
+      );
+      return created.events;
+    }
+    const original = await tx.transaction.findFirst({
+      where: {
+        id: row.transactionId,
+        householdId,
+        accountId: row.counterAccountId,
+        postingStatus: PostingStatus.POSTED,
+        installmentPlanId: null,
+        type: { in: [TransactionType.INCOME, TransactionType.EXPENSE] },
+      },
+    });
+    const opposite = incoming ? TransactionType.EXPENSE : TransactionType.INCOME;
+    if (
+      original?.type !== opposite ||
+      Number(original.amount).toFixed(2) !== row.amount.toFixed(2)
+    ) {
+      throw conflict();
+    }
+    const linkedBill = await tx.bill.findFirst({ where: { transactionId: original.id }, select: { id: true } });
+    if (linkedBill || original.accountId !== row.counterAccountId) throw conflict();
+    const removed = await this.transactions.deleteWithin(tx, original);
+    const created = await this.transactions.createWithin(
+      tx,
+      householdId,
+      userId,
+      {
+        description: original.description,
+        amount: row.amount,
+        type: 'TRANSFER',
+        date: original.date.toISOString(),
+        fromAccountId,
+        toAccountId,
+      },
+      {
+        source: original.source === 'IMPORTED' ? 'IMPORTED' : 'MANUAL',
+        externalId: original.externalId ?? row.externalId,
+        importBatchId: original.importBatchId ?? batchId,
+      },
+    );
+    return [...removed.events, ...created.events];
+  }
+
   private decisionStillValid(
     reconciliation: RowReconciliation | undefined,
     row: {
       action: string;
       transactionId?: string;
       billId?: string;
+      counterAccountId?: string;
       isDuplicate: boolean;
     },
   ): boolean {
     if (row.action === 'IMPORT' || row.action === 'SKIP') return true;
     if (row.isDuplicate) return false;
     const matches = reconciliation?.matches ?? [];
+    if (row.action === 'RECORD_TRANSFER') {
+      if (!row.counterAccountId) return false;
+      if (!row.transactionId) return true;
+      return matches.some(
+        (match) =>
+          match.kind === 'OWN_TRANSFER' &&
+          match.transactionId === row.transactionId &&
+          match.accountId === row.counterAccountId,
+      );
+    }
     if (row.action === 'LINK_TRANSACTION') {
       return matches.some(
         (match) => match.kind !== 'BILL' && match.transactionId === row.transactionId,
@@ -568,13 +691,21 @@ export class ImportsService {
     const transactions = await this.prisma.client.transaction.findMany({
       where: {
         householdId,
-        externalId: null,
         postingStatus: PostingStatus.POSTED,
         date: {
           gte: noonUtcFromKey(addDaysKey(earliest, -RECONCILE_TX_DAYS)),
           lte: noonUtcFromKey(addDaysKey(latest, RECONCILE_TX_DAYS)),
         },
-        OR: [{ accountId }, { fromAccountId: accountId }, { toAccountId: accountId }],
+        OR: [
+          {
+            externalId: null,
+            OR: [{ accountId }, { fromAccountId: accountId }, { toAccountId: accountId }],
+          },
+          {
+            type: TransactionType.TRANSFER,
+            OR: [{ fromAccountId: accountId }, { toAccountId: accountId }],
+          },
+        ],
       },
       include: { bill: { select: { id: true, description: true } } },
     });
@@ -609,6 +740,7 @@ export class ImportsService {
           toAccountId: row.toAccountId,
           billId: row.bill?.id ?? null,
           billDescription: row.bill?.description ?? null,
+          linked: Boolean(row.externalId),
         },
       ];
     });
@@ -622,6 +754,38 @@ export class ImportsService {
         amount: Number(row.amount),
         targetAccountId: row.targetAccountId,
       }));
+    const otherAccountIds = accessible.filter((id) => id !== accountId);
+    const opposite =
+      otherAccountIds.length === 0
+        ? []
+        : await this.prisma.client.transaction.findMany({
+            where: {
+              householdId,
+              postingStatus: PostingStatus.POSTED,
+              type: { in: [TransactionType.INCOME, TransactionType.EXPENSE] },
+              installmentPlanId: null,
+              accountId: { in: otherAccountIds },
+              bill: { is: null },
+              date: {
+                gte: noonUtcFromKey(addDaysKey(earliest, -RECONCILE_TX_DAYS)),
+                lte: noonUtcFromKey(addDaysKey(latest, RECONCILE_TX_DAYS)),
+              },
+            },
+            include: { account: { select: { name: true } } },
+          });
+    const counterparts: MatchCounterparty[] = opposite.flatMap((row) => {
+      if (!row.accountId || !row.account || !visible.has(row.accountId)) return [];
+      return [
+        {
+          id: row.id,
+          accountId: row.accountId,
+          accountName: row.account.name,
+          date: utcDateKey(row.date),
+          amount: Number(row.amount),
+          direction: row.type === TransactionType.INCOME ? 'in' : 'out',
+        },
+      ];
+    });
     const lines: MatchLine[] = fresh.map((row) => ({
       lineId: row.lineId,
       date: utcDateKey(row.date),
@@ -629,7 +793,7 @@ export class ImportsService {
       direction: row.type === 'INCOME' ? 'in' : 'out',
       description: row.description,
     }));
-    return matchImportRows(lines, txCandidates, billCandidates, accountId);
+    return matchImportRows(lines, txCandidates, billCandidates, accountId, counterparts);
   }
 
   private async findOwnedBatch(householdId: string, householdMemberId: string, id: string) {

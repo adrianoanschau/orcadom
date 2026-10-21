@@ -7,7 +7,7 @@ export const BILL_MATCH_WIDE = { before: 10, after: 45 };
 export const BILL_AMOUNT_TOLERANCE = 0.15;
 
 export type MatchConfidence = 'high' | 'low';
-export type SuggestedImportAction = 'IMPORT' | 'SKIP' | 'LINK_TRANSACTION' | 'PAY_BILL';
+export type SuggestedImportAction = 'IMPORT' | 'SKIP' | 'LINK_TRANSACTION' | 'PAY_BILL' | 'RECORD_TRANSFER';
 
 export interface MatchLine {
   lineId: string;
@@ -28,6 +28,16 @@ export interface MatchTransactionCandidate {
   toAccountId: string | null;
   billId: string | null;
   billDescription: string | null;
+  linked?: boolean;
+}
+
+export interface MatchCounterparty {
+  id: string;
+  accountId: string;
+  accountName: string;
+  date: string;
+  amount: number;
+  direction: 'in' | 'out';
 }
 
 export interface MatchBillCandidate {
@@ -59,6 +69,16 @@ export type RowMatch =
   | {
       kind: 'TRANSFER_MIRROR';
       transactionId: string;
+      description: string;
+      date: string;
+      amount: string;
+      matchConfidence: MatchConfidence;
+    }
+  | {
+      kind: 'OWN_TRANSFER';
+      transactionId: string;
+      accountId: string;
+      accountName: string;
       description: string;
       date: string;
       amount: string;
@@ -97,13 +117,14 @@ export function matchImportRows(
   transactions: readonly MatchTransactionCandidate[],
   bills: readonly MatchBillCandidate[],
   accountId: string,
+  counterparts: readonly MatchCounterparty[] = [],
 ): Map<string, RowReconciliation> {
   const ordered = [...lines].sort((left, right) => left.date.localeCompare(right.date) || left.lineId.localeCompare(right.lineId));
   const claimed = new Set<string>();
   const result = new Map<string, RowReconciliation>();
 
   for (const line of ordered) {
-    const options = candidatesFor(line, transactions, bills, accountId).filter(
+    const options = candidatesFor(line, transactions, bills, counterparts, accountId).filter(
       (match) => !claimed.has(claimKey(match)),
     );
     const high = options.filter((match) => match.matchConfidence === 'high');
@@ -133,6 +154,7 @@ function claimKey(match: RowMatch): string {
 
 function actionFor(match: RowMatch): SuggestedImportAction {
   if (match.kind === 'BILL') return 'PAY_BILL';
+  if (match.kind === 'OWN_TRANSFER') return 'RECORD_TRANSFER';
   if (match.kind === 'TRANSFER_MIRROR') return 'SKIP';
   if (match.matchConfidence === 'high') return 'LINK_TRANSACTION';
   return 'IMPORT';
@@ -159,6 +181,7 @@ function candidatesFor(
   line: MatchLine,
   transactions: readonly MatchTransactionCandidate[],
   bills: readonly MatchBillCandidate[],
+  counterparts: readonly MatchCounterparty[],
   accountId: string,
 ): RowMatch[] {
   const matches: RowMatch[] = [];
@@ -183,7 +206,7 @@ function candidatesFor(
 
   const uniqueMirror = mirrors.length === 1 ? mirrors[0] : null;
   for (const candidate of mirrors) {
-    const high = uniqueMirror?.id === candidate.id && Boolean(candidate.billId);
+    const high = uniqueMirror?.id === candidate.id && (Boolean(candidate.billId) || Boolean(candidate.linked));
     matches.push({
       kind: 'TRANSFER_MIRROR',
       transactionId: candidate.id,
@@ -211,6 +234,24 @@ function candidatesFor(
     });
   }
 
+  const alreadyTransfer = Boolean(uniqueMirror ?? uniqueTx?.type === 'TRANSFER');
+  if (!alreadyTransfer) {
+    const opposite = counterparts.filter((candidate) => counterpartyFits(line, candidate, accountId));
+    const only = opposite.length === 1 ? opposite[0] : null;
+    for (const candidate of opposite) {
+      matches.push({
+        kind: 'OWN_TRANSFER',
+        transactionId: candidate.id,
+        accountId: candidate.accountId,
+        accountName: candidate.accountName,
+        description: candidate.accountName,
+        date: candidate.date,
+        amount: money(candidate.amount),
+        matchConfidence: only?.id === candidate.id ? 'high' : 'low',
+      });
+    }
+  }
+
   return matches;
 }
 
@@ -223,7 +264,7 @@ function transactionFits(
   if (Math.abs(daysBetween(candidate.date, line.date)) > RECONCILE_TX_DAYS) return false;
   if (line.direction === 'out') {
     if (candidate.type === 'EXPENSE') return candidate.accountId === accountId;
-    if (candidate.type === 'TRANSFER') return candidate.fromAccountId === accountId;
+    if (candidate.type === 'TRANSFER') return candidate.fromAccountId === accountId && !candidate.linked;
     return false;
   }
   if (candidate.type === 'INCOME') return candidate.accountId === accountId;
@@ -231,13 +272,16 @@ function transactionFits(
 }
 
 function mirrorFits(line: MatchLine, candidate: MatchTransactionCandidate, accountId: string): boolean {
-  return (
-    line.direction === 'in' &&
-    candidate.type === 'TRANSFER' &&
-    candidate.toAccountId === accountId &&
-    candidate.amount === line.amount &&
-    Math.abs(daysBetween(candidate.date, line.date)) <= RECONCILE_TX_DAYS
-  );
+  if (candidate.type !== 'TRANSFER' || candidate.amount !== line.amount) return false;
+  if (Math.abs(daysBetween(candidate.date, line.date)) > RECONCILE_TX_DAYS) return false;
+  if (line.direction === 'in' && candidate.toAccountId === accountId) return true;
+  return line.direction === 'out' && candidate.fromAccountId === accountId && Boolean(candidate.linked);
+}
+
+function counterpartyFits(line: MatchLine, candidate: MatchCounterparty, accountId: string): boolean {
+  if (candidate.accountId === accountId || candidate.amount !== line.amount) return false;
+  if (Math.abs(daysBetween(candidate.date, line.date)) > RECONCILE_TX_DAYS) return false;
+  return line.direction === 'in' ? candidate.direction === 'out' : candidate.direction === 'in';
 }
 
 function billFits(line: MatchLine, candidate: MatchBillCandidate): boolean {

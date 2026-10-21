@@ -31,9 +31,10 @@ interface DraftRow {
   lineId: string;
   categoryId: string;
   include: boolean;
-  action: 'IMPORT' | 'SKIP' | 'LINK_TRANSACTION' | 'PAY_BILL';
+  action: 'IMPORT' | 'SKIP' | 'LINK_TRANSACTION' | 'PAY_BILL' | 'RECORD_TRANSFER';
   transactionId?: string;
   billId?: string;
+  counterAccountId?: string;
 }
 
 export default function ImportsPage() {
@@ -71,10 +72,14 @@ function ImportsPageInner() {
   );
 
   const selected = drafts.filter((draft) => draft.include);
-  const missingCategory = selected.some(
-    (draft) => draft.action === 'IMPORT' && !draft.categoryId,
-  );
+  const missingCategory = selected.some((draft) => {
+    if (draft.action === 'RECORD_TRANSFER') return !draft.counterAccountId;
+    if (draft.action === 'IMPORT') return !draft.categoryId;
+    return false;
+  });
   const needsAccount = Boolean(preview && !preview.accountId && !accountId);
+  const statementAccountId = preview?.accountId ?? accountId;
+  const otherAccounts = (accounts.data ?? []).filter((account) => account.id !== statementAccountId);
 
   function applyPreview(data: ImportPreview) {
     setPreview(data);
@@ -82,7 +87,10 @@ function ImportsPageInner() {
     setDrafts(
       data.rows.map((row) => {
         const suggested = row.reconciliation?.suggestedAction ?? 'IMPORT';
-        const match = row.reconciliation?.matches[0];
+        const match =
+          row.reconciliation?.matches.find(
+            (item) => item.kind === 'OWN_TRANSFER' && item.matchConfidence === 'high',
+          ) ?? row.reconciliation?.matches[0];
         return {
           lineId: row.lineId,
           categoryId: row.confidence === 'high' ? (row.suggestedCategoryId ?? '') : '',
@@ -90,6 +98,7 @@ function ImportsPageInner() {
           action: row.isDuplicate ? 'SKIP' : suggested,
           transactionId: match?.transactionId,
           billId: match?.billId,
+          counterAccountId: match?.accountId,
         };
       }),
     );
@@ -127,7 +136,7 @@ function ImportsPageInner() {
       if (!preview) throw new ApiError('Envie um arquivo para confirmar.', 400);
       if (selected.length === 0) throw new ApiError('Selecione ao menos um lançamento.', 400);
       if (missingCategory)
-        throw new ApiError('Informe a categoria de cada lançamento incluído.', 400);
+        throw new ApiError('Informe a categoria, ou a outra conta da transferência, de cada lançamento incluído.', 400);
       if (!preview.accountId && !accountId)
         throw new ApiError('Selecione a conta deste extrato.', 400);
       return api<ImportConfirmResult>(`/imports/${preview.id}/confirm`, {
@@ -140,6 +149,7 @@ function ImportsPageInner() {
             categoryId: draft.categoryId || undefined,
             transactionId: draft.transactionId,
             billId: draft.billId,
+            counterAccountId: draft.counterAccountId,
           })),
         }),
       });
@@ -415,30 +425,28 @@ function ImportsPageInner() {
                     {row.confidence === 'high' && suggested ? (
                       <StatusBadge tone="brand">conhecida</StatusBadge>
                     ) : null}
-                    <ReconciliationSelect
-                      row={row}
-                      action={draft?.action ?? 'IMPORT'}
-                      onChange={(action) => {
-                        const match = row.reconciliation?.matches.find((item) =>
-                          action === 'PAY_BILL' ? item.kind === 'BILL' : item.kind !== 'BILL',
-                        );
-                        updateDraft(row.lineId, {
-                          action,
-                          include: action !== 'SKIP',
-                          billId: match?.billId,
-                          transactionId: match?.transactionId,
-                        });
-                      }}
-                    />
+                    {draft?.action === 'RECORD_TRANSFER' ? null : (
+                      <ReconciliationSelect
+                        row={row}
+                        value={resolutionValue(draft)}
+                        onChange={(value) => {
+                          updateDraft(row.lineId, resolutionPatch(row, value));
+                        }}
+                      />
+                    )}
                   </div>
                   <div className="mt-3">
                     <ImportCategoryField
                       row={row}
                       draft={draft}
                       options={options}
+                      accounts={otherAccounts}
                       suggested={suggested}
-                      onChange={(categoryId) => {
-                        updateDraft(row.lineId, { categoryId });
+                      onCategory={(categoryId) => {
+                        updateDraft(row.lineId, categoryDraft(draft, categoryId));
+                      }}
+                      onTransfer={(counterAccountId) => {
+                        updateDraft(row.lineId, transferDraft(row, counterAccountId));
                       }}
                     />
                   </div>
@@ -506,21 +514,15 @@ function ImportsPageInner() {
                         </div>
                       </td>
                       <td className="min-w-44 px-4 py-3 align-top">
-                        <ReconciliationSelect
-                          row={row}
-                          action={draft?.action ?? 'IMPORT'}
-                          onChange={(action) => {
-                            const match = row.reconciliation?.matches.find((item) =>
-                              action === 'PAY_BILL' ? item.kind === 'BILL' : item.kind !== 'BILL',
-                            );
-                            updateDraft(row.lineId, {
-                              action,
-                              include: action !== 'SKIP',
-                              billId: match?.billId,
-                              transactionId: match?.transactionId,
-                            });
-                          }}
-                        />
+                        {draft?.action === 'RECORD_TRANSFER' ? null : (
+                          <ReconciliationSelect
+                            row={row}
+                            value={resolutionValue(draft)}
+                            onChange={(value) => {
+                              updateDraft(row.lineId, resolutionPatch(row, value));
+                            }}
+                          />
+                        )}
                       </td>
                       <td
                         className={`px-4 py-3 align-top text-right font-bold tabular-nums ${
@@ -535,9 +537,13 @@ function ImportsPageInner() {
                           row={row}
                           draft={draft}
                           options={options}
+                          accounts={otherAccounts}
                           suggested={suggested}
-                          onChange={(categoryId) => {
-                            updateDraft(row.lineId, { categoryId });
+                          onCategory={(categoryId) => {
+                            updateDraft(row.lineId, categoryDraft(draft, categoryId));
+                          }}
+                          onTransfer={(counterAccountId) => {
+                            updateDraft(row.lineId, transferDraft(row, counterAccountId));
                           }}
                         />
                       </td>
@@ -564,31 +570,77 @@ function ReconciliationBadge({ row }: { row: ImportPreviewRow }) {
   const match = row.reconciliation?.matches[0];
   if (!match) return null;
   if (match.kind === 'BILL') return <StatusBadge tone="brand">Conta a pagar</StatusBadge>;
-  if (match.kind === 'TRANSFER_MIRROR') return <StatusBadge tone="transfer">Espelho de transferência</StatusBadge>;
+  if (match.kind === 'TRANSFER_MIRROR' || match.kind === 'OWN_TRANSFER') {
+    return <StatusBadge tone="transfer">Transferência entre contas</StatusBadge>;
+  }
   return <StatusBadge tone="pending">Já lançado</StatusBadge>;
+}
+
+function resolutionValue(draft: DraftRow | undefined): string {
+  if (!draft) return 'IMPORT';
+  if (draft.action === 'RECORD_TRANSFER' && draft.transactionId) {
+    return `RECORD_TRANSFER:${draft.transactionId}`;
+  }
+  return draft.action;
+}
+
+function resolutionPatch(row: ImportPreviewRow, value: string): Partial<DraftRow> {
+  if (value.startsWith('RECORD_TRANSFER:')) {
+    const transactionId = value.slice('RECORD_TRANSFER:'.length);
+    const match = row.reconciliation?.matches.find(
+      (item) => item.kind === 'OWN_TRANSFER' && item.transactionId === transactionId,
+    );
+    return {
+      action: 'RECORD_TRANSFER',
+      include: true,
+      transactionId,
+      counterAccountId: match?.accountId,
+      billId: undefined,
+    };
+  }
+  const action = value as DraftRow['action'];
+  const match = row.reconciliation?.matches.find((item) =>
+    action === 'PAY_BILL' ? item.kind === 'BILL' : item.kind !== 'BILL' && item.kind !== 'OWN_TRANSFER',
+  );
+  return {
+    action,
+    include: action !== 'SKIP',
+    billId: match?.billId,
+    transactionId: match?.transactionId,
+    counterAccountId: undefined,
+  };
 }
 
 function ReconciliationSelect({
   row,
-  action,
+  value,
   onChange,
 }: {
   row: ImportPreviewRow;
-  action: DraftRow['action'];
-  onChange: (action: DraftRow['action']) => void;
+  value: string;
+  onChange: (value: string) => void;
 }) {
   const matches = row.reconciliation?.matches ?? [];
   if (row.isDuplicate || matches.length === 0) return null;
   const options = [
     { value: 'IMPORT', label: 'Importar como nova' },
     ...matches.map((match) => ({
-      value: match.kind === 'BILL' ? 'PAY_BILL' : match.kind === 'TRANSFER_MIRROR' ? 'SKIP' : 'LINK_TRANSACTION',
+      value:
+        match.kind === 'OWN_TRANSFER'
+          ? `RECORD_TRANSFER:${match.transactionId ?? ''}`
+          : match.kind === 'BILL'
+            ? 'PAY_BILL'
+            : match.kind === 'TRANSFER_MIRROR'
+              ? 'SKIP'
+              : 'LINK_TRANSACTION',
       label:
-        match.kind === 'BILL'
-          ? `Pagar "${match.description}"`
-          : match.kind === 'TRANSFER_MIRROR'
-            ? 'Ignorar'
-            : `Vincular a "${match.description}"`,
+        match.kind === 'OWN_TRANSFER'
+          ? `Transferência com "${match.accountName ?? match.description}"`
+          : match.kind === 'BILL'
+            ? `Pagar "${match.description}"`
+            : match.kind === 'TRANSFER_MIRROR'
+              ? 'Ignorar espelho'
+              : `Vincular a "${match.description}"`,
     })),
   ];
   const unique = options.filter((option, index) => options.findIndex((item) => item.value === option.value) === index);
@@ -597,9 +649,9 @@ function ReconciliationSelect({
       <span className="sr-only">Resolução de {row.description}</span>
       <select
         className={controlClass}
-        value={action}
+        value={value}
         onChange={(event) => {
-          onChange(event.target.value as DraftRow['action']);
+          onChange(event.target.value);
         }}
       >
         {unique.map((option) => (
@@ -608,43 +660,110 @@ function ReconciliationSelect({
           </option>
         ))}
       </select>
-      {row.reconciliation?.suggestedAction === 'IMPORT' && matches.length > 0 ? (
+      {row.reconciliation?.suggestedAction === 'IMPORT' && matches.some((item) => item.kind === 'OWN_TRANSFER') ? (
+        <span className="mt-1 block text-ink-soft">
+          Parece uma transferência com {matches.find((item) => item.kind === 'OWN_TRANSFER')?.accountName}. Escolha essa opção para não lançar de novo.
+        </span>
+      ) : row.reconciliation?.suggestedAction === 'IMPORT' && matches.length > 0 ? (
         <span className="mt-1 block text-ink-soft">Parece o pagamento de {matches[0]?.description}. Escolha vincular para conciliar.</span>
       ) : null}
     </label>
   );
 }
 
+function categoryDraft(draft: DraftRow | undefined, categoryId: string): Partial<DraftRow> {
+  if (draft?.action !== 'RECORD_TRANSFER') return { categoryId };
+  return {
+    action: 'IMPORT',
+    categoryId,
+    counterAccountId: undefined,
+    transactionId: undefined,
+    billId: undefined,
+  };
+}
+
+function transferDraft(row: ImportPreviewRow, counterAccountId: string): Partial<DraftRow> {
+  const match = row.reconciliation?.matches.find(
+    (item) => item.kind === 'OWN_TRANSFER' && item.accountId === counterAccountId,
+  );
+  return {
+    action: 'RECORD_TRANSFER',
+    include: true,
+    counterAccountId,
+    transactionId: match?.transactionId,
+    billId: undefined,
+  };
+}
+
 function ImportCategoryField({
   row,
   draft,
   options,
+  accounts,
   suggested,
-  onChange,
+  onCategory,
+  onTransfer,
 }: {
   row: ImportPreviewRow;
   draft: DraftRow | undefined;
   options: Category[];
+  accounts: Account[];
   suggested: Category | undefined;
-  onChange: (categoryId: string) => void;
+  onCategory: (categoryId: string) => void;
+  onTransfer: (accountId: string) => void;
 }) {
+  const transfer = draft?.action === 'RECORD_TRANSFER';
+  const kindLabel = row.type === 'INCOME' ? 'Receita' : 'Despesa';
   return (
-    <>
-      <CategorySelect categories={options} value={draft?.categoryId ?? ''} onChange={onChange} />
-      {row.confidence === 'high' && suggested ? (
-        <p className="mt-1 text-sm text-brand">conhecida</p>
-      ) : null}
-      {row.confidence === 'low' && suggested && draft?.categoryId !== suggested.id ? (
-        <button
-          type="button"
-          className="mt-1 text-sm text-pending hover:underline"
-          onClick={() => {
-            onChange(suggested.id);
-          }}
-        >
-          Aplicar sugestão: {categoryPath(options, suggested.id)}
-        </button>
-      ) : null}
-    </>
+    <div className="space-y-2">
+      <select
+        className={controlClass}
+        aria-label={`Classificação de ${row.description}`}
+        value={transfer ? 'TRANSFER' : 'CATEGORY'}
+        onChange={(event) => {
+          if (event.target.value === 'TRANSFER') {
+            const suggestedAccount = row.reconciliation?.matches.find(
+              (item) => item.kind === 'OWN_TRANSFER' && item.matchConfidence === 'high',
+            );
+            const knownAccount =
+              [draft?.counterAccountId, suggestedAccount?.accountId].find((id) => Boolean(id)) ?? '';
+            onTransfer(knownAccount);
+            return;
+          }
+          onCategory(draft?.categoryId ?? '');
+        }}
+      >
+        <option value="CATEGORY">{kindLabel}</option>
+        <option value="TRANSFER">Transferência</option>
+      </select>
+      {transfer ? (
+        <ChoiceSelect
+          title={row.type === 'INCOME' ? 'Veio da conta' : 'Foi para a conta'}
+          searchLabel="Buscar conta"
+          emptyLabel={row.type === 'INCOME' ? 'Selecione a conta de origem' : 'Selecione a conta de destino'}
+          options={accounts.map((account) => ({ value: account.id, label: account.name }))}
+          value={draft.counterAccountId ?? ''}
+          onChange={onTransfer}
+        />
+      ) : (
+        <>
+          <CategorySelect categories={options} value={draft?.categoryId ?? ''} onChange={onCategory} />
+          {row.confidence === 'high' && suggested ? (
+            <p className="mt-1 text-sm text-brand">conhecida</p>
+          ) : null}
+          {row.confidence === 'low' && suggested && draft?.categoryId !== suggested.id ? (
+            <button
+              type="button"
+              className="mt-1 text-sm text-pending hover:underline"
+              onClick={() => {
+                onCategory(suggested.id);
+              }}
+            >
+              Aplicar sugestão: {categoryPath(options, suggested.id)}
+            </button>
+          ) : null}
+        </>
+      )}
+    </div>
   );
 }
