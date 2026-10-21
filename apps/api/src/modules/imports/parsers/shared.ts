@@ -66,7 +66,7 @@ function swapUtf16(buffer: Buffer): Buffer {
 }
 
 export function parseAmount(raw: string): number {
-  const trimmed = raw.trim().replace(/\s/g, '');
+  const trimmed = raw.trim().replace(/\s/g, '').replace(/[^\d,.\-+()]/g, '');
   if (!trimmed) return Number.NaN;
 
   const negative = /^\(.*\)$/.test(trimmed) || trimmed.startsWith('-');
