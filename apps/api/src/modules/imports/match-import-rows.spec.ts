@@ -109,4 +109,42 @@ describe('conciliação da importação', () => {
     expect(result.get('first')?.suggestedAction).toBe('PAY_BILL');
     expect(result.get('second')?.matches.filter((match) => match.kind === 'BILL')).toHaveLength(0);
   });
+
+  it('marca como transferência a entrada que casa com a saída já lançada na outra conta', () => {
+    const result = matchImportRows(
+      [line({ lineId: 'sicredi', direction: 'in', amount: 500, description: 'PIX RECEBIDO' })],
+      [],
+      [],
+      'sicredi',
+      [
+        {
+          id: 'nubank-expense',
+          accountId: 'nubank',
+          accountName: 'Nubank Adriano',
+          date: '2026-10-12',
+          amount: 500,
+          direction: 'out',
+        },
+      ],
+    );
+    expect(result.get('sicredi')).toMatchObject({
+      suggestedAction: 'RECORD_TRANSFER',
+      matches: [{ kind: 'OWN_TRANSFER', accountId: 'nubank', transactionId: 'nubank-expense', matchConfidence: 'high' }],
+    });
+  });
+
+  it('não pré-seleciona quando duas contas têm a mesma saída', () => {
+    const result = matchImportRows(
+      [line({ lineId: 'in', direction: 'in', amount: 100 })],
+      [],
+      [],
+      'sicredi',
+      [
+        { id: 'a', accountId: 'nubank', accountName: 'Nubank', date: '2026-10-12', amount: 100, direction: 'out' },
+        { id: 'b', accountId: 'carteira', accountName: 'Carteira', date: '2026-10-11', amount: 100, direction: 'out' },
+      ],
+    );
+    expect(result.get('in')?.suggestedAction).toBe('IMPORT');
+    expect(result.get('in')?.matches.filter((match) => match.kind === 'OWN_TRANSFER')).toHaveLength(2);
+  });
 });
