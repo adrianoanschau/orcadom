@@ -1,5 +1,14 @@
 # @orcadom/api
 
+## 0.20.1
+
+### Patch Changes
+
+- 12850ee: Na importação, a classificação aceita transferência para outra conta, e uma linha que casa com o lançamento da outra conta já vem marcada.
+- Updated dependencies [12850ee]
+  - @orcadom/database@0.20.1
+  - @orcadom/types@0.20.1
+
 ## 0.20.0
 
 ### Minor Changes
