@@ -5,6 +5,15 @@ O produto usa uma única versão SemVer (`MAJOR.MINOR.PATCH`) para o
 monorepo inteiro. A partir de `0.9.0`, as entradas passam a ser geradas
 pelos changesets.
 
+## 0.20.1
+
+### Patch Changes
+
+- 12850ee: Na importação, a classificação aceita transferência para outra conta, e uma linha que casa com o lançamento da outra conta já vem marcada.
+- Updated dependencies [12850ee]
+  - @orcadom/database@0.20.1
+  - @orcadom/types@0.20.1
+
 ## 0.20.0
 
 ### Minor Changes
