@@ -25,6 +25,24 @@ describe('parseCsv', () => {
     expect(rows[0]?.externalId).toBe(rows[3]?.externalId);
   });
 
+  it('lê CSV do Sicredi com R$ e milhar', () => {
+    const rows = parseCsv(fixture('sicredi.csv'));
+
+    expect(rows).toHaveLength(4);
+    expect(rows[0]).toMatchObject({
+      description: 'PAGAMENTO PIX',
+      amount: 7,
+      type: 'EXPENSE',
+    });
+    expect(rows[1]).toMatchObject({
+      description: 'RECEBIMENTO PIX',
+      amount: 5.91,
+      type: 'INCOME',
+    });
+    expect(rows[2]).toMatchObject({ amount: 1000, type: 'EXPENSE' });
+    expect(rows[3]).toMatchObject({ amount: 3675.59, type: 'EXPENSE' });
+  });
+
   it('lê CSV do Inter com vírgula, data ISO e coluna de tipo', () => {
     const rows = parseCsv(fixture('inter.csv'));
 

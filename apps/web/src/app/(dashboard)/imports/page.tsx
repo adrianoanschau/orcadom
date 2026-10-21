@@ -581,10 +581,22 @@ function resolutionValue(draft: DraftRow | undefined): string {
   if (draft.action === 'RECORD_TRANSFER' && draft.transactionId) {
     return `RECORD_TRANSFER:${draft.transactionId}`;
   }
+  if (draft.action === 'LINK_TRANSACTION' && draft.transactionId) {
+    return `LINK_TRANSACTION:${draft.transactionId}`;
+  }
   return draft.action;
 }
 
 function resolutionPatch(row: ImportPreviewRow, value: string): Partial<DraftRow> {
+  if (value.startsWith('LINK_TRANSACTION:')) {
+    return {
+      action: 'LINK_TRANSACTION',
+      include: true,
+      transactionId: value.slice('LINK_TRANSACTION:'.length),
+      billId: undefined,
+      counterAccountId: undefined,
+    };
+  }
   if (value.startsWith('RECORD_TRANSFER:')) {
     const transactionId = value.slice('RECORD_TRANSFER:'.length);
     const match = row.reconciliation?.matches.find(
@@ -632,7 +644,7 @@ function ReconciliationSelect({
             ? 'PAY_BILL'
             : match.kind === 'TRANSFER_MIRROR'
               ? 'SKIP'
-              : 'LINK_TRANSACTION',
+              : `LINK_TRANSACTION:${match.transactionId ?? ''}`,
       label:
         match.kind === 'OWN_TRANSFER'
           ? `Transferência com "${match.accountName ?? match.description}"`
@@ -643,6 +655,13 @@ function ReconciliationSelect({
               : `Vincular a "${match.description}"`,
     })),
   ];
+  for (const match of matches) {
+    if (match.kind !== 'TRANSFER_MIRROR' || match.linked) continue;
+    options.splice(1, 0, {
+      value: `LINK_TRANSACTION:${match.transactionId ?? ''}`,
+      label: `Vincular a "${match.description}"`,
+    });
+  }
   const unique = options.filter((option, index) => options.findIndex((item) => item.value === option.value) === index);
   return (
     <label className="mt-2 block min-w-52 text-sm">
@@ -663,6 +682,15 @@ function ReconciliationSelect({
       {row.reconciliation?.suggestedAction === 'IMPORT' && matches.some((item) => item.kind === 'OWN_TRANSFER') ? (
         <span className="mt-1 block text-ink-soft">
           Parece uma transferência com {matches.find((item) => item.kind === 'OWN_TRANSFER')?.accountName}. Escolha essa opção para não lançar de novo.
+        </span>
+      ) : row.reconciliation?.suggestedAction === 'IMPORT' &&
+        matches.some((item) => item.kind === 'TRANSFER_MIRROR' && !item.linked) ? (
+        <span className="mt-1 block text-ink-soft">
+          Este valor já entrou como transferência. Escolha vincular para conciliar, ou ignorar para não lançar de novo.
+        </span>
+      ) : row.reconciliation?.suggestedAction === 'IMPORT' && matches.some((item) => item.kind === 'TRANSFER_MIRROR') ? (
+        <span className="mt-1 block text-ink-soft">
+          Este valor já entrou como transferência. Escolha ignorar para não lançar de novo.
         </span>
       ) : row.reconciliation?.suggestedAction === 'IMPORT' && matches.length > 0 ? (
         <span className="mt-1 block text-ink-soft">Parece o pagamento de {matches[0]?.description}. Escolha vincular para conciliar.</span>
