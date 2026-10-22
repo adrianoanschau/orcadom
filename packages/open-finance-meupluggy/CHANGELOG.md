@@ -1,5 +1,12 @@
 # @orcadom/open-finance-meupluggy
 
+## 0.21.1
+
+### Patch Changes
+
+- 25759e0: Read Meu Pluggy transactions from the cursor endpoint and return the provider status when that call fails.
+- @orcadom/open-finance-core@0.21.1
+
 ## 0.21.0
 
 ### Minor Changes

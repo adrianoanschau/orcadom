@@ -5,6 +5,18 @@ O produto usa uma única versão SemVer (`MAJOR.MINOR.PATCH`) para o
 monorepo inteiro. A partir de `0.9.0`, as entradas passam a ser geradas
 pelos changesets.
 
+## 0.21.1
+
+### Patch Changes
+
+- 25759e0: Read Meu Pluggy transactions from the cursor endpoint and return the provider status when that call fails.
+- Updated dependencies [25759e0]
+  - @orcadom/open-finance-meupluggy@0.21.1
+  - @orcadom/database@0.21.1
+  - @orcadom/open-finance-core@0.21.1
+  - @orcadom/open-finance-testing@0.21.1
+  - @orcadom/types@0.21.1
+
 ## 0.21.0
 
 ### Minor Changes
