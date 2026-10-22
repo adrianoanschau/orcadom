@@ -48,6 +48,9 @@ services:
       SENTRY_ENVIRONMENT: preview-pr-${PR_NUMBER}
       # Crons desligados por padrão (CPU de 1 vCPU é da produção).
       CRON_DISABLED: ${PREVIEW_CRON_DISABLED:-true}
+      # Uso pessoal: o preview é só do dono. A chave nasce no .env do PR.
+      OPEN_FINANCE_MEUPLUGGY_ENABLED: ${PREVIEW_MEUPLUGGY_ENABLED:-true}
+      CREDENTIALS_ENCRYPTION_KEY: ${PREVIEW_CREDENTIALS_ENCRYPTION_KEY:?}
       AUTOMATION_API_KEY: ''
       NOTIFICATIONS_WEBHOOK_URL: ''
       NOTIFICATIONS_WEBHOOK_SECRET: ''

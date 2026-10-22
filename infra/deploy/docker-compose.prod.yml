@@ -114,6 +114,8 @@ services:
     environment:
       NODE_OPTIONS: --max-old-space-size=384
       COOKIE_SECURE: 'true'
+      OPEN_FINANCE_MEUPLUGGY_ENABLED: ${OPEN_FINANCE_MEUPLUGGY_ENABLED:-false}
+      CREDENTIALS_ENCRYPTION_KEY: ${CREDENTIALS_ENCRYPTION_KEY:-}
     networks:
       - default
       - edge

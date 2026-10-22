@@ -121,6 +121,9 @@ describe('meupluggy feature flag', () => {
 
   it('refuses to enable the module without an encryption key', () => {
     expect(() => MeuPluggyModule.register({ OPEN_FINANCE_MEUPLUGGY_ENABLED: 'true' })).toThrow(/CREDENTIALS_ENCRYPTION_KEY/);
+    expect(() =>
+      MeuPluggyModule.register({ OPEN_FINANCE_MEUPLUGGY_ENABLED: 'true', CREDENTIALS_ENCRYPTION_KEY: 'curta' }),
+    ).toThrow(/CREDENTIALS_ENCRYPTION_KEY is invalid/);
   });
 });
 

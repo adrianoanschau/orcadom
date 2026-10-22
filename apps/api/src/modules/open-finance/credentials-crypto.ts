@@ -2,10 +2,15 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes, timingSafeEq
 
 export function readEncryptionKey(value: string | undefined): Buffer {
   const trimmed = value?.trim() ?? '';
+  if (!trimmed) {
+    throw new Error(
+      'OPEN_FINANCE_MEUPLUGGY_ENABLED=true requires CREDENTIALS_ENCRYPTION_KEY (32 bytes, base64 or 64 hex characters)',
+    );
+  }
   if (/^[0-9a-fA-F]{64}$/.test(trimmed)) return Buffer.from(trimmed, 'hex');
   const decoded = Buffer.from(trimmed, 'base64');
-  if (decoded.length === 32 && trimmed.length > 0) return decoded;
-  throw new Error('CREDENTIALS_ENCRYPTION_KEY must be 32 bytes, base64 or 64 hex characters');
+  if (decoded.length === 32) return decoded;
+  throw new Error('CREDENTIALS_ENCRYPTION_KEY is invalid: expected 32 bytes, base64 or 64 hex characters');
 }
 
 export function encryptSecret(plain: string, key: Buffer): string {

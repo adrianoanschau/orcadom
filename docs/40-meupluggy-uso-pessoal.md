@@ -35,6 +35,13 @@ job diário. A janela é `lastSyncAt − 7 dias` (a Pluggy reenvia dias
 anteriores) e, na primeira carga, 365 dias. O `externalProvider` gravado é
 `meupluggy`.
 
+No preview o cron fica desligado (`CRON_DISABLED=true`). A sincronização ali
+é manual, pelo botão ou por `POST /open-finance/meupluggy/sync`, ou chega
+pelo webhook. A flag do preview vem ligada (`PREVIEW_MEUPLUGGY_ENABLED`,
+padrão `true`) e a `PREVIEW_CREDENTIALS_ENCRYPTION_KEY` é gerada na criação
+do `previews/pr-<N>/.env` e reaproveitada nos redeploys. `destroy-preview.sh`
+apaga esse arquivo junto com o preview.
+
 ## Extratos importados antes
 
 Um sync não cria de novo um lançamento que já entrou por OFX ou CSV. Na mesma
