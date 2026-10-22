@@ -1,5 +1,11 @@
 # @orcadom/web
 
+## 0.21.3
+
+### Patch Changes
+
+- @orcadom/types@0.21.3
+
 ## 0.21.2
 
 ### Patch Changes

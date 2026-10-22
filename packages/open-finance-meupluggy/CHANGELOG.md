@@ -1,5 +1,12 @@
 # @orcadom/open-finance-meupluggy
 
+## 0.21.3
+
+### Patch Changes
+
+- 82d9a36: Treat a positive Meu Pluggy credit card amount as an expense.
+- @orcadom/open-finance-core@0.21.3
+
 ## 0.21.2
 
 ### Patch Changes
