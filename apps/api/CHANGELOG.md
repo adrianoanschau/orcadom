@@ -1,5 +1,24 @@
 # @orcadom/api
 
+## 0.21.0
+
+### Minor Changes
+
+- 2bc1983: Add a personal Meu Pluggy adapter that stays off unless its feature flag is enabled.
+- 989bcdb: Add an Open Finance provider port, a fake adapter, and API sync through the existing import matcher.
+
+### Patch Changes
+
+- 01c8110: Pass Meu Pluggy environment variables into preview and production deploys.
+- 6cadd64: Link an Open Finance sync to statement rows already imported from a file.
+- Updated dependencies [2bc1983]
+- Updated dependencies [989bcdb]
+  - @orcadom/database@0.21.0
+  - @orcadom/types@0.21.0
+  - @orcadom/open-finance-core@0.21.0
+  - @orcadom/open-finance-testing@0.21.0
+  - @orcadom/open-finance-meupluggy@0.21.0
+
 ## 0.20.2
 
 ### Patch Changes

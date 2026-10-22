@@ -1,7 +1,7 @@
 {
   "name": "orcadom",
   "private": true,
-  "version": "0.20.2",
+  "version": "0.21.0",
   "scripts": {
     "dev": "turbo run dev",
     "dev:split": "./scripts/dev.sh",
