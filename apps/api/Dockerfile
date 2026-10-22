@@ -33,6 +33,7 @@ COPY --from=builder --chown=orcadom:orcadom /app/packages/database/dist ./packag
 COPY --from=builder --chown=orcadom:orcadom /app/packages/types/dist ./packages/types/dist
 COPY --from=builder --chown=orcadom:orcadom /app/packages/open-finance-core/dist ./packages/open-finance-core/dist
 COPY --from=builder --chown=orcadom:orcadom /app/packages/open-finance-testing/dist ./packages/open-finance-testing/dist
+COPY --from=builder --chown=orcadom:orcadom /app/packages/open-finance-meupluggy/dist ./packages/open-finance-meupluggy/dist
 USER orcadom
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \

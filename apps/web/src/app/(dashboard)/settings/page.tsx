@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { MeuPluggySettingsLink } from '@/components/meupluggy-settings-link';
 import { OnboardingSettings } from '@/components/onboarding-settings';
 import { PwaSettings } from '@/components/pwa-settings';
 import { PageHeader } from '@/components/ui';
@@ -44,6 +45,7 @@ export default function SettingsPage() {
             </Link>
           </li>
         ))}
+        <MeuPluggySettingsLink />
       </ul>
     </section>
   );

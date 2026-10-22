@@ -8,6 +8,8 @@ export const BILL_AMOUNT_TOLERANCE = 0.15;
 
 export type MatchConfidence = 'high' | 'low';
 export type SuggestedImportAction = 'IMPORT' | 'SKIP' | 'LINK_TRANSACTION' | 'PAY_BILL' | 'RECORD_TRANSFER';
+/** `confirm` keeps file import asking the user. `link-existing` is the Open Finance sync. */
+export type ImportMatchStrategy = 'confirm' | 'link-existing';
 
 export interface MatchLine {
   lineId: string;
@@ -119,6 +121,7 @@ export function matchImportRows(
   bills: readonly MatchBillCandidate[],
   accountId: string,
   counterparts: readonly MatchCounterparty[] = [],
+  strategy: ImportMatchStrategy = 'confirm',
 ): Map<string, RowReconciliation> {
   const ordered = [...lines].sort((left, right) => left.date.localeCompare(right.date) || left.lineId.localeCompare(right.lineId));
   const claimed = new Set<string>();
@@ -139,6 +142,15 @@ export function matchImportRows(
       });
       continue;
     }
+    const linked = strategy === 'link-existing' ? linkExistingTransaction(line, options) : null;
+    if (linked) {
+      claimed.add(claimKey(linked));
+      result.set(line.lineId, {
+        matches: [{ ...linked, matchConfidence: 'high' }],
+        suggestedAction: 'LINK_TRANSACTION',
+      });
+      continue;
+    }
     result.set(line.lineId, {
       matches: options.map((match) => ({ ...match, matchConfidence: 'low' as const })),
       suggestedAction: 'IMPORT',
@@ -146,6 +158,13 @@ export function matchImportRows(
   }
 
   return result;
+}
+
+function linkExistingTransaction(line: MatchLine, options: readonly RowMatch[]): RowMatch | null {
+  const blocked = options.some((match) => match.matchConfidence === 'high' && match.kind !== 'TRANSACTION');
+  if (blocked) return null;
+  const transactions = options.filter((match) => match.kind === 'TRANSACTION');
+  return pickClosest(line, transactions);
 }
 
 function claimKey(match: RowMatch): string {

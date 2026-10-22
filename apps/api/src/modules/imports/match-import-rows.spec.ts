@@ -159,6 +159,51 @@ describe('conciliação da importação', () => {
     });
   });
 
+  it('liga lançamentos manuais só na estratégia do Open Finance', () => {
+    const transactions: MatchTransactionCandidate[] = [
+      {
+        id: 'padaria',
+        date: '2026-10-12',
+        amount: 5,
+        type: 'EXPENSE',
+        description: 'Padaria',
+        accountId: account,
+        fromAccountId: null,
+        toAccountId: null,
+        billId: null,
+        billDescription: null,
+      },
+      {
+        id: 'farmacia',
+        date: '2026-10-12',
+        amount: 5,
+        type: 'EXPENSE',
+        description: 'Farmácia',
+        accountId: account,
+        fromAccountId: null,
+        toAccountId: null,
+        billId: null,
+        billDescription: null,
+      },
+    ];
+    const lines = [
+      line({ lineId: 'p1', amount: 5, description: 'Padaria' }),
+      line({ lineId: 'p2', amount: 5, description: 'Farmácia' }),
+    ];
+    const confirmed = matchImportRows(lines, transactions, [], account);
+    expect(confirmed.get('p1')?.suggestedAction).toBe('IMPORT');
+    expect(confirmed.get('p2')?.suggestedAction).toBe('IMPORT');
+    const linked = matchImportRows(lines, transactions, [], account, [], 'link-existing');
+    expect(linked.get('p1')).toMatchObject({
+      suggestedAction: 'LINK_TRANSACTION',
+      matches: [{ kind: 'TRANSACTION', transactionId: 'padaria' }],
+    });
+    expect(linked.get('p2')).toMatchObject({
+      suggestedAction: 'LINK_TRANSACTION',
+      matches: [{ kind: 'TRANSACTION', transactionId: 'farmacia' }],
+    });
+  });
+
   it('não pré-seleciona quando duas contas têm a mesma saída', () => {
     const result = matchImportRows(
       [line({ lineId: 'in', direction: 'in', amount: 100 })],

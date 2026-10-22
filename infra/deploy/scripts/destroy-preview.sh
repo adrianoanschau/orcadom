@@ -59,6 +59,7 @@ else
 fi
 
 # --- 4. Estado local e imagens do PR -----------------------------------------
+# Apaga previews/pr-<N>/.env, inclusive PREVIEW_CREDENTIALS_ENCRYPTION_KEY.
 case "$STATE_DIR" in
   "$PREVIEWS_DIR"/pr-[0-9]*) rm -rf -- "$STATE_DIR" ;;
   *) die "caminho de estado inesperado: $STATE_DIR" ;;

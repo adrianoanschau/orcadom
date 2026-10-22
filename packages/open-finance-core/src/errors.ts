@@ -1,7 +1,10 @@
 export class ProviderAuthError extends Error {
   override readonly name = 'ProviderAuthError';
 
-  constructor(message = 'Provider rejected the credentials') {
+  constructor(
+    message = 'Provider rejected the credentials',
+    readonly reason?: string,
+  ) {
     super(message);
   }
 }

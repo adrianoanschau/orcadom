@@ -102,7 +102,11 @@ if [ ! -f "$PR_ENV" ]; then
     echo "PREVIEW_DB_PASSWORD=$(gen_secret 24)"
     echo "PREVIEW_JWT_ACCESS_SECRET=$(gen_secret 32)"
     echo "PREVIEW_JWT_REFRESH_SECRET=$(gen_secret 32)"
+    echo "PREVIEW_CREDENTIALS_ENCRYPTION_KEY=$(openssl rand -base64 32)"
   } > "$PR_ENV"
+elif ! grep -q '^PREVIEW_CREDENTIALS_ENCRYPTION_KEY=.' "$PR_ENV"; then
+  # Preview criado antes desta chave: gera uma vez e reaproveita nos redeploys.
+  echo "PREVIEW_CREDENTIALS_ENCRYPTION_KEY=$(openssl rand -base64 32)" >> "$PR_ENV"
 fi
 DB_PASSWORD="$(env_get PREVIEW_DB_PASSWORD "$PR_ENV")"
 # Campos que podem mudar a cada deploy: reescritos sempre.
