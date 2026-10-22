@@ -20,54 +20,29 @@ um agregador já certificado (ex: Pluggy, Belvo). Certificação própria é um
 projeto regulatório grande por si só — a recomendação é **agregador**
 para esta primeira versão da feature, revisitando certificação direta só
 se o volume de uso ou a estratégia de produto justificar o investimento
-mais adiante.
+mais adiante. Nenhum agregador está escolhido. O código depende só do
+contrato `OpenFinanceProvider`; cada provedor será um pacote. O desenho
+está em [39-open-finance-adapters.md](./39-open-finance-adapters.md).
 
-## 3. Decisão de arquitetura: reaproveitar `ImportBatch`, não criar um pipeline novo
+## 3. Decisão de arquitetura: reaproveitar a conciliação de extrato
 
-Dado trazido pelo Open Finance (saldo, transações) entra no **mesmo**
-fluxo de preview/confirmação já maduro desde `07-importacao-extratos.md` —
-tratado como mais uma origem, ao lado de `FILE` (upload manual) e `EMAIL`:
+A sincronização não cria um segundo pipeline de lançamentos. As
+transações do provedor viram linhas do `matchImportRows` já usado no OFX
+([`36`](./36-importacao-conciliacao-contas-a-pagar.md)). Pagamento de
+fatura que casa com o crédito no cartão vira `TRANSFER`. A idempotência
+é o par `externalProvider` + `externalId` (e a chave da segunda perna).
+A tela de preview continua prevista; esta etapa grava o resultado do
+matcher.
 
-```prisma
-enum ImportSource {
-  FILE
-  EMAIL
-  OPEN_FINANCE
-}
-// Transaction.source (já existente) ganha esse valor adicional de origem
-```
+## 4. Modelagem de Dados
 
-Isso significa que toda a lógica de deduplicação, categorização por
-memória, e revisão humana antes de confirmar já funciona sem
-modificação — só a etapa de "de onde vêm os dados" muda. A conciliação com
-lançamentos existentes e com contas a pagar
-([`36`](./36-importacao-conciliacao-contas-a-pagar.md)) também roda no
-preview, qualquer que seja a origem.
-
-## 4. Modelagem de Dados (preliminar)
-
-```prisma
-enum OpenFinanceConnectionStatus {
-  ACTIVE
-  CONSENT_EXPIRING
-  CONSENT_EXPIRED
-  ERROR
-}
-
-model OpenFinanceConnection {
-  id                   String    @id @default(uuid())
-  bankName             String
-  aggregatorItemId     String    // referência à conexão no agregador
-  consentExpiresAt     DateTime
-  status               OpenFinanceConnectionStatus @default(ACTIVE)
-  createdAt            DateTime  @default(now())
-
-  householdId String
-  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
-
-  @@map("open_finance_connections")
-}
-```
+`OpenFinanceConnection` guarda usuário, domicílio, provedor, id externo,
+status e `lastSyncAt`. `Account` pode apontar para a conta externa
+(`externalProvider`, `externalAccountId`), único por domicílio.
+`Transaction` guarda o mesmo par de provedor e id externo, também único.
+`OpenFinanceExternalKey` lembra a outra perna quando duas linhas do
+provedor viram uma transferência só. O schema definitivo está em
+`packages/database/prisma/schema.prisma`.
 
 ## 5. Consentimento (LGPD)
 
@@ -83,12 +58,13 @@ model OpenFinanceConnection {
 
 ## 6. Fases de Execução
 
-1. **Levantamento regulatório e escolha do agregador** — etapa que
-   precede qualquer código, dado o preliminar desta seção 4.
+1. **Levantamento regulatório e escolha do agregador** — precede o
+   adapter real. O contrato e o provedor fake já existem; ver
+   [39](./39-open-finance-adapters.md).
 2. **Fluxo de consentimento** (OAuth2/FAPI, conforme exigido pelo padrão
    Open Finance).
-3. **Ingestão via `ImportBatch`** — nova origem `OPEN_FINANCE`, sem
-   alterar o pipeline de revisão já existente.
+3. **Ingestão pelo matcher de extrato** — mesma conciliação do OFX, com
+   idempotência por id externo.
 4. **Tela de gerenciamento de conexões bancárias** — conectar, ver
    status, revogar.
 5. **Alerta de expiração de consentimento**, via Notificações.
@@ -99,7 +75,7 @@ model OpenFinanceConnection {
   qualquer integração de terceiro carrega esse risco; vale isolar bem a
   camada de integração (um adapter próprio) para que uma troca de
   agregador no futuro não exija reescrever a lógica de domínio que já
-  reaproveita `ImportBatch`.
+  reaproveita o matcher de extrato.
 - **Consentimento expirado sem tratamento vira interrupção silenciosa de
   importação** — é exatamente o que a notificação de expiração (seção 5)
   existe para evitar; sem ela, o usuário só descobre que parou de

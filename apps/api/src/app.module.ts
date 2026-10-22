@@ -28,6 +28,7 @@ import { AutomationModule } from './modules/automation/automation.module.js';
 import { BankAccountMappingsModule } from './modules/bank-account-mappings/bank-account-mappings.module.js';
 import { ImportsModule } from './modules/imports/imports.module.js';
 import { NotificationsModule } from './modules/notifications/notifications.module.js';
+import { OpenFinanceModule } from './modules/open-finance/open-finance.module.js';
 import { SettingsModule } from './modules/settings/settings.module.js';
 import { InstallmentPlansModule } from './modules/installment-plans/installment-plans.module.js';
 import { RecurringTransactionsModule } from './modules/recurring-transactions/recurring-transactions.module.js';
@@ -71,6 +72,7 @@ const cronImports = process.env.CRON_DISABLED === 'true' ? [] : [ScheduleModule.
     SettingsModule,
     BankAccountMappingsModule,
     NotificationsModule,
+    OpenFinanceModule,
   ],
   controllers: [AppController],
   providers: [

@@ -49,6 +49,8 @@ orcadom/
 │   │   │   └── index.ts          # exporta PrismaClient singleton
 │   │   └── package.json
 │   │
+│   ├── open-finance-core/        # contrato Open Finance, sem SDK de provedor
+│   ├── open-finance-testing/     # provedor fake do contrato
 │   ├── types/                    # DTOs e Zod schemas compartilhados
 │   │   ├── src/
 │   │   │   ├── account.types.ts

@@ -46,6 +46,14 @@ enum ImportSource {
   EMAIL
 }
 
+enum OpenFinanceConnectionStatus {
+  ACTIVE
+  UPDATING
+  LOGIN_ERROR
+  EXPIRED
+  REVOKED
+}
+
 enum EmailImportStatus {
   PROCESSED
   SKIPPED_DUPLICATE
@@ -164,6 +172,7 @@ model User {
   onboardingState   UserOnboardingState?
   reportRequests    ReportRequest[]
   pushSubscriptions PushSubscription[]
+  openFinanceConnections OpenFinanceConnection[]
 
   @@map("users")
 }
@@ -221,6 +230,7 @@ model Household {
   savingsGoals          SavingsGoal[]
   reportRequests        ReportRequest[]
   bills                 Bill[]
+  openFinanceConnections OpenFinanceConnection[]
 
   @@map("households")
 }
@@ -289,6 +299,10 @@ model Account {
   billsTarget           Bill[]                 @relation("BillTargetAccount")
   recurringBillTargets  RecurringTransaction[] @relation("RecurringBillTarget")
 
+  externalProvider  String?
+  externalAccountId String?
+
+  @@unique([householdId, externalProvider, externalAccountId])
   @@index([householdId])
   @@map("accounts")
 }
@@ -364,9 +378,10 @@ model Transaction {
   toAccountId String?
   toAccount   Account? @relation("TransferToAccount", fields: [toAccountId], references: [id])
 
-  source        TransactionSource @default(MANUAL)
-  externalId    String?
-  importBatchId String?
+  source           TransactionSource @default(MANUAL)
+  externalId       String?
+  externalProvider String?
+  importBatchId    String?
   importBatch   ImportBatch?      @relation(fields: [importBatchId], references: [id])
 
   postingStatus          PostingStatus         @default(POSTED)
@@ -377,9 +392,11 @@ model Transaction {
   recurringTransaction   RecurringTransaction? @relation(fields: [recurringTransactionId], references: [id], onDelete: SetNull)
 
   bill Bill?
+  openFinanceKeys OpenFinanceExternalKey[]
 
   @@unique([accountId, externalId])
   @@unique([fromAccountId, externalId])
+  @@unique([externalProvider, externalId])
   @@unique([recurringTransactionId, date])
   @@index([householdId, date])
   @@index([userId, date])
@@ -686,4 +703,40 @@ model AuditLog {
   @@index([householdId, entityType, entityId])
   @@index([householdId, createdAt])
   @@map("audit_logs")
+}
+
+model OpenFinanceConnection {
+  id             String                       @id @default(uuid())
+  provider       String
+  externalId     String
+  status         OpenFinanceConnectionStatus
+  institutionName String
+  lastSyncAt     DateTime?
+  createdAt      DateTime                     @default(now())
+  updatedAt      DateTime                     @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, externalId])
+  @@index([userId])
+  @@index([householdId])
+  @@map("open_finance_connections")
+}
+
+model OpenFinanceExternalKey {
+  id           String   @id @default(uuid())
+  provider     String
+  externalId   String
+  createdAt    DateTime @default(now())
+
+  transactionId String
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, externalId])
+  @@index([transactionId])
+  @@map("open_finance_external_keys")
 }

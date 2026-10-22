@@ -22,6 +22,7 @@ export type TransactionWriter = Prisma.TransactionClient;
 export interface TransactionWriteExtras {
   source?: 'MANUAL' | 'IMPORTED';
   externalId?: string | null;
+  externalProvider?: string | null;
   importBatchId?: string | null;
   memorySource?: string;
   recurringTransactionId?: string;
@@ -347,6 +348,7 @@ export class TransactionsService {
       toAccountId: transfer ? (dto.toAccountId ?? null) : null,
       source: extras.source === 'IMPORTED' ? TransactionSource.IMPORTED : TransactionSource.MANUAL,
       externalId: extras.externalId ?? null,
+      externalProvider: extras.externalProvider ?? null,
       importBatchId: extras.importBatchId ?? null,
       recurringTransactionId: extras.recurringTransactionId ?? null,
       postingStatus:
