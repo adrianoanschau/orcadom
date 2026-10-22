@@ -19,7 +19,8 @@ das configurações e o webhook responde 404.
    conta externa para uma conta do domicílio.
 
 A Pluggy atualiza os itens a cada 24 horas. O Orcadom não chama
-`PATCH /items`. O sync só relê o que já está lá. A autorização do Meu Pluggy
+`PATCH /items`. O sync só relê o que já está lá, por
+`GET /v2/transactions` (`dateFrom`, `dateTo` e o cursor `next`). A autorização do Meu Pluggy
 dura um ano (`consentExpiresAt`). Com 30 dias ou menos, e quando a Pluggy
 devolve `USER_AUTHORIZATION_EXPIRED`, o status avisa para repetir o passo 3.
 

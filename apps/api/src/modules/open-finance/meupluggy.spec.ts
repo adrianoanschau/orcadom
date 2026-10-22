@@ -5,13 +5,12 @@ import {
   MEUPLUGGY_CARD_ID,
   MEUPLUGGY_CHECKING_ID,
   MEUPLUGGY_DEMO_ITEM_ID,
-  MEUPLUGGY_PAGE_SIZE,
   MeuPluggyProvider,
   accountFixtures,
   cardFixtures,
   checkingFixtures,
   itemFixture,
-  transactionsFor,
+  transactionPage,
 } from '@orcadom/open-finance-meupluggy';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -27,7 +26,12 @@ import {
   type TransferConversion,
 } from './import-provider-transactions.js';
 import { MeuPluggyModule } from './meupluggy.module.js';
-import { consentWarning, meupluggySyncRange, withProviderBackoff } from './meupluggy-range.js';
+import {
+  consentWarning,
+  meupluggySyncRange,
+  meupluggyUnavailableMessage,
+  withProviderBackoff,
+} from './meupluggy-range.js';
 import { syncLinkedAccounts } from './sync-linked-accounts.js';
 
 class MemoryLedger implements OpenFinanceLedger {
@@ -141,6 +145,10 @@ describe('meupluggy credentials', () => {
     expect(first.from.toISOString()).toBe('2025-10-22T12:00:00.000Z');
     const next = meupluggySyncRange(new Date('2026-10-20T12:00:00.000Z'), new Date('2026-10-22T12:00:00.000Z'));
     expect(next.from.toISOString()).toBe('2026-10-13T12:00:00.000Z');
+    expect(meupluggyUnavailableMessage('Provider unavailable (400): INVALID_DATE: date range is too wide')).toBe(
+      'O Meu Pluggy está indisponível (400): INVALID_DATE: date range is too wide',
+    );
+    expect(meupluggyUnavailableMessage('Provider unavailable')).toBe('O Meu Pluggy está indisponível.');
   });
 
   it('retries rate limits and outages with backoff', async () => {
@@ -193,19 +201,10 @@ describe('meupluggy sync', () => {
         response.end(JSON.stringify({ page: 1, totalPages: 1, results: accountFixtures() }));
         return;
       }
-      if (url.pathname === '/transactions') {
+      if (url.pathname === '/v2/transactions') {
         const accountId = url.searchParams.get('accountId') ?? '';
-        const page = Number(url.searchParams.get('page') ?? '1');
-        const all = transactionsFor(accountId, fixtureNow);
-        const start = (page - 1) * MEUPLUGGY_PAGE_SIZE;
         response.setHeader('content-type', 'application/json');
-        response.end(
-          JSON.stringify({
-            page,
-            totalPages: Math.max(1, Math.ceil(all.length / MEUPLUGGY_PAGE_SIZE)),
-            results: all.slice(start, start + MEUPLUGGY_PAGE_SIZE),
-          }),
-        );
+        response.end(JSON.stringify(transactionPage(accountId, url.searchParams, fixtureNow)));
         return;
       }
       response.statusCode = 404;

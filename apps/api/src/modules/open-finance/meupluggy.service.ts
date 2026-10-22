@@ -31,7 +31,12 @@ import {
   hashWebhookToken,
   secretsMatch,
 } from './credentials-crypto.js';
-import { consentWarning, meupluggySyncRange, withProviderBackoff } from './meupluggy-range.js';
+import {
+  consentWarning,
+  meupluggySyncRange,
+  meupluggyUnavailableMessage,
+  withProviderBackoff,
+} from './meupluggy-range.js';
 import { PrismaOpenFinanceLedger } from './prisma-ledger.js';
 import { syncLinkedAccounts } from './sync-linked-accounts.js';
 
@@ -205,8 +210,7 @@ export class MeuPluggyService {
     const stored = await this.findOwned(userId);
     if (!stored) throw new NotFoundException('Credenciais não encontradas.');
     await this.applyMappings(householdId, mappings);
-    const result = await withProviderBackoff(() => this.importStored(stored, householdId));
-    return result;
+    return this.guard(() => withProviderBackoff(() => this.importStored(stored, householdId)));
   }
 
   async acceptWebhook(userToken: string, rawBody: string): Promise<void> {
@@ -380,7 +384,7 @@ export class MeuPluggyService {
         throw new HttpException('O Meu Pluggy limitou as requisições.', HttpStatus.SERVICE_UNAVAILABLE);
       }
       if (error instanceof ProviderUnavailableError) {
-        throw new ServiceUnavailableException('O Meu Pluggy está indisponível.');
+        throw new ServiceUnavailableException(meupluggyUnavailableMessage(error.message));
       }
       throw error;
     }
