@@ -9,6 +9,16 @@ export function meupluggySyncRange(lastSyncAt: Date | null, now = new Date()): {
 
 export type ConsentWarning = 'ok' | 'expiring' | 'expired';
 
+export function meupluggyUnavailableMessage(providerMessage: string): string {
+  const match = /^Provider unavailable \((\d{3})\)(?:: (.*))?$/.exec(providerMessage);
+  const status = match?.[1];
+  if (!status) return 'O Meu Pluggy está indisponível.';
+  const detail = match[2]?.trim();
+  return detail
+    ? `O Meu Pluggy está indisponível (${status}): ${detail}`
+    : `O Meu Pluggy está indisponível (${status}).`;
+}
+
 export function consentWarning(
   expiresAt: Date | null,
   authReason: string | null,

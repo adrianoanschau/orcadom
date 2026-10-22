@@ -17,7 +17,7 @@ import { NotSupportedError } from './errors.js';
 export const MEUPLUGGY_PROVIDER_ID = 'meupluggy';
 export const MEUPLUGGY_WEBHOOK_HEADER = 'x-meupluggy-webhook-token';
 const API_KEY_TTL_MS = 110 * 60 * 1000;
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 500;
 
 export interface MeuPluggyConfig {
   clientId: string;
@@ -58,6 +58,11 @@ interface PluggyPage<T> {
   results?: T[];
   page?: number;
   totalPages?: number;
+}
+
+interface PluggyTransactionPage {
+  results?: PluggyTransaction[];
+  next?: string | null;
 }
 
 interface PluggyItem {
@@ -126,6 +131,23 @@ function consentExpired(body: unknown): boolean {
   if (body.code === 'USER_AUTHORIZATION_EXPIRED') return true;
   const error = body.error;
   return isRecord(error) && error.code === 'USER_AUTHORIZATION_EXPIRED';
+}
+
+function providerDetail(body: unknown): string | undefined {
+  if (!isRecord(body)) return undefined;
+  const code = typeof body.code === 'string' || typeof body.code === 'number' ? String(body.code) : '';
+  const message = typeof body.message === 'string' ? body.message : '';
+  const text = [code, message]
+    .map((part) => part.replace(/\s+/g, ' ').trim())
+    .filter((part) => part.length > 0)
+    .join(': ')
+    .slice(0, 180);
+  return text || undefined;
+}
+
+function unavailableMessage(status: number, body: unknown): string {
+  const detail = providerDetail(body);
+  return detail ? `Provider unavailable (${String(status)}): ${detail}` : `Provider unavailable (${String(status)})`;
 }
 
 function retryAfter(response: Response, now: Date): Date {
@@ -200,22 +222,12 @@ export class MeuPluggyProvider implements OpenFinanceProvider {
     range: TransactionRange,
     cursor?: string,
   ): Promise<TransactionPage> {
-    const page = cursor ? Number(cursor) : 1;
-    if (!Number.isInteger(page) || page < 1) throw new ProviderUnavailableError('unknown cursor');
-    const params = new URLSearchParams({
-      accountId: accountExternalId,
-      from: dateKey(range.from),
-      to: dateKey(range.to),
-      page: String(page),
-      pageSize: String(PAGE_SIZE),
-    });
-    const payload = await this.readJson<PluggyPage<PluggyTransaction>>(`/transactions?${params.toString()}`);
+    const payload = await this.readJson<PluggyTransactionPage>(this.transactionPath(accountExternalId, range, cursor));
     const items = (payload.results ?? []).flatMap((transaction) => {
       const mapped = this.mapTransaction(transaction, accountExternalId);
       return mapped ? [mapped] : [];
     });
-    const total = payload.totalPages ?? 1;
-    const nextCursor = page < total ? String(page + 1) : undefined;
+    const nextCursor = payload.next?.startsWith('?') ? payload.next : undefined;
     return { items, ...(nextCursor ? { nextCursor } : {}) };
   }
 
@@ -300,8 +312,23 @@ export class MeuPluggyProvider implements OpenFinanceProvider {
       throw new ProviderAuthError();
     }
     if (response.status === 429) throw new ProviderRateLimitError(retryAfter(response, this.now()));
-    if (response.status >= 500) throw new ProviderUnavailableError();
-    throw new ProviderUnavailableError();
+    throw new ProviderUnavailableError(unavailableMessage(response.status, body));
+  }
+
+  private transactionPath(accountExternalId: string, range: TransactionRange, cursor?: string): string {
+    if (!cursor) {
+      const params = new URLSearchParams({
+        accountId: accountExternalId,
+        dateFrom: dateKey(range.from),
+        dateTo: dateKey(range.to),
+        pageSize: String(PAGE_SIZE),
+      });
+      return `/v2/transactions?${params.toString()}`;
+    }
+    if (!cursor.startsWith('?') || cursor.includes('://') || cursor.includes('#') || /\s/.test(cursor)) {
+      throw new ProviderUnavailableError('unknown cursor');
+    }
+    return `/v2/transactions${cursor}`;
   }
 
   private async request(path: string, allowRefresh = true): Promise<Response> {

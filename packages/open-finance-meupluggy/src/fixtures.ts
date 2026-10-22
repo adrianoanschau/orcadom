@@ -89,6 +89,27 @@ export function transactionsFor(accountId: string, now = new Date()): PluggyFixt
   return [];
 }
 
+export function transactionPage(
+  accountId: string,
+  params: URLSearchParams,
+  now = new Date(),
+): { results: PluggyFixtureTransaction[]; next: string | null } {
+  const all = transactionsFor(accountId, now);
+  const after = params.get('after');
+  let start = 0;
+  if (after) {
+    const index = all.findIndex((row) => row.id === after);
+    if (index < 0) return { results: [], next: null };
+    start = index + 1;
+  }
+  const results = all.slice(start, start + MEUPLUGGY_PAGE_SIZE);
+  const last = results[results.length - 1];
+  if (!last || start + results.length >= all.length) return { results, next: null };
+  const next = new URLSearchParams(params);
+  next.set('after', last.id);
+  return { results, next: `?${next.toString()}` };
+}
+
 export function accountFixtures() {
   return [
     {

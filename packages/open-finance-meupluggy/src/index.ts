@@ -10,6 +10,7 @@ export {
   cardFixtures,
   checkingFixtures,
   itemFixture,
+  transactionPage,
   transactionsFor,
 } from './fixtures.js';
 export { MEUPLUGGY_PROVIDER_ID, MEUPLUGGY_WEBHOOK_HEADER, MeuPluggyProvider } from './provider.js';

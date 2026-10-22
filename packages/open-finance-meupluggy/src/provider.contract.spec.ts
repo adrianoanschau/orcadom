@@ -2,16 +2,15 @@ import { CONTRACT_ERROR_IDS } from '@orcadom/open-finance-core';
 import { runProviderContractTests } from '@orcadom/open-finance-core/contract';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { NotSupportedError } from './errors.js';
 import {
   MEUPLUGGY_CARD_ID,
   MEUPLUGGY_CHECKING_ID,
   MEUPLUGGY_DEMO_ITEM_ID,
-  MEUPLUGGY_PAGE_SIZE,
   accountFixtures,
   itemFixture,
-  transactionsFor,
+  transactionPage,
 } from './fixtures.js';
 import { MEUPLUGGY_WEBHOOK_HEADER, MeuPluggyProvider } from './provider.js';
 
@@ -46,25 +45,20 @@ const server = setupServer(
     if (itemId !== MEUPLUGGY_DEMO_ITEM_ID) return HttpResponse.json({ page: 1, totalPages: 1, results: [] });
     return HttpResponse.json({ page: 1, totalPages: 1, results: accountFixtures() });
   }),
-  http.get(`${origin}/transactions`, ({ request }) => {
+  http.get(`${origin}/v2/transactions`, ({ request }) => {
     const url = new URL(request.url);
+    calls.push(`GET /v2/transactions${url.search}`);
     const accountId = url.searchParams.get('accountId') ?? '';
-    const page = Number(url.searchParams.get('page') ?? '1');
-    calls.push(`GET /transactions ${accountId} ${String(page)}`);
-    const all = transactionsFor(accountId);
-    const start = (page - 1) * MEUPLUGGY_PAGE_SIZE;
-    const results = all.slice(start, start + MEUPLUGGY_PAGE_SIZE);
-    return HttpResponse.json({
-      page,
-      total: all.length,
-      totalPages: Math.max(1, Math.ceil(all.length / MEUPLUGGY_PAGE_SIZE)),
-      results,
-    });
+    return HttpResponse.json(transactionPage(accountId, url.searchParams));
   }),
 );
 
 beforeAll(() => {
   server.listen({ onUnhandledRequest: 'error' });
+});
+
+afterEach(() => {
+  server.resetHandlers();
 });
 
 afterAll(() => {
@@ -103,6 +97,33 @@ describe('Meu Pluggy adapter', () => {
     expect(checking?.balanceCents).toBe(150_050);
     expect(card?.creditLimitCents).toBe(500_000);
     expect(card?.kind).toBe('CREDIT_CARD');
+  });
+
+  it('lists transactions from the cursor endpoint', async () => {
+    calls.length = 0;
+    const page = await provider().listTransactions(MEUPLUGGY_CHECKING_ID, {
+      from: new Date('2026-01-01T00:00:00.000Z'),
+      to: new Date('2026-10-22T00:00:00.000Z'),
+    });
+    expect(page.nextCursor).toContain('after=');
+    expect(calls[0]).toContain('dateFrom=2026-01-01');
+    expect(calls[0]).toContain('dateTo=2026-10-22');
+    expect(calls[0]).toContain('pageSize=500');
+    expect(calls.some((call) => call.startsWith('GET /transactions'))).toBe(false);
+    await expect(
+      provider().listTransactions(MEUPLUGGY_CHECKING_ID, { from: new Date(), to: new Date() }, '2'),
+    ).rejects.toThrow('unknown cursor');
+  });
+
+  it('keeps the Pluggy status when the transaction list fails', async () => {
+    server.use(
+      http.get(`${origin}/v2/transactions`, () =>
+        HttpResponse.json({ code: 'INVALID_DATE', message: 'date range is too wide' }, { status: 400 }),
+      ),
+    );
+    await expect(
+      provider().listTransactions(MEUPLUGGY_CHECKING_ID, { from: new Date('2025-01-01'), to: new Date('2026-10-22') }),
+    ).rejects.toThrow('Provider unavailable (400): INVALID_DATE: date range is too wide');
   });
 
   it('copies the bill id and the installment from the card transaction', async () => {
