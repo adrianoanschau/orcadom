@@ -1,5 +1,9 @@
 # @orcadom/config
 
+## 0.21.2
+
+No changes in this release.
+
 ## 0.21.1
 
 No changes in this release.
