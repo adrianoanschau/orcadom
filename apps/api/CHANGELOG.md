@@ -1,5 +1,17 @@
 # @orcadom/api
 
+## 0.21.2
+
+### Patch Changes
+
+- 10b403c: Stop sending pageSize when listing Meu Pluggy transactions.
+- Updated dependencies [10b403c]
+  - @orcadom/open-finance-meupluggy@0.21.2
+  - @orcadom/database@0.21.2
+  - @orcadom/open-finance-core@0.21.2
+  - @orcadom/open-finance-testing@0.21.2
+  - @orcadom/types@0.21.2
+
 ## 0.21.1
 
 ### Patch Changes
