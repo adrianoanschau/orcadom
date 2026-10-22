@@ -39,6 +39,11 @@ const server = setupServer(
     }
     return HttpResponse.json(itemFixture(id));
   }),
+  http.get(`${origin}/accounts/:id`, ({ params }) => {
+    const account = accountFixtures().find((item) => item.id === params.id);
+    if (!account) return new HttpResponse(null, { status: 404 });
+    return HttpResponse.json(account);
+  }),
   http.get(`${origin}/accounts`, ({ request }) => {
     const itemId = new URL(request.url).searchParams.get('itemId');
     calls.push(`GET /accounts?itemId=${itemId ?? ''}`);
@@ -106,9 +111,10 @@ describe('Meu Pluggy adapter', () => {
       to: new Date('2026-10-22T00:00:00.000Z'),
     });
     expect(page.nextCursor).toContain('after=');
-    expect(calls[0]).toContain('dateFrom=2026-01-01');
-    expect(calls[0]).toContain('dateTo=2026-10-22');
-    expect(calls[0]).not.toContain('pageSize');
+    const listed = calls.find((call) => call.startsWith('GET /v2/transactions'));
+    expect(listed).toContain('dateFrom=2026-01-01');
+    expect(listed).toContain('dateTo=2026-10-22');
+    expect(listed).not.toContain('pageSize');
     expect(calls.some((call) => call.startsWith('GET /transactions'))).toBe(false);
     await expect(
       provider().listTransactions(MEUPLUGGY_CHECKING_ID, { from: new Date(), to: new Date() }, '2'),

@@ -57,7 +57,7 @@ export function cardFixtures(now = new Date()): PluggyFixtureTransaction[] {
     {
       id: 'card-bill-payment',
       description: 'Pagamento fatura',
-      amount: MEUPLUGGY_BILL_AMOUNT,
+      amount: -MEUPLUGGY_BILL_AMOUNT,
       date: daysAgo(now, 12),
       category: 'Credit card payment',
       accountId: MEUPLUGGY_CARD_ID,
@@ -68,7 +68,7 @@ export function cardFixtures(now = new Date()): PluggyFixtureTransaction[] {
     {
       id: 'card-installment',
       description: 'Mercado',
-      amount: -89.9,
+      amount: 89.9,
       date: daysAgo(now, 20),
       category: 'Groceries',
       accountId: MEUPLUGGY_CARD_ID,
