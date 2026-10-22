@@ -1,5 +1,19 @@
 # @orcadom/web
 
+## 0.21.0
+
+### Minor Changes
+
+- 2bc1983: Add a personal Meu Pluggy adapter that stays off unless its feature flag is enabled.
+- 989bcdb: Add an Open Finance provider port, a fake adapter, and API sync through the existing import matcher.
+
+### Patch Changes
+
+- 48a7dd4: Forward PUT through the web API proxy so Meu Pluggy credentials can be saved.
+- Updated dependencies [2bc1983]
+- Updated dependencies [989bcdb]
+  - @orcadom/types@0.21.0
+
 ## 0.20.2
 
 ### Patch Changes
