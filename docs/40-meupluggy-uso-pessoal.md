@@ -20,7 +20,9 @@ das configurações e o webhook responde 404.
 
 A Pluggy atualiza os itens a cada 24 horas. O Orcadom não chama
 `PATCH /items`. O sync só relê o que já está lá, por
-`GET /v2/transactions` (`dateFrom`, `dateTo` e o cursor `next`). A autorização do Meu Pluggy
+`GET /v2/transactions` (`dateFrom`, `dateTo` e o cursor `next`). No cartão, a Pluggy
+manda a compra com valor positivo e o pagamento com valor negativo; o adapter
+inverte esse sinal, então a compra entra como despesa. A autorização do Meu Pluggy
 dura um ano (`consentExpiresAt`). Com 30 dias ou menos, e quando a Pluggy
 devolve `USER_AUTHORIZATION_EXPIRED`, o status avisa para repetir o passo 3.
 

@@ -164,6 +164,7 @@ export class MeuPluggyProvider implements OpenFinanceProvider {
   private readonly baseUrl: string;
   private readonly now: () => Date;
   private cachedKey: { value: string; expiresAt: number } | null = null;
+  private readonly accountKinds = new Map<string, ProviderAccount['kind'] | null>();
 
   constructor(private readonly config: MeuPluggyConfig) {
     this.baseUrl = (config.baseUrl ?? 'https://api.pluggy.ai').replace(/\/$/, '');
@@ -221,9 +222,10 @@ export class MeuPluggyProvider implements OpenFinanceProvider {
     range: TransactionRange,
     cursor?: string,
   ): Promise<TransactionPage> {
+    const kind = await this.accountKind(accountExternalId);
     const payload = await this.readJson<PluggyTransactionPage>(this.transactionPath(accountExternalId, range, cursor));
     const items = (payload.results ?? []).flatMap((transaction) => {
-      const mapped = this.mapTransaction(transaction, accountExternalId);
+      const mapped = this.mapTransaction(transaction, accountExternalId, kind);
       return mapped ? [mapped] : [];
     });
     const nextCursor = payload.next?.startsWith('?') ? payload.next : undefined;
@@ -261,6 +263,7 @@ export class MeuPluggyProvider implements OpenFinanceProvider {
     if (!account.id || !account.name) return null;
     const kind = mapKind(account);
     if (!kind) return null;
+    if (account.id) this.accountKinds.set(account.id, kind);
     const limit = account.creditData?.creditLimit;
     return {
       externalId: account.id,
@@ -273,7 +276,11 @@ export class MeuPluggyProvider implements OpenFinanceProvider {
     };
   }
 
-  private mapTransaction(transaction: PluggyTransaction, accountExternalId: string): ProviderTransaction | null {
+  private mapTransaction(
+    transaction: PluggyTransaction,
+    accountExternalId: string,
+    kind: ProviderAccount['kind'] | null,
+  ): ProviderTransaction | null {
     if (!transaction.id || typeof transaction.amount !== 'number' || !transaction.date) return null;
     const date = new Date(transaction.date);
     if (Number.isNaN(date.getTime())) return null;
@@ -288,12 +295,21 @@ export class MeuPluggyProvider implements OpenFinanceProvider {
       externalId: transaction.id,
       accountExternalId: transaction.accountId ?? accountExternalId,
       date,
-      amountCents: toCents(transaction.amount),
+      amountCents: toCents(kind === 'CREDIT_CARD' ? -transaction.amount : transaction.amount),
       description,
       ...(transaction.category ? { rawCategory: transaction.category } : {}),
       ...(metadata?.billId ? { billExternalId: metadata.billId } : {}),
       ...(installment ? { installment } : {}),
     };
+  }
+
+  private async accountKind(accountExternalId: string): Promise<ProviderAccount['kind'] | null> {
+    const cached = this.accountKinds.get(accountExternalId);
+    if (cached !== undefined) return cached;
+    const account = await this.readJson<PluggyAccount>(`/accounts/${encodeURIComponent(accountExternalId)}`);
+    const kind = mapKind(account);
+    this.accountKinds.set(accountExternalId, kind);
+    return kind;
   }
 
   private async readJson<T>(path: string): Promise<T> {

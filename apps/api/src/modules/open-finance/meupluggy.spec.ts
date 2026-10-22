@@ -196,6 +196,18 @@ describe('meupluggy sync', () => {
         response.end(JSON.stringify(itemFixture(MEUPLUGGY_DEMO_ITEM_ID)));
         return;
       }
+      if (url.pathname.startsWith('/accounts/')) {
+        const id = decodeURIComponent(url.pathname.slice('/accounts/'.length));
+        const account = accountFixtures().find((item) => item.id === id);
+        if (!account) {
+          response.statusCode = 404;
+          response.end();
+          return;
+        }
+        response.setHeader('content-type', 'application/json');
+        response.end(JSON.stringify(account));
+        return;
+      }
       if (url.pathname === '/accounts') {
         response.setHeader('content-type', 'application/json');
         response.end(JSON.stringify({ page: 1, totalPages: 1, results: accountFixtures() }));
