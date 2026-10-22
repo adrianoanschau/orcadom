@@ -198,6 +198,35 @@ describe('open finance reconciliation with file imports', () => {
     expect(linked).toEqual(['ofx-a', 'ofx-b']);
     expect(linked).not.toContain('already');
   });
+
+  it('turns repeated amounts between two controlled accounts into transfers', async () => {
+    const ledger = new MemoryLedger();
+    const base = {
+      providerId: 'meupluggy',
+      householdId: 'household',
+      userId: 'user',
+    };
+    await importProviderTransactions(ledger, {
+      ...base,
+      localAccountId: 'checking',
+      transactions: [
+        providerRow({ externalId: 'out-1', date: '2026-10-01', description: 'PIX', amountCents: -10_000 }),
+        providerRow({ externalId: 'out-2', date: '2026-10-03', description: 'PIX', amountCents: -10_000 }),
+      ],
+    });
+    await importProviderTransactions(ledger, {
+      ...base,
+      localAccountId: 'sicredi',
+      transactions: [
+        providerRow({ externalId: 'in-1', date: '2026-10-01', description: 'PIX', amountCents: 10_000 }),
+        providerRow({ externalId: 'in-2', date: '2026-10-04', description: 'PIX', amountCents: 10_000 }),
+      ],
+    });
+    const transfers = ledger.transactions.filter((transaction) => transaction.type === 'TRANSFER');
+    expect(transfers).toHaveLength(2);
+    expect(transfers.every((transaction) => transaction.fromAccountId === 'checking' && transaction.toAccountId === 'sicredi')).toBe(true);
+    expect(ledger.transactions.some((transaction) => transaction.type !== 'TRANSFER')).toBe(false);
+  });
 });
 
 describe('open finance provider selection', () => {

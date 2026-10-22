@@ -28,8 +28,9 @@ está em [39-open-finance-adapters.md](./39-open-finance-adapters.md).
 
 A sincronização não cria um segundo pipeline de lançamentos. As
 transações do provedor viram linhas do `matchImportRows` já usado no OFX
-([`36`](./36-importacao-conciliacao-contas-a-pagar.md)). Pagamento de
-fatura que casa com o crédito no cartão vira `TRANSFER`. A idempotência
+([`36`](./36-importacao-conciliacao-contas-a-pagar.md)). Saída numa conta
+controlada e entrada na outra, com o mesmo valor e até 3 dias, viram uma
+`TRANSFER` — inclusive o pagamento de fatura no cartão. A idempotência
 é o par `externalProvider` + `externalId` (e a chave da segunda perna).
 A tela de preview continua prevista; esta etapa grava o resultado do
 matcher.

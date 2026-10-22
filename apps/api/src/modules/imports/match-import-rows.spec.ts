@@ -204,6 +204,53 @@ describe('conciliação da importação', () => {
     });
   });
 
+  it('prefere a transferência da outra conta a um lançamento do mesmo valor', () => {
+    const result = matchImportRows(
+      [line({ lineId: 'out', direction: 'out', amount: 500, description: 'PIX' })],
+      [
+        {
+          id: 'padaria',
+          date: '2026-10-12',
+          amount: 500,
+          type: 'EXPENSE',
+          description: 'Padaria',
+          accountId: account,
+          fromAccountId: null,
+          toAccountId: null,
+          billId: null,
+          billDescription: null,
+        },
+      ],
+      [],
+      account,
+      [{ id: 'sicredi-in', accountId: 'sicredi', accountName: 'Sicredi', date: '2026-10-12', amount: 500, direction: 'in' }],
+      'link-existing',
+    );
+    expect(result.get('out')?.suggestedAction).toBe('RECORD_TRANSFER');
+  });
+
+  it('pré-seleciona transferências repetidas com a mesma outra conta', () => {
+    const counterparts = [
+      { id: 'out-12', accountId: 'nubank', accountName: 'Nubank', date: '2026-10-12', amount: 100, direction: 'out' as const },
+      { id: 'out-11', accountId: 'nubank', accountName: 'Nubank', date: '2026-10-11', amount: 100, direction: 'out' as const },
+    ];
+    const lines = [
+      line({ lineId: 'in-12', direction: 'in', amount: 100, date: '2026-10-12' }),
+      line({ lineId: 'in-11', direction: 'in', amount: 100, date: '2026-10-11' }),
+    ];
+    for (const strategy of ['confirm', 'link-existing'] as const) {
+      const result = matchImportRows(lines, [], [], 'sicredi', counterparts, strategy);
+      expect(result.get('in-12')).toMatchObject({
+        suggestedAction: 'RECORD_TRANSFER',
+        matches: [{ kind: 'OWN_TRANSFER', transactionId: 'out-12', matchConfidence: 'high' }],
+      });
+      expect(result.get('in-11')).toMatchObject({
+        suggestedAction: 'RECORD_TRANSFER',
+        matches: [{ kind: 'OWN_TRANSFER', transactionId: 'out-11', matchConfidence: 'high' }],
+      });
+    }
+  });
+
   it('não pré-seleciona quando duas contas têm a mesma saída', () => {
     const result = matchImportRows(
       [line({ lineId: 'in', direction: 'in', amount: 100 })],

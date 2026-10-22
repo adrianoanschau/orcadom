@@ -128,6 +128,11 @@ fica com a pessoa, e o comportamento padrão continua sendo importar.
 - Linha com **mais de um** candidato possível vira `low` e **nenhuma ação
   é pré-selecionada**: todos os candidatos aparecem e a pessoa escolhe.
   Exemplo: duas contas de R$ 100,00 pendentes e uma linha de R$ 100,00.
+- Transferência entre contas do domicílio é a exceção: se todas as pernas
+  opostas (mesmo valor, até 3 dias) estão na **mesma** outra conta, a mais
+  próxima é pré-selecionada, uma por lançamento. Duas outras contas
+  diferentes continuam sem pré-seleção. O sync do Open Finance grava essa
+  pré-seleção como `TRANSFER`.
 
 ### 5.4 — Constantes (de aplicação, não schema; calibráveis na Fase 5)
 
@@ -480,7 +485,8 @@ pagamento de `35` (Fases 1–2 de lá).
   AURORA" é a conta "Condomínio" e vincular com `high` mesmo com valor
   variável). Evolução natural se a Fase 5 mostrar muitos `low` em contas
   recorrentes.
-- Detecção geral de transferência entre contas próprias, com pré-seleção.
+- Detecção de transferência quando o mesmo valor aparece em duas contas
+  diferentes do domicílio ao mesmo tempo, sem uma perna só.
 - Conciliação sem revisão humana (automática).
 - `LINK_TRANSACTION` com diferença de valor (edite o lançamento antes).
 - Casamento por descrição como critério qualificador.
