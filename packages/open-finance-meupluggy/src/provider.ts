@@ -17,7 +17,6 @@ import { NotSupportedError } from './errors.js';
 export const MEUPLUGGY_PROVIDER_ID = 'meupluggy';
 export const MEUPLUGGY_WEBHOOK_HEADER = 'x-meupluggy-webhook-token';
 const API_KEY_TTL_MS = 110 * 60 * 1000;
-const PAGE_SIZE = 500;
 
 export interface MeuPluggyConfig {
   clientId: string;
@@ -321,7 +320,6 @@ export class MeuPluggyProvider implements OpenFinanceProvider {
         accountId: accountExternalId,
         dateFrom: dateKey(range.from),
         dateTo: dateKey(range.to),
-        pageSize: String(PAGE_SIZE),
       });
       return `/v2/transactions?${params.toString()}`;
     }

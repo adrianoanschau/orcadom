@@ -108,7 +108,7 @@ describe('Meu Pluggy adapter', () => {
     expect(page.nextCursor).toContain('after=');
     expect(calls[0]).toContain('dateFrom=2026-01-01');
     expect(calls[0]).toContain('dateTo=2026-10-22');
-    expect(calls[0]).toContain('pageSize=500');
+    expect(calls[0]).not.toContain('pageSize');
     expect(calls.some((call) => call.startsWith('GET /transactions'))).toBe(false);
     await expect(
       provider().listTransactions(MEUPLUGGY_CHECKING_ID, { from: new Date(), to: new Date() }, '2'),
