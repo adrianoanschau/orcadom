@@ -142,6 +142,15 @@ export function matchImportRows(
       });
       continue;
     }
+    const ownTransfer = sameAccountTransfer(line, options);
+    if (ownTransfer) {
+      claimed.add(claimKey(ownTransfer));
+      result.set(line.lineId, {
+        matches: [{ ...ownTransfer, matchConfidence: 'high' }],
+        suggestedAction: 'RECORD_TRANSFER',
+      });
+      continue;
+    }
     const linked = strategy === 'link-existing' ? linkExistingTransaction(line, options) : null;
     if (linked) {
       claimed.add(claimKey(linked));
@@ -158,6 +167,14 @@ export function matchImportRows(
   }
 
   return result;
+}
+
+function sameAccountTransfer(line: MatchLine, options: readonly RowMatch[]): RowMatch | null {
+  if (options.some((match) => match.matchConfidence === 'high' && match.kind !== 'OWN_TRANSFER')) return null;
+  const transfers = options.filter((match) => match.kind === 'OWN_TRANSFER');
+  const accountIds = new Set(transfers.map((match) => match.accountId));
+  if (accountIds.size !== 1) return null;
+  return pickClosest(line, transfers);
 }
 
 function linkExistingTransaction(line: MatchLine, options: readonly RowMatch[]): RowMatch | null {
