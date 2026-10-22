@@ -1,7 +1,8 @@
 import type { ProviderTransaction } from '@orcadom/open-finance-core';
-import { utcDateKey } from '../../common/calendar.js';
+import { addDaysKey, utcDateKey } from '../../common/calendar.js';
 import { truncateDescription } from '../imports/parsers/shared.js';
 import {
+  RECONCILE_TX_DAYS,
   matchImportRows,
   type MatchCounterparty,
   type MatchTransactionCandidate,
@@ -16,6 +17,16 @@ export interface LedgerTransaction {
   accountId: string | null;
   fromAccountId: string | null;
   toAccountId: string | null;
+  externalProvider: string | null;
+  boundToProvider: boolean;
+}
+
+export interface LedgerMatchQuery {
+  householdId: string;
+  accountId: string;
+  providerId: string;
+  from: string;
+  to: string;
 }
 
 export interface MovementInput {
@@ -45,7 +56,7 @@ export interface TransferConversion {
 
 export interface OpenFinanceLedger {
   hasExternal(providerId: string, externalId: string): Promise<boolean>;
-  listForMatch(householdId: string): Promise<LedgerTransaction[]>;
+  listForMatch(query: LedgerMatchQuery): Promise<LedgerTransaction[]>;
   addMovement(input: MovementInput): Promise<void>;
   convertToTransfer(input: TransferConversion): Promise<void>;
   rememberExternal(providerId: string, externalId: string, transactionId: string): Promise<void>;
@@ -59,6 +70,35 @@ export function describeProviderTransaction(transaction: ProviderTransaction): s
     ? `${transaction.description}${suffix}`
     : transaction.description;
   return truncateDescription(withInstallment);
+}
+
+export function selectForMatch(
+  transactions: readonly LedgerTransaction[],
+  query: LedgerMatchQuery,
+  hasProviderKey: (transactionId: string) => boolean,
+): LedgerTransaction[] {
+  return transactions
+    .filter((transaction) => affectsAccount(transaction, query))
+    .map((transaction) => ({
+      ...transaction,
+      boundToProvider: Boolean(transaction.externalProvider) || hasProviderKey(transaction.id),
+    }));
+}
+
+function affectsAccount(transaction: LedgerTransaction, query: LedgerMatchQuery): boolean {
+  if (transaction.date < query.from || transaction.date > query.to) return false;
+  if (
+    transaction.accountId === query.accountId ||
+    transaction.fromAccountId === query.accountId ||
+    transaction.toAccountId === query.accountId
+  ) {
+    return true;
+  }
+  return (
+    transaction.accountId !== null &&
+    transaction.accountId !== query.accountId &&
+    (transaction.type === 'INCOME' || transaction.type === 'EXPENSE')
+  );
 }
 
 function toCandidate(transaction: LedgerTransaction): MatchTransactionCandidate {
@@ -99,30 +139,67 @@ export async function importProviderTransactions(
     transactions: readonly ProviderTransaction[];
   },
 ): Promise<void> {
-  const ordered = [...input.transactions].sort(
+  const pending: ProviderTransaction[] = [];
+  for (const transaction of [...input.transactions].sort(
     (left, right) => left.date.getTime() - right.date.getTime() || left.externalId.localeCompare(right.externalId),
-  );
-  for (const transaction of ordered) {
+  )) {
     if (await ledger.hasExternal(input.providerId, transaction.externalId)) continue;
     if (!Number.isInteger(transaction.amountCents) || transaction.amountCents === 0) continue;
+    pending.push(transaction);
+  }
+  if (pending.length === 0) return;
+
+  const dates = pending.map((transaction) => utcDateKey(transaction.date));
+  const earliest = dates.reduce((left, right) => (left < right ? left : right));
+  const latest = dates.reduce((left, right) => (left > right ? left : right));
+  const posted = await ledger.listForMatch({
+    householdId: input.householdId,
+    accountId: input.localAccountId,
+    providerId: input.providerId,
+    from: addDaysKey(earliest, -RECONCILE_TX_DAYS),
+    to: addDaysKey(latest, RECONCILE_TX_DAYS),
+  });
+  const counterparts = posted.flatMap((row) => {
+    const counterparty = toCounterparty(row);
+    return counterparty ? [counterparty] : [];
+  });
+  const decisions = matchImportRows(
+    pending.map((transaction) => ({
+      lineId: transaction.externalId,
+      date: utcDateKey(transaction.date),
+      amount: Math.abs(transaction.amountCents) / 100,
+      direction: transaction.amountCents < 0 ? ('out' as const) : ('in' as const),
+      description: describeProviderTransaction(transaction),
+    })),
+    posted.filter((row) => !row.boundToProvider).map(toCandidate),
+    [],
+    input.localAccountId,
+    counterparts,
+    'link-existing',
+  );
+
+  for (const transaction of pending) {
     const direction = transaction.amountCents < 0 ? 'out' : 'in';
     const amount = Math.abs(transaction.amountCents) / 100;
     const date = utcDateKey(transaction.date);
     const description = describeProviderTransaction(transaction);
-    const posted = await ledger.listForMatch(input.householdId);
-    const counterparts = posted.flatMap((row) => {
-      const counterparty = toCounterparty(row);
-      return counterparty ? [counterparty] : [];
-    });
-    const decision = matchImportRows(
-      [{ lineId: transaction.externalId, date, amount, direction, description }],
-      posted.map(toCandidate),
-      [],
-      input.localAccountId,
-      counterparts,
-    ).get(transaction.externalId);
+    const decision = decisions.get(transaction.externalId);
     const match = decision?.matches[0];
-    if (decision?.suggestedAction === 'RECORD_TRANSFER' && match?.kind === 'OWN_TRANSFER') {
+    if (!decision || !match) {
+      await ledger.addMovement({
+        householdId: input.householdId,
+        userId: input.userId,
+        providerId: input.providerId,
+        externalId: transaction.externalId,
+        accountId: input.localAccountId,
+        direction,
+        amount,
+        date,
+        description,
+      });
+      continue;
+    }
+    if (decision.suggestedAction === 'RECORD_TRANSFER' && match.kind === 'OWN_TRANSFER') {
       await ledger.convertToTransfer({
         transactionId: match.transactionId,
         householdId: input.householdId,
@@ -138,9 +215,8 @@ export async function importProviderTransactions(
       continue;
     }
     if (
-      decision?.suggestedAction === 'SKIP' &&
-      match &&
-      (match.kind === 'TRANSFER_MIRROR' || match.kind === 'TRANSACTION')
+      (decision.suggestedAction === 'SKIP' && (match.kind === 'TRANSFER_MIRROR' || match.kind === 'TRANSACTION')) ||
+      (decision.suggestedAction === 'LINK_TRANSACTION' && match.kind === 'TRANSACTION')
     ) {
       await ledger.rememberExternal(input.providerId, transaction.externalId, match.transactionId);
       continue;

@@ -35,6 +35,19 @@ job diário. A janela é `lastSyncAt − 7 dias` (a Pluggy reenvia dias
 anteriores) e, na primeira carga, 365 dias. O `externalProvider` gravado é
 `meupluggy`.
 
+## Extratos importados antes
+
+Um sync não cria de novo um lançamento que já entrou por OFX ou CSV. Na mesma
+conta, com o mesmo valor e até 3 dias de diferença, o Orcadom grava a chave
+do provedor naquele lançamento. A leitura dessa conta é uma só, limitada a
+essa janela: o domicílio inteiro não entra no casamento. Se houver mais de
+um candidato, fica o mais próximo na data e, em seguida, o de descrição mais
+parecida. Cada lançamento só casa com uma transação do provedor. Fica de
+fora quem já tem `externalProvider` ou uma chave deste provedor. O pagamento
+da fatura continua virando transferência da corrente para o cartão. O import
+por arquivo segue pedindo confirmação; essa ligação automática vale só para
+o sync.
+
 ## Como desligar
 
 Deixe `OPEN_FINANCE_MEUPLUGGY_ENABLED` diferente de `true`. Sem a flag, o

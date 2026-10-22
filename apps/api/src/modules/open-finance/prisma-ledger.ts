@@ -1,9 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PostingStatus, Prisma } from '@orcadom/database';
-import { utcDateKey } from '../../common/calendar.js';
+import { noonUtcFromKey, utcDateKey } from '../../common/calendar.js';
 import { PrismaService } from '../../common/prisma.service.js';
 import { TransactionsService } from '../transactions/transactions.service.js';
 import type {
+  LedgerMatchQuery,
   LedgerTransaction,
   MovementInput,
   OpenFinanceLedger,
@@ -34,9 +35,31 @@ export class PrismaOpenFinanceLedger implements OpenFinanceLedger {
     return Boolean(row);
   }
 
-  async listForMatch(householdId: string): Promise<LedgerTransaction[]> {
+  async listForMatch(query: LedgerMatchQuery): Promise<LedgerTransaction[]> {
     const rows = await this.prisma.client.transaction.findMany({
-      where: { householdId, postingStatus: PostingStatus.POSTED },
+      where: {
+        householdId: query.householdId,
+        postingStatus: PostingStatus.POSTED,
+        date: {
+          gte: noonUtcFromKey(query.from),
+          lte: noonUtcFromKey(query.to),
+        },
+        OR: [
+          { accountId: query.accountId },
+          { fromAccountId: query.accountId },
+          { toAccountId: query.accountId },
+          {
+            type: { in: ['INCOME', 'EXPENSE'] },
+            accountId: { not: query.accountId },
+          },
+        ],
+      },
+      include: {
+        openFinanceKeys: {
+          where: { provider: query.providerId },
+          select: { id: true },
+        },
+      },
     });
     return rows.map((row) => ({
       id: row.id,
@@ -47,6 +70,8 @@ export class PrismaOpenFinanceLedger implements OpenFinanceLedger {
       accountId: row.accountId,
       fromAccountId: row.fromAccountId,
       toAccountId: row.toAccountId,
+      externalProvider: row.externalProvider,
+      boundToProvider: Boolean(row.externalProvider) || row.openFinanceKeys.length > 0,
     }));
   }
 

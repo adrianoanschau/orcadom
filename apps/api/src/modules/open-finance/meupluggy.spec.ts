@@ -8,14 +8,24 @@ import {
   MEUPLUGGY_PAGE_SIZE,
   MeuPluggyProvider,
   accountFixtures,
+  cardFixtures,
+  checkingFixtures,
   itemFixture,
   transactionsFor,
 } from '@orcadom/open-finance-meupluggy';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { utcDateKey } from '../../common/calendar.js';
 import { decryptSecret, encryptSecret, readEncryptionKey } from './credentials-crypto.js';
-import type { LedgerTransaction, MovementInput, OpenFinanceLedger, TransferConversion } from './import-provider-transactions.js';
+import {
+  selectForMatch,
+  type LedgerMatchQuery,
+  type LedgerTransaction,
+  type MovementInput,
+  type OpenFinanceLedger,
+  type TransferConversion,
+} from './import-provider-transactions.js';
 import { MeuPluggyModule } from './meupluggy.module.js';
 import { consentWarning, meupluggySyncRange, withProviderBackoff } from './meupluggy-range.js';
 import { syncLinkedAccounts } from './sync-linked-accounts.js';
@@ -28,8 +38,22 @@ class MemoryLedger implements OpenFinanceLedger {
     return Promise.resolve(this.keys.has(`${providerId}:${externalId}`));
   }
 
-  listForMatch(): Promise<LedgerTransaction[]> {
-    return Promise.resolve(this.transactions.map((transaction) => ({ ...transaction })));
+  listForMatch(query: LedgerMatchQuery): Promise<LedgerTransaction[]> {
+    return Promise.resolve(
+      selectForMatch(this.transactions, query, (transactionId) => this.hasProviderKey(query.providerId, transactionId)),
+    );
+  }
+
+  keyFor(providerId: string, externalId: string): string | undefined {
+    return this.keys.get(`${providerId}:${externalId}`);
+  }
+
+  private hasProviderKey(providerId: string, transactionId: string): boolean {
+    const prefix = `${providerId}:`;
+    for (const [key, id] of this.keys) {
+      if (id === transactionId && key.startsWith(prefix)) return true;
+    }
+    return false;
   }
 
   addMovement(input: MovementInput): Promise<void> {
@@ -43,6 +67,8 @@ class MemoryLedger implements OpenFinanceLedger {
       accountId: input.accountId,
       fromAccountId: null,
       toAccountId: null,
+      externalProvider: input.providerId,
+      boundToProvider: true,
     });
     this.keys.set(`${input.providerId}:${input.externalId}`, id);
     return Promise.resolve();
@@ -137,6 +163,7 @@ describe('meupluggy credentials', () => {
 });
 
 describe('meupluggy sync', () => {
+  const fixtureNow = new Date();
   let server: Server;
   let baseUrl = '';
 
@@ -166,7 +193,7 @@ describe('meupluggy sync', () => {
       if (url.pathname === '/transactions') {
         const accountId = url.searchParams.get('accountId') ?? '';
         const page = Number(url.searchParams.get('page') ?? '1');
-        const all = transactionsFor(accountId);
+        const all = transactionsFor(accountId, fixtureNow);
         const start = (page - 1) * MEUPLUGGY_PAGE_SIZE;
         response.setHeader('content-type', 'application/json');
         response.end(
@@ -225,5 +252,49 @@ describe('meupluggy sync', () => {
     await syncLinkedAccounts(provider, ledger, input);
     expect(ledger.transactions).toHaveLength(count);
     expect(ledger.transactions.filter((transaction) => transaction.type === 'TRANSFER')).toHaveLength(1);
+  });
+
+  it('links a previously imported statement instead of duplicating it', async () => {
+    const provider = new MeuPluggyProvider({
+      clientId: 'client-fixture',
+      clientSecret: 'secret-fixture',
+      itemIds: [MEUPLUGGY_DEMO_ITEM_ID],
+      webhookToken: 'token',
+      baseUrl,
+    });
+    const ledger = new MemoryLedger();
+    for (const row of checkingFixtures(fixtureNow)) {
+      ledger.transactions.push({
+        id: `ofx-${row.id}`,
+        date: utcDateKey(new Date(row.date)),
+        amount: Math.abs(row.amount),
+        type: row.amount < 0 ? 'EXPENSE' : 'INCOME',
+        description: row.description,
+        accountId: 'local-checking',
+        fromAccountId: null,
+        toAccountId: null,
+        externalProvider: null,
+        boundToProvider: false,
+      });
+    }
+    const input = {
+      householdId: 'household',
+      userId: 'user',
+      range: meupluggySyncRange(null, fixtureNow),
+      links: [
+        { externalId: MEUPLUGGY_CHECKING_ID, localAccountId: 'local-checking', kind: 'CHECKING' as const },
+        { externalId: MEUPLUGGY_CARD_ID, localAccountId: 'local-card', kind: 'CREDIT_CARD' as const },
+      ],
+    };
+    const seeded = ledger.transactions.length;
+    await syncLinkedAccounts(provider, ledger, input);
+    expect(ledger.transactions).toHaveLength(seeded + cardFixtures(fixtureNow).length - 1);
+    for (const row of [...checkingFixtures(fixtureNow), ...cardFixtures(fixtureNow)]) {
+      expect(ledger.keyFor(provider.id, row.id)).toBeTruthy();
+    }
+    const count = ledger.transactions.length;
+    await syncLinkedAccounts(provider, ledger, input);
+    expect(ledger.transactions).toHaveLength(count);
+    expect(ledger.transactions.filter((transaction) => transaction.description.startsWith('Compra'))).toHaveLength(24);
   });
 });
