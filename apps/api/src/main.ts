@@ -11,7 +11,7 @@ import { AppModule } from './app.module.js';
 import { parseWebOrigins } from './web-origin.js';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  const app = await NestFactory.create(AppModule, { bufferLogs: true, rawBody: true });
   app.useLogger(app.get(Logger));
   configureTrustProxy(app.getHttpAdapter().getInstance() as unknown);
   app.use(cookieParser());

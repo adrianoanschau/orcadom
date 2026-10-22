@@ -3,7 +3,7 @@
   "changelog": "@changesets/cli/changelog",
   "commit": false,
   "fixed": [
-    ["@orcadom/api", "@orcadom/web", "@orcadom/database", "@orcadom/types", "@orcadom/config"]
+    ["@orcadom/api", "@orcadom/web", "@orcadom/database", "@orcadom/types", "@orcadom/config", "@orcadom/open-finance-core", "@orcadom/open-finance-testing"]
   ],
   "linked": [],
   "access": "restricted",

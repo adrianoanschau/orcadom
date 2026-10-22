@@ -31,6 +31,8 @@ RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 COPY --from=builder --chown=orcadom:orcadom /app/apps/api/dist ./apps/api/dist
 COPY --from=builder --chown=orcadom:orcadom /app/packages/database/dist ./packages/database/dist
 COPY --from=builder --chown=orcadom:orcadom /app/packages/types/dist ./packages/types/dist
+COPY --from=builder --chown=orcadom:orcadom /app/packages/open-finance-core/dist ./packages/open-finance-core/dist
+COPY --from=builder --chown=orcadom:orcadom /app/packages/open-finance-testing/dist ./packages/open-finance-testing/dist
 USER orcadom
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
