@@ -173,6 +173,7 @@ model User {
   reportRequests    ReportRequest[]
   pushSubscriptions PushSubscription[]
   openFinanceConnections OpenFinanceConnection[]
+  meuPluggyCredential    MeuPluggyCredential?
 
   @@map("users")
 }
@@ -231,6 +232,7 @@ model Household {
   reportRequests        ReportRequest[]
   bills                 Bill[]
   openFinanceConnections OpenFinanceConnection[]
+  meuPluggyCredentials   MeuPluggyCredential[]
 
   @@map("households")
 }
@@ -739,4 +741,27 @@ model OpenFinanceExternalKey {
   @@unique([provider, externalId])
   @@index([transactionId])
   @@map("open_finance_external_keys")
+}
+
+model MeuPluggyCredential {
+  id                 String    @id @default(uuid())
+  clientId           String
+  clientSecretCipher String
+  itemIds            String[]
+  consentExpiresAt   DateTime?
+  lastSyncAt         DateTime?
+  lastAuthReason     String?
+  webhookTokenHash   String    @unique
+  webhookTokenCipher String
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  @@index([householdId])
+  @@map("meupluggy_credentials")
 }

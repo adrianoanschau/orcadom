@@ -13,6 +13,8 @@ export const providerConnectionSchema = z.object({
   status: connectionStatusSchema,
   institutionName: z.string().min(1),
   lastSyncAt: z.date().nullable(),
+  consentExpiresAt: z.date().nullable().optional(),
+  authReason: z.string().optional(),
 });
 
 export const accountKindSchema = z.enum(['CHECKING', 'SAVINGS', 'CREDIT_CARD']);

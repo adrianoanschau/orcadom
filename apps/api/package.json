@@ -24,6 +24,7 @@
     "@nestjs/throttler": "^6",
     "@orcadom/database": "workspace:*",
     "@orcadom/open-finance-core": "workspace:*",
+    "@orcadom/open-finance-meupluggy": "workspace:*",
     "@orcadom/open-finance-testing": "workspace:*",
     "@orcadom/types": "workspace:*",
     "@sentry/nestjs": "^11.0.0",

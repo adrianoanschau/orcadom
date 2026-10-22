@@ -13,6 +13,7 @@ do agregador continua em aberto; ver também
 | --- | --- |
 | `@orcadom/open-finance-core` | Schemas Zod, erros e a interface. Sem SDK de provedor. |
 | `@orcadom/open-finance-testing` | `FakeOpenFinanceProvider`, usado em desenvolvimento e teste. |
+| `@orcadom/open-finance-meupluggy` | Uso pessoal do conector gratuito Meu Pluggy. Flag desligada por padrão. Ver [40](./40-meupluggy-uso-pessoal.md). |
 | `apps/api` (`modules/open-finance`) | Persistência, endpoints e a sincronização. |
 
 A API escolhe o provedor pela variável `OPEN_FINANCE_PROVIDER`. Sem valor,
