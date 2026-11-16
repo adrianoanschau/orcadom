@@ -45,11 +45,9 @@ export default function LoginPage() {
             {...form.register('email')}
           />
         </Field>
-        <div className="block text-sm text-ink-soft">
-          <label htmlFor="password">Senha</label>
-          <span className="relative mt-1 block">
+        <Field label="Senha" error={humanize(form.formState.errors.password?.message ?? '')}>
+          <span className="relative block">
             <input
-              id="password"
               type={showPassword ? 'text' : 'password'}
               autoComplete="current-password"
               className={`${controlClass} pr-11`}
@@ -65,12 +63,7 @@ export default function LoginPage() {
               {showPassword ? <EyeOffIcon /> : <EyeIcon />}
             </button>
           </span>
-          {form.formState.errors.password?.message ? (
-            <span className="mt-1 block text-sm text-ink">
-              {humanize(form.formState.errors.password.message)}
-            </span>
-          ) : null}
-        </div>
+        </Field>
         <label className="flex min-h-11 items-start gap-2 text-sm text-ink">
           <input
             type="checkbox"
