@@ -58,7 +58,9 @@ export default function LoginPage() {
               className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-ink-soft hover:text-ink"
               aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
               aria-pressed={showPassword}
-              onClick={() => setShowPassword((visible) => !visible)}
+              onClick={() => {
+                setShowPassword((visible) => !visible);
+              }}
             >
               {showPassword ? <EyeOffIcon /> : <EyeIcon />}
             </button>
