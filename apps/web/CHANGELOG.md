@@ -1,5 +1,15 @@
 # @orcadom/web
 
+## 0.22.0
+
+### Minor Changes
+
+- 4d953bf: Show or hide the typed password on the login screen.
+
+### Patch Changes
+
+- @orcadom/types@0.22.0
+
 ## 0.21.3
 
 ### Patch Changes

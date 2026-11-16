@@ -5,6 +5,16 @@ O produto usa uma única versão SemVer (`MAJOR.MINOR.PATCH`) para o
 monorepo inteiro. A partir de `0.9.0`, as entradas passam a ser geradas
 pelos changesets.
 
+## 0.22.0
+
+### Patch Changes
+
+- @orcadom/database@0.22.0
+  - @orcadom/open-finance-core@0.22.0
+  - @orcadom/open-finance-meupluggy@0.22.0
+  - @orcadom/open-finance-testing@0.22.0
+  - @orcadom/types@0.22.0
+
 ## 0.21.3
 
 ### Patch Changes
