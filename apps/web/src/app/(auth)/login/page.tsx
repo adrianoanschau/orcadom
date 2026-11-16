@@ -7,10 +7,12 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { ApiError, api } from '@/lib/api';
 import { humanize } from '@/lib/format';
+import { EyeIcon, EyeOffIcon } from '@/components/icons';
 import { Button, Field, Notice, controlClass } from '@/components/ui';
 
 export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
   const form = useForm<LoginDto>({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: '', password: '', remember: false },
@@ -43,14 +45,32 @@ export default function LoginPage() {
             {...form.register('email')}
           />
         </Field>
-        <Field label="Senha" error={humanize(form.formState.errors.password?.message ?? '')}>
-          <input
-            type="password"
-            autoComplete="current-password"
-            className={controlClass}
-            {...form.register('password')}
-          />
-        </Field>
+        <div className="block text-sm text-ink-soft">
+          <label htmlFor="password">Senha</label>
+          <span className="relative mt-1 block">
+            <input
+              id="password"
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="current-password"
+              className={`${controlClass} pr-11`}
+              {...form.register('password')}
+            />
+            <button
+              type="button"
+              className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-ink-soft hover:text-ink"
+              aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+              aria-pressed={showPassword}
+              onClick={() => setShowPassword((visible) => !visible)}
+            >
+              {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+            </button>
+          </span>
+          {form.formState.errors.password?.message ? (
+            <span className="mt-1 block text-sm text-ink">
+              {humanize(form.formState.errors.password.message)}
+            </span>
+          ) : null}
+        </div>
         <label className="flex min-h-11 items-start gap-2 text-sm text-ink">
           <input
             type="checkbox"
